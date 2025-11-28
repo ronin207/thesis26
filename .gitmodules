@@ -1,0 +1,3 @@
+[submodule "libiop"]
+	path = libiop
+	url = https://github.com/scipr-lab/libiop.git
