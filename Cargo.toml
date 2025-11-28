@@ -1,0 +1,34 @@
+[package]
+name = "vc-pqc"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bincode = { version = "1.3", optional = true }
+rand = { version = "0.8", optional = true }
+rand_chacha = { version = "0.3", optional = true }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+sha2 = { version = "0.10", default-features = false }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter"], optional = true }
+risc0-zkvm = { version = "3.0.3", optional = true }
+
+[features]
+default = ["std"]
+std = [
+    "dep:bincode",
+    "dep:tracing",
+    "dep:tracing-subscriber",
+    "dep:risc0-zkvm",
+    "dep:rand",
+    "dep:rand_chacha",
+]
+guest = []
+euf_cma_harness = ["std"]
+snark_harness = ["std"]
+
+[build-dependencies]
+cmake = "0.1"
+
+[dev-dependencies]
+methods = { path = "zkvm/methods" }
