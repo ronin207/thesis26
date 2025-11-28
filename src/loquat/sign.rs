@@ -1,0 +1,899 @@
+#[cfg(feature = "std")]
+use super::encoding;
+#[cfg(feature = "std")]
+use super::errors::{LoquatError, LoquatResult};
+#[cfg(feature = "std")]
+use super::field_utils;
+use super::field_utils::{F, F2};
+#[cfg(feature = "std")]
+use super::hasher::{GriffinHasher, LoquatHasher};
+#[cfg(feature = "std")]
+use super::ldt::LDTOpening;
+use super::ldt::LDTProof;
+use super::sumcheck::UnivariateSumcheckProof;
+use super::transcript::Transcript;
+#[cfg(feature = "std")]
+use super::{
+    fft::{evaluate_on_coset, interpolate_on_coset},
+    field_utils::legendre_prf_secure,
+    keygen::LoquatKeyPair,
+    merkle::MerkleTree,
+    setup::LoquatPublicParams,
+    sumcheck::generate_sumcheck_proof,
+};
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
+use std::vec::Vec;
+#[cfg(feature = "std")]
+use std::{cmp, string::ToString};
+
+#[cfg(feature = "std")]
+fn expand_challenge<T>(
+    seed: &[u8],
+    count: usize,
+    domain_separator: &[u8],
+    parser: &mut dyn FnMut(&[u8]) -> T,
+) -> Vec<T> {
+    let mut results = Vec::with_capacity(count);
+    let mut counter: u32 = 0;
+    while results.len() < count {
+        let mut hasher = GriffinHasher::new();
+        hasher.update(seed);
+        hasher.update(domain_separator);
+        hasher.update(&counter.to_le_bytes());
+        let hash_output = hasher.finalize();
+        results.push(parser(&hash_output));
+        counter += 1;
+    }
+    results
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoquatSignature {
+    /// The root of the Merkle tree of LDT commitments.
+    pub root_c: [u8; 32],
+    /// Merkle root for s evaluations.
+    pub root_s: [u8; 32],
+    /// Merkle root for h evaluations.
+    pub root_h: [u8; 32],
+    /// The values of the t polynomial at the query points.
+    pub t_values: Vec<Vec<F>>,
+    /// The values of the o polynomial at the query points.
+    pub o_values: Vec<Vec<F>>,
+    /// Masked evaluations ĉ'_j over U for each j.
+    pub c_prime_evals: Vec<Vec<F2>>,
+    /// Evaluations of ŝ over U.
+    pub s_evals: Vec<F2>,
+    /// Evaluations of ĥ over U.
+    pub h_evals: Vec<F2>,
+    /// Evaluations of f′ over U.
+    pub f_prime_evals: Vec<F2>,
+    /// Evaluations of p̂ over U.
+    pub p_evals: Vec<F2>,
+    /// Stacked matrix rows Π (Π0 followed by Π1).
+    pub pi_rows: Vec<Vec<F2>>,
+    /// Evaluations of f^{(0)} over U.
+    pub f0_evals: Vec<F2>,
+    /// FRI folding challenges h_{5+i}.
+    pub fri_challenges: Vec<F2>,
+    /// FRI layer codewords f^{(i)} evaluations.
+    pub fri_codewords: Vec<Vec<F2>>,
+    /// FRI layer row evaluations Π^{(i)}.
+    pub fri_rows: Vec<Vec<Vec<F2>>>,
+    /// Challenge vector e used in Algorithm 5.
+    pub e_vector: Vec<F2>,
+    /// Sum Σ_{a∈H} ŝ(a).
+    pub s_sum: F2,
+    /// Claimed sum μ.
+    pub mu: F2,
+    /// Challenge z used in Algorithm 5.
+    pub z_challenge: F2,
+    /// The univariate sumcheck proof.
+    pub pi_us: UnivariateSumcheckProof,
+    /// The LDT proof.
+    pub ldt_proof: LDTProof,
+    /// The message commitment.
+    pub message_commitment: Vec<u8>,
+    /// Optional signing transcript for debugging/instrumentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transcript: Option<LoquatSigningTranscript>,
+}
+
+impl LoquatSignature {
+    pub fn new(
+        artifact: LoquatSignatureArtifact,
+        transcript: Option<LoquatSigningTranscript>,
+    ) -> Self {
+        Self {
+            root_c: artifact.root_c,
+            root_s: artifact.root_s,
+            root_h: artifact.root_h,
+            t_values: artifact.t_values,
+            o_values: artifact.o_values,
+            c_prime_evals: artifact.c_prime_evals,
+            s_evals: artifact.s_evals,
+            h_evals: artifact.h_evals,
+            f_prime_evals: artifact.f_prime_evals,
+            p_evals: artifact.p_evals,
+            pi_rows: artifact.pi_rows,
+            f0_evals: artifact.f0_evals,
+            fri_challenges: artifact.fri_challenges,
+            fri_codewords: artifact.fri_codewords,
+            fri_rows: artifact.fri_rows,
+            e_vector: artifact.e_vector,
+            s_sum: artifact.s_sum,
+            mu: artifact.mu,
+            z_challenge: artifact.z_challenge,
+            pi_us: artifact.pi_us,
+            ldt_proof: artifact.ldt_proof,
+            message_commitment: artifact.message_commitment,
+            transcript,
+        }
+    }
+
+    pub fn artifact(&self) -> LoquatSignatureArtifact {
+        self.into()
+    }
+
+    pub fn transcript(&self) -> Option<&LoquatSigningTranscript> {
+        self.transcript.as_ref()
+    }
+}
+
+#[cfg(feature = "std")]
+pub fn flatten_signature_for_hash(signature: &LoquatSignature) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&signature.root_c);
+    bytes.extend_from_slice(&signature.root_s);
+    bytes.extend_from_slice(&signature.root_h);
+    flatten_field_matrix(&signature.t_values, &mut bytes);
+    flatten_field_matrix(&signature.o_values, &mut bytes);
+    flatten_field2_matrix(&signature.c_prime_evals, &mut bytes);
+    flatten_field2_vector(&signature.s_evals, &mut bytes);
+    flatten_field2_vector(&signature.h_evals, &mut bytes);
+    flatten_field2_vector(&signature.f_prime_evals, &mut bytes);
+    flatten_field2_vector(&signature.p_evals, &mut bytes);
+    flatten_field2_matrix(&signature.pi_rows, &mut bytes);
+    flatten_field2_vector(&signature.f0_evals, &mut bytes);
+    flatten_field2_vector(&signature.fri_challenges, &mut bytes);
+    flatten_nested_field2(&signature.fri_codewords, &mut bytes);
+    flatten_two_nested_field2(&signature.fri_rows, &mut bytes);
+    flatten_field2_vector(&signature.e_vector, &mut bytes);
+    bytes.extend_from_slice(&field_utils::field2_to_bytes(&signature.s_sum));
+    bytes.extend_from_slice(&field_utils::field2_to_bytes(&signature.mu));
+    bytes.extend_from_slice(&field_utils::field2_to_bytes(&signature.z_challenge));
+    bytes.extend_from_slice(&field_utils::field2_to_bytes(&signature.pi_us.claimed_sum));
+    bytes.extend_from_slice(&field_utils::field2_to_bytes(
+        &signature.pi_us.final_evaluation,
+    ));
+    for poly in &signature.pi_us.round_polynomials {
+        bytes.extend_from_slice(&field_utils::field2_to_bytes(&poly.c0));
+        bytes.extend_from_slice(&field_utils::field2_to_bytes(&poly.c1));
+    }
+    for opening in &signature.ldt_proof.openings {
+        bytes.extend_from_slice(&(opening.position as u64).to_le_bytes());
+        flatten_nested_field2(&opening.codeword_chunks, &mut bytes);
+        bytes.extend_from_slice(&field_utils::field2_to_bytes(&opening.final_eval));
+        flatten_two_nested_field2(&opening.row_chunks, &mut bytes);
+        flatten_byte_paths(&opening.auth_path, &mut bytes);
+    }
+    bytes
+}
+
+#[cfg(feature = "std")]
+fn flatten_field_matrix(matrix: &[Vec<F>], out: &mut Vec<u8>) {
+    for row in matrix {
+        for value in row {
+            out.extend_from_slice(&field_utils::field_to_bytes(value));
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+fn flatten_field2_matrix(matrix: &[Vec<F2>], out: &mut Vec<u8>) {
+    for row in matrix {
+        flatten_field2_vector(row, out);
+    }
+}
+
+#[cfg(feature = "std")]
+fn flatten_field2_vector(values: &[F2], out: &mut Vec<u8>) {
+    for value in values {
+        out.extend_from_slice(&field_utils::field2_to_bytes(value));
+    }
+}
+
+#[cfg(feature = "std")]
+fn flatten_nested_field2(matrix: &[Vec<F2>], out: &mut Vec<u8>) {
+    for row in matrix {
+        flatten_field2_vector(row, out);
+    }
+}
+
+#[cfg(feature = "std")]
+fn flatten_two_nested_field2(blocks: &[Vec<Vec<F2>>], out: &mut Vec<u8>) {
+    for block in blocks {
+        flatten_nested_field2(block, out);
+    }
+}
+
+#[cfg(feature = "std")]
+fn flatten_byte_paths(paths: &[Vec<u8>], out: &mut Vec<u8>) {
+    for node in paths {
+        out.extend_from_slice(node);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoquatSignatureArtifact {
+    pub root_c: [u8; 32],
+    pub root_s: [u8; 32],
+    pub root_h: [u8; 32],
+    pub t_values: Vec<Vec<F>>,
+    pub o_values: Vec<Vec<F>>,
+    pub c_prime_evals: Vec<Vec<F2>>,
+    pub s_evals: Vec<F2>,
+    pub h_evals: Vec<F2>,
+    pub f_prime_evals: Vec<F2>,
+    pub p_evals: Vec<F2>,
+    pub pi_rows: Vec<Vec<F2>>,
+    pub f0_evals: Vec<F2>,
+    pub fri_challenges: Vec<F2>,
+    pub fri_codewords: Vec<Vec<F2>>,
+    pub fri_rows: Vec<Vec<Vec<F2>>>,
+    pub e_vector: Vec<F2>,
+    pub s_sum: F2,
+    pub mu: F2,
+    pub z_challenge: F2,
+    pub pi_us: UnivariateSumcheckProof,
+    pub ldt_proof: LDTProof,
+    pub message_commitment: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LoquatSigningTranscript {
+    /// Randomness matrix r_{j,i} captured during signing.
+    pub randomness_matrix: Vec<Vec<F>>,
+    /// Original evaluations of c_j over H before masking.
+    pub c_evals_on_h: Vec<Vec<F2>>,
+}
+
+impl From<&LoquatSignature> for LoquatSignatureArtifact {
+    fn from(sig: &LoquatSignature) -> Self {
+        Self {
+            root_c: sig.root_c,
+            root_s: sig.root_s,
+            root_h: sig.root_h,
+            t_values: sig.t_values.clone(),
+            o_values: sig.o_values.clone(),
+            c_prime_evals: sig.c_prime_evals.clone(),
+            s_evals: sig.s_evals.clone(),
+            h_evals: sig.h_evals.clone(),
+            f_prime_evals: sig.f_prime_evals.clone(),
+            p_evals: sig.p_evals.clone(),
+            pi_rows: sig.pi_rows.clone(),
+            f0_evals: sig.f0_evals.clone(),
+            fri_challenges: sig.fri_challenges.clone(),
+            fri_codewords: sig.fri_codewords.clone(),
+            fri_rows: sig.fri_rows.clone(),
+            e_vector: sig.e_vector.clone(),
+            s_sum: sig.s_sum,
+            mu: sig.mu,
+            z_challenge: sig.z_challenge,
+            pi_us: sig.pi_us.clone(),
+            ldt_proof: sig.ldt_proof.clone(),
+            message_commitment: sig.message_commitment.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+pub fn loquat_sign(
+    message: &[u8],
+    keypair: &LoquatKeyPair,
+    params: &LoquatPublicParams,
+) -> Result<LoquatSignature, LoquatError> {
+    loquat_debug!("\n================== ALGORITHMS 4-6: LOQUAT SIGN ==================");
+    loquat_debug!("INPUT: Public parameter L-pp, secret key sk, message M");
+    loquat_debug!("Following Algorithms 4, 5, 6 specification from rules.mdc");
+    loquat_debug!("Message length: {} bytes", message.len());
+    loquat_debug!(
+        "Public key length: {} field elements",
+        keypair.public_key.len()
+    );
+    loquat_debug!(
+        "Parameters: m={}, n={}, L={}, B={}, κ={}",
+        params.m,
+        params.n,
+        params.l,
+        params.b,
+        params.kappa
+    );
+
+    let mut transcript = Transcript::new(b"loquat_signature");
+    transcript.append_message(b"message", message);
+
+    // Use Griffin hash for message commitment (SNARK-friendly)
+    let message_commitment = GriffinHasher::hash(message);
+    transcript.append_message(b"message_commitment", &message_commitment);
+    loquat_debug!(
+        "✓ Message commitment computed: {} bytes",
+        message_commitment.len()
+    );
+
+    loquat_debug!("\n================== ALGORITHM 4: LOQUAT SIGN PART I ==================");
+
+    // Phase 1: Commit to secret key and randomness
+    loquat_debug!("\n--- PHASE 1: Commit to secret key and randomness ---");
+    loquat_debug!("Following Algorithm 4, Phase 1 specification");
+
+    loquat_debug!("\n--- Step 1.1: Computing T values (Legendre PRF outputs) ---");
+
+    let mut rng = rand::thread_rng();
+    let mut c_prime_evals_on_u: Vec<Vec<F2>> =
+        vec![Vec::with_capacity(params.n); params.coset_u.len()];
+    let mut c_prime_on_u_per_j: Vec<Vec<F2>> = Vec::with_capacity(params.n);
+    let mut c_on_h_per_j: Vec<Vec<F2>> = Vec::with_capacity(params.n);
+    let mut t_values = Vec::with_capacity(params.n);
+    let mut r_values: Vec<Vec<F>> = vec![Vec::with_capacity(params.m); params.n];
+
+    let h_order = params.coset_h.len() as u128;
+    let z_h_constant = params.h_shift.pow(h_order);
+    let z_h_on_u: Vec<F2> = params
+        .coset_u
+        .iter()
+        .map(|&u| u.pow(h_order) - z_h_constant)
+        .collect();
+
+    loquat_debug!("✓ Generated vanishing polynomial values Z_H(x) over U");
+
+    loquat_debug!("✓ Sampling randomness matrix r_{{j,i}} and constructing masked polynomials");
+
+    let u_len = params.coset_u.len();
+    for j in 0..params.n {
+        let mut t_j = Vec::with_capacity(params.m);
+        let mut c_j_evals_on_h = Vec::with_capacity(2 * params.m);
+
+        for _ in 0..params.m {
+            let r_sample = F::rand_nonzero(&mut rng);
+            r_values[j].push(r_sample);
+            let t_val = legendre_prf_secure(r_sample);
+            t_j.push(t_val);
+            c_j_evals_on_h.push(F2::new(keypair.secret_key * r_sample, F::zero()));
+            c_j_evals_on_h.push(F2::new(r_sample, F::zero()));
+        }
+        t_values.push(t_j);
+        c_on_h_per_j.push(c_j_evals_on_h.clone());
+
+        let c_hat_coeffs =
+            interpolate_on_coset(&c_j_evals_on_h, params.h_shift, params.h_generator)?;
+        let mut c_hat_coeffs_padded = vec![F2::zero(); u_len];
+        c_hat_coeffs_padded[..c_hat_coeffs.len()].copy_from_slice(&c_hat_coeffs);
+        let c_hat_on_u =
+            evaluate_on_coset(&c_hat_coeffs_padded, params.u_shift, params.u_generator)?;
+
+        let mut r_hat_coeffs = vec![F2::zero(); u_len];
+        let mask_bound = params.kappa.saturating_mul(1 << params.eta);
+        if u_len > 0 {
+            let max_index = cmp::min(mask_bound, u_len - 1);
+            for coeff in r_hat_coeffs.iter_mut().take(max_index + 1) {
+                *coeff = F2::rand(&mut rng);
+            }
+        }
+        let r_hat_on_u = evaluate_on_coset(&r_hat_coeffs, params.u_shift, params.u_generator)?;
+
+        let mut c_prime_on_u = Vec::with_capacity(u_len);
+        for i in 0..u_len {
+            let value = c_hat_on_u[i] + (z_h_on_u[i] * r_hat_on_u[i]);
+            c_prime_evals_on_u[i].push(value);
+            c_prime_on_u.push(value);
+        }
+        c_prime_on_u_per_j.push(c_prime_on_u);
+    }
+
+    loquat_debug!(
+        "✓ Generated randomness matrix r_{{j,i}} for j ∈ [{}], i ∈ [{}]",
+        params.n,
+        params.m
+    );
+    loquat_debug!("✓ Masked commitments prepared for Merkle binding over U");
+
+    loquat_debug!("✓ Computed masked evaluations ĉ'_j|_U for all j ∈ [n]");
+
+    // Merkle tree commitment to c' evaluations over U
+    loquat_debug!("\n--- Step 1.4: Merkle commitment to c'_j evaluations over U ---");
+    let leaves: Vec<Vec<u8>> = c_prime_evals_on_u
+        .iter()
+        .map(|evals| field_utils::serialize_field2_slice(evals))
+        .collect();
+    let merkle_tree = MerkleTree::new(&leaves);
+    let root_c: [u8; 32] = merkle_tree
+        .root()
+        .unwrap()
+        .try_into()
+        .expect("root is not 32 bytes");
+    transcript.append_message(b"root_c", &root_c);
+    loquat_debug!(
+        "✓ Merkle tree created with {} leaves for |U| = {}",
+        leaves.len(),
+        params.coset_u.len()
+    );
+    loquat_debug!("✓ root_c committed to transcript");
+
+    let t_bytes = encoding::serialize_field_matrix(&t_values);
+    transcript.append_message(b"t_values", &t_bytes);
+    loquat_debug!("✓ σ₁ = (root_c, {{T_{{i,j}}}}) added to transcript");
+
+    // Phase 2: Compute residuosity symbols
+    loquat_debug!("\n--- PHASE 2: Compute residuosity symbols ---");
+    loquat_debug!("Following Algorithm 4, Phase 2 specification");
+
+    let mut h1_bytes = [0u8; 32];
+    transcript.challenge_bytes(b"h1", &mut h1_bytes);
+    loquat_debug!("✓ h₁ = H₁(σ₁, M) computed");
+
+    let num_checks = params.m * params.n;
+    let i_indices = expand_challenge(&h1_bytes, num_checks, b"I_indices", &mut |b| {
+        (u64::from_le_bytes(b[0..8].try_into().unwrap()) as usize) % params.l
+    });
+    loquat_debug!(
+        "✓ Expanded h₁ to get I_{{i,j}} indices: {} total",
+        i_indices.len()
+    );
+
+    let mut o_values = Vec::with_capacity(params.n);
+    loquat_debug!("\n--- Step 2.1: Computing o_{{i,j}} values ---");
+    for j in 0..params.n {
+        let mut o_j = Vec::with_capacity(params.m);
+        for i in 0..params.m {
+            let i_ij = params.public_indices[i_indices[j * params.m + i]];
+            let o_val = (keypair.secret_key + i_ij) * r_values[j][i];
+            o_j.push(o_val);
+        }
+        o_values.push(o_j);
+    }
+    let o_bytes = encoding::serialize_field_matrix(&o_values);
+    transcript.append_message(b"o_values", &o_bytes);
+    loquat_debug!("✓ σ₂ = {{o_{{i,j}}}} added to transcript");
+
+    // Phase 3: Compute witness vector for univariate sumcheck
+    loquat_debug!("\n--- PHASE 3: Compute witness vector for univariate sumcheck ---");
+    loquat_debug!("Following Algorithm 4, Phase 3 specification");
+
+    let mut h2_bytes = [0u8; 32];
+    transcript.challenge_bytes(b"h2", &mut h2_bytes);
+    loquat_debug!("✓ h₂ = H₂(σ₂, h₁) computed");
+
+    let lambda_scalars = expand_challenge(&h2_bytes, num_checks, b"lambdas", &mut |b| {
+        field_utils::bytes_to_field_element(b)
+    });
+    let epsilon_vals = expand_challenge(&h2_bytes, params.n, b"e_j", &mut |b| {
+        F2::new(field_utils::bytes_to_field_element(b), F::zero())
+    });
+    loquat_debug!("✓ Expanded h₂ to get λ_{{i,j}} and ε_j values");
+
+    loquat_debug!("\n--- Step 3.3: Building witness polynomial data ---");
+    let mut f_on_h = vec![F2::zero(); params.coset_h.len()];
+    let mut f_on_u = vec![F2::zero(); params.coset_u.len()];
+
+    for j in 0..params.n {
+        let epsilon = epsilon_vals[j];
+
+        let mut q_eval_on_h = Vec::with_capacity(2 * params.m);
+        for i in 0..params.m {
+            let lambda_scalar = lambda_scalars[j * params.m + i];
+            let lambda_f2 = F2::new(lambda_scalar, F::zero());
+            let index = i_indices[j * params.m + i];
+            let public_i = params.public_indices[index];
+            let public_f2 = F2::new(public_i, F::zero());
+            q_eval_on_h.push(lambda_f2);
+            q_eval_on_h.push(lambda_f2 * public_f2);
+        }
+
+        let q_hat_coeffs = interpolate_on_coset(&q_eval_on_h, params.h_shift, params.h_generator)?;
+        let mut q_hat_coeffs_padded = vec![F2::zero(); params.coset_u.len()];
+        q_hat_coeffs_padded[..q_hat_coeffs.len()].copy_from_slice(&q_hat_coeffs);
+        let q_hat_on_u =
+            evaluate_on_coset(&q_hat_coeffs_padded, params.u_shift, params.u_generator)?;
+
+        let c_prime_on_u = &c_prime_on_u_per_j[j];
+        for i in 0..params.coset_u.len() {
+            let value = c_prime_on_u[i] * q_hat_on_u[i];
+            f_on_u[i] += epsilon * value;
+        }
+
+        let c_on_h = &c_on_h_per_j[j];
+        for (idx, (c_val, q_val)) in c_on_h.iter().zip(q_eval_on_h.iter()).enumerate() {
+            f_on_h[idx] += epsilon * (*c_val * *q_val);
+        }
+    }
+
+    let mu: F2 = {
+        let mut acc = F2::zero();
+        for j in 0..params.n {
+            let epsilon = epsilon_vals[j];
+            for i in 0..params.m {
+                let lambda_scalar = lambda_scalars[j * params.m + i];
+                let o_scalar = o_values[j][i];
+                let term = F2::new(lambda_scalar * o_scalar, F::zero());
+                acc += epsilon * term;
+            }
+        }
+        acc
+    };
+
+    let computed_mu: F2 = f_on_h.iter().copied().sum();
+    if computed_mu != mu {
+        loquat_debug!(
+            "⚠️ Warning: Σ f_on_h = {:?}, expected μ = {:?}",
+            computed_mu,
+            mu
+        );
+    } else {
+        loquat_debug!("✓ Polynomial evaluations over H sum to μ");
+    }
+    loquat_debug!(
+        "✓ μ = Σ_{{j=1}}^n ε_j * (Σ_{{i=1}}^m λ_{{i,j}} * o_{{i,j}}) = {:?}",
+        mu
+    );
+
+    // Execute the univariate sumcheck protocol
+    loquat_debug!("\n--- Step 3.4: Executing univariate sumcheck protocol ---");
+    let num_variables = (params.coset_h.len()).trailing_zeros() as usize;
+    let pi_us = generate_sumcheck_proof(&f_on_h, mu, num_variables, &mut transcript)?;
+    loquat_debug!("✓ Generated πUS with claimed_sum: {:?}", pi_us.claimed_sum);
+
+    loquat_debug!("\n================== ALGORITHM 5: LOQUAT SIGN PART II ==================");
+    let mask_degree_bound = 4 * params.m + (params.kappa * (1 << params.eta));
+    let mut s_coeffs = vec![F2::zero(); params.coset_u.len()];
+    if params.coset_u.len() > 0 {
+        let coeff_bound = cmp::min(mask_degree_bound + 1, params.coset_u.len());
+        for coeff in s_coeffs.iter_mut().take(coeff_bound) {
+            *coeff = F2::rand(&mut rng);
+        }
+    }
+    let s_on_u = evaluate_on_coset(&s_coeffs, params.u_shift, params.u_generator)?;
+    let mut s_on_h = Vec::with_capacity(params.coset_h.len());
+    for &point in params.coset_h.iter() {
+        let mut value = F2::zero();
+        let mut power = F2::one();
+        for coeff in s_coeffs.iter() {
+            value += *coeff * power;
+            power *= point;
+        }
+        s_on_h.push(value);
+    }
+    let s_sum: F2 = s_on_h.iter().copied().sum();
+    let s_leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(&s_on_u);
+    let s_merkle = MerkleTree::new(&s_leaves);
+    let root_s_vec = s_merkle.root().ok_or_else(|| LoquatError::MerkleError {
+        operation: "s_commitment".to_string(),
+        details: "Merkle tree root is empty".to_string(),
+    })?;
+    let root_s: [u8; 32] =
+        root_s_vec
+            .try_into()
+            .map_err(|v: Vec<u8>| LoquatError::MerkleError {
+                operation: "s_commitment".to_string(),
+                details: format!("Merkle root has length {} but expected 32", v.len()),
+            })?;
+    transcript.append_message(b"root_s", &root_s);
+    let s_sum_bytes = field_utils::field2_to_bytes(&s_sum);
+    transcript.append_message(b"s_sum", &s_sum_bytes);
+    loquat_debug!("✓ σ₃ = (root_s, S) added to transcript");
+
+    let mut h3_bytes = [0u8; 32];
+    transcript.challenge_bytes(b"h3", &mut h3_bytes);
+    let z_scalar = field_utils::bytes_to_field_element(&h3_bytes);
+    let z = F2::new(z_scalar, F::zero());
+    loquat_debug!("✓ h₃ = H₃(σ₃, h₂) computed");
+
+    let f_prime_on_u: Vec<F2> = f_on_u
+        .iter()
+        .zip(s_on_u.iter())
+        .map(|(&f_val, &s_val)| z * f_val + s_val)
+        .collect();
+    let f_prime_on_h: Vec<F2> = f_on_h
+        .iter()
+        .zip(s_on_h.iter())
+        .map(|(&f_val, &s_val)| z * f_val + s_val)
+        .collect();
+
+    let g_coeffs = interpolate_on_coset(&f_prime_on_h, params.h_shift, params.h_generator)?;
+    let mut g_coeffs_padded = vec![F2::zero(); params.coset_u.len()];
+    g_coeffs_padded[..g_coeffs.len()].copy_from_slice(&g_coeffs);
+    let g_on_u = evaluate_on_coset(&g_coeffs_padded, params.u_shift, params.u_generator)?;
+
+    let mut h_on_u = Vec::with_capacity(params.coset_u.len());
+    for i in 0..params.coset_u.len() {
+        let numerator = f_prime_on_u[i] - g_on_u[i];
+        let denom = z_h_on_u[i];
+        let denom_inv = denom
+            .inverse()
+            .ok_or_else(|| LoquatError::invalid_parameters("Encountered zero divisor in Z_H(u)"))?;
+        h_on_u.push(numerator * denom_inv);
+    }
+
+    let h_leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(&h_on_u);
+    let h_merkle = MerkleTree::new(&h_leaves);
+    let root_h_vec = h_merkle.root().ok_or_else(|| LoquatError::MerkleError {
+        operation: "h_commitment".to_string(),
+        details: "Merkle tree root is empty".to_string(),
+    })?;
+    let root_h: [u8; 32] =
+        root_h_vec
+            .try_into()
+            .map_err(|v: Vec<u8>| LoquatError::MerkleError {
+                operation: "h_commitment".to_string(),
+                details: format!("Merkle root has length {} but expected 32", v.len()),
+            })?;
+    transcript.append_message(b"root_h", &root_h);
+    loquat_debug!("✓ σ₄ = (root_h) added to transcript");
+
+    let mut h4_bytes = [0u8; 32];
+    transcript.challenge_bytes(b"h4", &mut h4_bytes);
+    let e_vector = expand_challenge(&h4_bytes, 8, b"e_vector", &mut |b| {
+        F2::new(field_utils::bytes_to_field_element(b), F::zero())
+    });
+    loquat_debug!("✓ h₄ = H₄(σ₄, h₃) computed");
+
+    let h_size_scalar = F2::new(F::new(params.coset_h.len() as u128), F::zero());
+    let z_mu_plus_s = z * mu + s_sum;
+    let mut p_on_u = Vec::with_capacity(params.coset_u.len());
+    for (idx, &x) in params.coset_u.iter().enumerate() {
+        let numerator = h_size_scalar * f_prime_on_u[idx]
+            - h_size_scalar * z_h_on_u[idx] * h_on_u[idx]
+            - z_mu_plus_s;
+        let denom = h_size_scalar * x;
+        let denom_inv = denom.inverse().ok_or_else(|| {
+            LoquatError::invalid_parameters("Encountered zero denominator in p(x) computation")
+        })?;
+        p_on_u.push(numerator * denom_inv);
+    }
+
+    let mut c_row = Vec::with_capacity(params.coset_u.len());
+    for idx in 0..params.coset_u.len() {
+        let mut sum = F2::zero();
+        for j in 0..params.n {
+            sum += c_prime_on_u_per_j[j][idx];
+        }
+        c_row.push(sum);
+    }
+
+    let base_rows = vec![
+        c_row.clone(),
+        s_on_u.clone(),
+        h_on_u.clone(),
+        p_on_u.clone(),
+    ];
+    let mut pi_rows = base_rows.clone();
+    for (row_idx, base_row) in base_rows.iter().enumerate() {
+        let exponent = params
+            .rho_star_num
+            .checked_sub(params.rho_numerators[row_idx])
+            .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_i"))?
+            as u128;
+        let mut scaled_row = Vec::with_capacity(params.coset_u.len());
+        for (value, &y) in base_row.iter().zip(params.coset_u.iter()) {
+            let y_pow = y.pow(exponent);
+            scaled_row.push(*value * y_pow);
+        }
+        pi_rows.push(scaled_row);
+    }
+
+    let mut f0_on_u = vec![F2::zero(); params.coset_u.len()];
+    for (row_idx, row) in pi_rows.iter().enumerate() {
+        let coeff = e_vector[row_idx];
+        for (col, value) in row.iter().enumerate() {
+            f0_on_u[col] += coeff * *value;
+        }
+    }
+    loquat_debug!("✓ f^(0) evaluations computed over U");
+
+    loquat_debug!(
+        "\n================== ALGORITHM 6: LOQUAT SIGN PART III (LDT) =================="
+    );
+    let ldt_codeword = f0_on_u.clone();
+    loquat_debug!(
+        "✓ LDT codeword length: {} (evaluations of f^(0) over U)",
+        ldt_codeword.len()
+    );
+    let (ldt_proof, fri_challenges, fri_codewords, fri_rows) =
+        ldt_protocol(&pi_rows, &ldt_codeword, params, &mut transcript)?;
+
+    loquat_debug!("\n--- FINAL SIGNATURE ASSEMBLY ---");
+
+    let artifact = LoquatSignatureArtifact {
+        root_c,
+        root_s,
+        root_h,
+        t_values,
+        o_values,
+        c_prime_evals: c_prime_on_u_per_j,
+        s_evals: s_on_u,
+        h_evals: h_on_u,
+        f_prime_evals: f_prime_on_u,
+        p_evals: p_on_u,
+        pi_rows,
+        f0_evals: f0_on_u,
+        fri_challenges,
+        fri_codewords,
+        fri_rows,
+        e_vector,
+        s_sum,
+        mu,
+        z_challenge: z,
+        pi_us,
+        ldt_proof,
+        message_commitment,
+    };
+
+    let transcript = LoquatSigningTranscript {
+        randomness_matrix: r_values,
+        c_evals_on_h: c_on_h_per_j,
+    };
+
+    loquat_debug!("✓ σ = {{root_c, root_s, root_h, T_{{i,j}}, o_{{i,j}}, πUS, πLDT}} assembled");
+
+    loquat_debug!("================== ALGORITHMS 4-6 COMPLETE ==================\n");
+    Ok(LoquatSignature::new(artifact, Some(transcript)))
+}
+
+#[cfg(feature = "std")]
+fn ldt_protocol(
+    pi_rows: &[Vec<F2>],
+    codeword: &[F2],
+    params: &LoquatPublicParams,
+    transcript: &mut Transcript,
+) -> LoquatResult<(LDTProof, Vec<F2>, Vec<Vec<F2>>, Vec<Vec<Vec<F2>>>)> {
+    let chunk_size = 1 << params.eta;
+
+    let mut layer_codewords = Vec::with_capacity(params.r + 1);
+    layer_codewords.push(codeword.to_vec());
+    let mut layer_rows = Vec::with_capacity(params.r + 1);
+    layer_rows.push(pi_rows.to_vec());
+    let mut folding_challenges = Vec::with_capacity(params.r);
+
+    let mut merkle_trees = Vec::with_capacity(params.r + 1);
+    let mut merkle_commitments = Vec::with_capacity(params.r + 1);
+
+    let initial_leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(codeword);
+    let initial_merkle_tree = MerkleTree::new(&initial_leaves);
+    let initial_commitment_vec =
+        initial_merkle_tree
+            .root()
+            .ok_or_else(|| LoquatError::MerkleError {
+                operation: "initial_commitment".to_string(),
+                details: "Merkle tree root is empty".to_string(),
+            })?;
+    let initial_commitment: [u8; 32] =
+        initial_commitment_vec
+            .try_into()
+            .map_err(|v: Vec<u8>| LoquatError::MerkleError {
+                operation: "initial_commitment".to_string(),
+                details: format!("Merkle root has length {} but expected 32", v.len()),
+            })?;
+
+    merkle_commitments.push(initial_commitment);
+    transcript.append_message(b"merkle_commitment", &initial_commitment);
+    merkle_trees.push(initial_merkle_tree);
+
+    let mut current_codeword = codeword.to_vec();
+    let mut current_rows = pi_rows.to_vec();
+
+    for _round in 0..params.r {
+        let challenge = transcript_challenge_f2(transcript);
+        folding_challenges.push(challenge);
+
+        let mut next_codeword =
+            Vec::with_capacity((current_codeword.len() + chunk_size - 1) / chunk_size);
+        for chunk in current_codeword.chunks(chunk_size) {
+            let mut coeff = F2::one();
+            let mut acc = F2::zero();
+            for &val in chunk {
+                acc += val * coeff;
+                coeff *= challenge;
+            }
+            next_codeword.push(acc);
+        }
+        layer_codewords.push(next_codeword.clone());
+
+        let mut next_rows = Vec::with_capacity(current_rows.len());
+        for row in current_rows.iter() {
+            let mut folded_row = Vec::with_capacity((row.len() + chunk_size - 1) / chunk_size);
+            for chunk in row.chunks(chunk_size) {
+                let mut coeff = F2::one();
+                let mut acc = F2::zero();
+                for &val in chunk {
+                    acc += val * coeff;
+                    coeff *= challenge;
+                }
+                folded_row.push(acc);
+            }
+            next_rows.push(folded_row);
+        }
+        layer_rows.push(next_rows.clone());
+        current_rows = next_rows;
+        current_codeword = next_codeword;
+
+        let leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(&current_codeword);
+        let merkle_tree = MerkleTree::new(&leaves);
+        let commitment_vec = merkle_tree.root().ok_or_else(|| LoquatError::MerkleError {
+            operation: "commitment".to_string(),
+            details: "Merkle tree root is empty".to_string(),
+        })?;
+        let commitment: [u8; 32] =
+            commitment_vec
+                .try_into()
+                .map_err(|v: Vec<u8>| LoquatError::MerkleError {
+                    operation: "commitment".to_string(),
+                    details: format!("Merkle root has length {} but expected 32", v.len()),
+                })?;
+
+        merkle_commitments.push(commitment);
+        transcript.append_message(b"merkle_commitment", &commitment);
+        merkle_trees.push(merkle_tree);
+    }
+
+    let mut openings = Vec::with_capacity(params.kappa);
+    for _ in 0..params.kappa {
+        let challenge = transcript_challenge_f2(transcript);
+        let position = challenge.c0.0 as usize % layer_codewords[0].len();
+        let mut fold_index = position;
+
+        let mut codeword_chunks = Vec::with_capacity(params.r);
+        let mut row_chunks = Vec::with_capacity(params.r);
+
+        for round in 0..params.r {
+            let layer_len = layer_codewords[round].len();
+            let chunk_len = chunk_size.min(layer_len);
+            let chunk_start = if layer_len > chunk_size {
+                (fold_index / chunk_size) * chunk_size
+            } else {
+                0
+            };
+            let chunk_end = (chunk_start + chunk_len).min(layer_len);
+            codeword_chunks.push(layer_codewords[round][chunk_start..chunk_end].to_vec());
+
+            let mut rows_for_layer = Vec::with_capacity(layer_rows[round].len());
+            for row in layer_rows[round].iter() {
+                rows_for_layer.push(row[chunk_start..chunk_end].to_vec());
+            }
+            row_chunks.push(rows_for_layer);
+
+            if layer_len > chunk_size {
+                fold_index /= chunk_size;
+            } else {
+                fold_index = 0;
+            }
+        }
+
+        let final_eval = layer_codewords.last().unwrap()[fold_index];
+        let auth_path = merkle_trees.last().unwrap().generate_auth_path(fold_index);
+
+        openings.push(LDTOpening {
+            position,
+            codeword_chunks,
+            final_eval,
+            row_chunks,
+            auth_path,
+        });
+    }
+
+    let proof = LDTProof {
+        commitments: merkle_commitments,
+        openings,
+    };
+
+    Ok((proof, folding_challenges, layer_codewords, layer_rows))
+}
+
+pub fn transcript_challenge_f2(transcript: &mut Transcript) -> F2 {
+    let mut buf = [0u8; 32];
+    transcript.challenge_bytes(b"challenge", &mut buf);
+    let c0 = F::new(u128::from_le_bytes(buf[..16].try_into().unwrap()));
+    let c1 = F::new(u128::from_le_bytes(buf[16..].try_into().unwrap()));
+    F2::new(c0, c1)
+}
