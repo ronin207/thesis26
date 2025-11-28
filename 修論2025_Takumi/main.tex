@@ -1,0 +1,115 @@
+\documentclass[a4j, 12pt]{article}
+\usepackage[dvipdfmx]{color}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{iftex}
+\ifPDFTeX
+    % pLaTeX-only font packages are skipped under pdfLaTeX
+\else
+    \usepackage[ipaex]{pxchfon}
+    \usepackage{otf}
+\fi
+\usepackage[utf8]{inputenc}
+\usepackage{ascmac}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{appendix}
+
+% Theorem environments (italic text)
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+% Definition environments (upright text)
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+% Remark environments (upright text, smaller spacing)
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\usepackage{comment}
+\usepackage{enumerate}
+\usepackage{here}
+\usepackage{latexsym}
+\usepackage{multirow}
+\usepackage{subfigure}
+\usepackage{url}
+\usepackage{threeparttable}
+% \usepackage{caption}
+% \captionsetup[table]{justification=centering}
+% \captionsetup[figure]{justification=centering}
+
+\usepackage{sakolab-thesis}
+
+%
+% 論文の表紙の項目
+%
+%\thesistype{令和6年度 修士論文}
+\date{, 2026}
+\title{Enhancing the Flexibility and Automation of Post-Quantum Anonymous Credentials: A Comparative Analysis of Zero-Knowledge Virtual Machines and SNARK Circuit Compilers}
+% todo: 英語版タイトルの変更
+\etitle{A Thesis Submitted to the Department of Computer Science and Communications Engineering, the Graduate School of Fundamental Science and Engineering of Waseda University in Partial Fulfillment of the Requirements for the Degree of
+Master of Engineering}
+\titlesize{24truept}
+\department{\fontsize{17pt}{17pt}\selectfont The Department of Computer Science and Communications Engineering, the }
+\major{\fontsize{17pt}{17pt}\selectfont Graduate School of Fundamental Science and Engineering of Waseda University}
+\guidance{Research on Cryptographic Protocols}
+\supervisor{Prof. Kazue Sako}
+\studentid{5124FG15-6}
+\author{Takumi Otsuka}
+
+\begin{document}
+    %表紙
+    \maketitle
+    
+    %概要
+    \begin{coverabstract}
+       The advent of quantum computing demands a rapid transition to post-quantum cryptographic solutions. In digital identity, SNARK-friendly schemes like Loquat\cite{cryptoeprint:2024/868} underpin post-quantum anonymous credential systems such as BDEC\cite{10.1007/978-981-96-0957-4_3}. However, BDEC’s reliance on static, custom zkSNARK\cite{cryptoeprint:2014/349} circuits for credential verification leads to critical inflexibility, rendering it impractical for dynamic attribute management. Zero-Knowledge Virtual Machines\cite{cryptoeprint:2023/1032} (zkVMs) promise a solution, offering to prove arbitrary programs and transform complex circuits into high-level code updates. This research will investigate the specific zero-knowledge properties of different zkVMs through comparative analysis of zkVMs and alternative SNARK circuit compilers\cite{lavin2024surveyapplicationszeroknowledgeproofs}, implementing and benchmarking the BDEC verifier within both approaches. This quantitative and qualitative analysis will determine which approach offers a more viable and agile foundation for the next generation of digital identity systems, specifically addressing the trade-offs between flexibility, performance with concrete metrics such as prover time, verification time, and memory usage.
+        
+
+    \end{coverabstract}
+    \newpage
+    
+    %目次
+    \tableofcontents
+    \newpage
+    
+    %図目次
+    \listoffigures
+    \newpage
+    
+    %表目次
+    \listoftables
+    \newpage
+    
+    % 本文
+    \input{01-intro}
+    \newpage
+    \input{02-background}
+    \newpage
+    \input{03-preliminaries}
+    \newpage
+    \input{05-evaluation}
+    \newpage
+    \input{06-discussion}
+    \newpage
+    \input{07-conclusion}
+    \newpage
+    \acknowledgement
+    %消す 
+
+    \newpage
+    
+    %  参考文献
+    \bibliographystyle{jieeetran}
+    \bibliography{ref}
+
+    \newpage
+    \input{appendices}
+    
+\end{document}

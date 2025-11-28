@@ -1,0 +1,23 @@
+\contentsline {section}{\numberline {1}Introduction}{6}{}%
+\contentsline {section}{\numberline {2}Background}{7}{}%
+\contentsline {subsection}{\numberline {2.1}Cryptographic Primitives}{7}{}%
+\contentsline {subsubsection}{\numberline {2.1.1}zkSNARKs}{7}{}%
+\contentsline {paragraph}{\textbf {Completeness.}}{7}{}%
+\contentsline {paragraph}{\textbf {Soundness.}}{7}{}%
+\contentsline {paragraph}{\textbf {Zero-Knowledge.}}{8}{}%
+\contentsline {paragraph}{\textbf {Succinctness.}}{8}{}%
+\contentsline {subsubsection}{\numberline {2.1.2}Digital Signatures}{8}{}%
+\contentsline {paragraph}{Security.}{8}{}%
+\contentsline {paragraph}{SNARK-friendliness.}{8}{}%
+\contentsline {subsection}{\numberline {2.2}Anonymous Credentials}{9}{}%
+\contentsline {subsubsection}{\numberline {2.2.1}Static Circuit Limitation}{9}{}%
+\contentsline {subsection}{\numberline {2.3}Dynamic Approaches}{9}{}%
+\contentsline {subsubsection}{\numberline {2.3.1}Zero-Knowledge Virtual Machines}{9}{}%
+\contentsline {subsubsection}{\numberline {2.3.2}SNARK Circuit Compilers}{9}{}%
+\contentsline {section}{\numberline {3}Dynamism}{10}{}%
+\contentsline {section}{\numberline {4}Evaluation}{11}{}%
+\contentsline {section}{\numberline {5}Discussion}{12}{}%
+\contentsline {section}{\numberline {6}Conclusion}{13}{}%
+\contentsline {section}{Acknowledgement}{14}{}%
+\contentsline {section}{References}{15}{}%
+\contentsline {section}{\numberline {A}Proof of Theorem}{16}{}%

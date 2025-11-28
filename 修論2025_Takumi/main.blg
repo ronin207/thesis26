@@ -1,0 +1,75 @@
+This is upBibTeX, Version 0.99d-j0.36-u2.00 (utf8.euc) (TeX Live 2025)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: jieeetran.bst
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 150 items from 100.
+Reallocated singl_function (elt_size=4) to 200 items from 150.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 150 items from 100.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 9000 items from 6000.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 150 items from 100.
+Database file #1: ref.bib
+Warning--I didn't find a database entry for "ben2013snarks"
+Warning--I didn't find a database entry for "groth2016efficient"
+Warning--I didn't find a database entry for "sasson2014zerocash"
+Warning--I didn't find a database entry for "loquat2024"
+Warning--I didn't find a database entry for "dilithium-spec"
+-- jIEEEtran.bst 0.18 (2022/03/26) by Haruki Ejiri and Yoshi Ri.
+-- https://github.com/ehki/jIEEEtran/
+-- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information for IEEEtran.bst.
+-- See also "howtouse.pdf" manual for usase information for jIEEEtran.bst and IEEJtran.bst.
+
+Done.
+You've used 5 entries,
+            6239 wiz_defined-function locations,
+            1284 strings with 12173 characters,
+and the built_in function-call counts, 4642 in all, are:
+= -- 699
+> -- 110
+< -- 7
++ -- 56
+- -- 26
+* -- 184
+:= -- 544
+add.period$ -- 11
+call.type$ -- 5
+change.case$ -- 13
+chr.to.int$ -- 18
+cite$ -- 5
+duplicate$ -- 258
+empty$ -- 289
+format.name$ -- 83
+if$ -- 1201
+int.to.chr$ -- 0
+int.to.str$ -- 5
+missing$ -- 58
+newline$ -- 48
+num.names$ -- 5
+pop$ -- 187
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 4
+skip$ -- 502
+stack$ -- 0
+substring$ -- 47
+swap$ -- 161
+text.length$ -- 1
+text.prefix$ -- 0
+top$ -- 6
+type$ -- 5
+warning$ -- 0
+while$ -- 9
+width$ -- 6
+write$ -- 77
+is.kanji.str$ -- 11
+(There were 5 warnings)

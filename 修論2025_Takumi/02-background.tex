@@ -1,0 +1,108 @@
+\section{Background}\label{sec: Background}
+\subsection*{Notation}
+Let $\lambda \in \mathbb{N}$ be the security parameter, $\mathsf{negl}(\lambda)$ denote a negligible function, and PPT stand for probabilistic polynomial-time algorithms.
+
+\noindent We use $\mathsf{pp}$ to denote public parameters, and $sk$, $pk$ for secret and public keys, respectively. The symbol $\mathsf{crs}$ represents a common reference string typically used in zero-knowledge proof systems, and $pk$, $vk$ refer to the proving and verifying keys of zkSNARKs. The public input to a zkSNARK is denoted $x$, the private witness as $\omega$, and the proof as $\pi$. For digital signatures, $m$ is the message, and $\sigma$ is its signature. The relation or circuit verified by zkSNARKs is expressed as $C(x, \omega)$.
+
+\noindent Regarding anonymous credentials, $\mathcal{A}$ denotes the universal set of attributes, with $\mathsf{attr}$ and $\mathsf{subattr}$ as subsets of $\mathcal{A}$. A credential is represented by $\mathsf{cred}$, and a shown credential by $\mathsf{show}$. The logical statement or predicate proved on attributes is $\mathsf{stmt}$, and auxiliary descriptions by $aux$.
+
+\noindent For the Loquat post-quantum signature scheme, $\mathsf{L\text{-}\mathsf{pp}}$ denotes its specific public parameters, and $H$ the collision-resistant hash functions it uses. We denote $R1CS$ as the Rank-1 Constraint System representation of arithmetic circuits. The prime field used for the Legendre PRF is $\mathbb{F}_p$, and $\mathcal{L}(\cdot)$ the Legendre symbol pseudorandom function.
+
+
+\subsection{Cryptographic Primitives} 
+\subsubsection{zkSNARKs}
+A zk-SNARK (more commonly referred to as Zero-Knowledge Succinct Non-Interactive Argument of Knowledge) \cite{ben2013snarks, groth2016efficient, sasson2014zerocash} is a cryptographic proof system that enables a \textit{prover} to convince a \textit{verifier} that they know a secret witness $\omega$ satisfying a publicly-known statement $C(x,\omega) = \mathsf{true}$, without revealing $\omega$, in a succinct and non-interactive format. Concretely, a zk-SNARK consists of the following algorithms,
+\begin{enumerate}
+    \item $\mathsf{Setup}(1^\lambda) \;\to\; (\mathsf{pk}, \mathsf{vk})$,
+    \item $\mathsf{Prove}(\mathsf{pk}, x, \omega) \;\to\; \pi$,
+    \item $\mathsf{Verify}(\mathsf{vk}, x, \pi) \;\in\; \{0,1\}$,
+\end{enumerate}  
+where $\lambda$ is the security parameter, $x$ is the public input and $\omega$ the private witness.
+
+The zk-SNARK system should satisfy the following properties:
+% if (x,w) satisfies the relation, the verifier accepts with overwhelming probability
+\paragraph{\textbf{Completeness.}}  
+If $C(x,\omega)=\mathsf{true}$, then for an honest \textit{prover}  
+\begin{equation*}
+\Pr\left[\mathsf{Verify}(\mathsf{vk}, x, \pi)=1 \;\Big|\; \pi \leftarrow \mathsf{Prove}(\mathsf{pk},x,\omega) \right] \ge 1-\mathsf{negl}(\lambda).
+\end{equation*}
+
+% the adversary tries to produce x,π such that verifier accepts, but no valid witness exists, or the prover doesn't know one
+\paragraph{\textbf{Soundness.}}  
+For any probabilistic polynomial-time adversary $\mathsf{Adv}$,
+\begin{equation*}
+    \Pr\Big[
+    \mathsf{Verify}(\mathsf{vk},x,\pi)=1
+    \;\wedge\;
+    \neg \exists\,\omega'\!:\;C(x,\omega')=\mathsf{true}
+    \;\Big|\;
+    \begin{matrix}
+    (\mathsf{pk},\mathsf{vk}) \leftarrow \mathsf{Setup}(1^\lambda),\\
+    (x,\pi)\leftarrow \mathsf{Adv}(\mathsf{pk})
+    \end{matrix}
+    \Big]
+    \le \mathsf{negl}(\lambda).
+\end{equation*}
+
+Moreover, there exists an extractor $\mathcal{E}$ such that if $\mathsf{Adv}$ outputs an accepting proof $(x,\pi)$ with non-negligible probability, then $\mathcal{E}(\mathsf{Adv}\text{'s state})$ outputs a valid $\omega'$ satisfying $C(x,\omega')=\mathsf{true}$.
+
+% there exists a simulator Sim that, given the pp, can produce a simulated proof π* for any x satisfying the relation such that the distribution of (x,π*) is computationally indistinguishable from real (x,π) produced by honest prover
+\paragraph{\textbf{Zero-Knowledge.}}  
+There exists a simulator $\mathsf{Sim}$ that, given only the verification key $\mathsf{vk}$ and a public input $x$ with $C(x,\cdot)$ satisfiable, produces a proof $\pi^*$ such that the distribution 
+$$(x,\pi) \;=\; (x, \pi \leftarrow \mathsf{Prove}(\mathsf{pk},x,\omega))$$ 
+is computationally indistinguishable from $(x,\pi^*) \;=\; (x, \pi^* \leftarrow \mathsf{Sim}(\mathsf{vk},x))$.
+
+% the proof size, prover runtime, and verifier runtime satisfy certain asymptotic bounds
+\paragraph{\textbf{Succinctness.}}  
+The size of the proof $\pi$ is short, typically $O(\mathsf{polylog}(|C|))$ or otherwise "sub-linear" in the size of the circuit representing $C$; the \textit{verifier}7s running time is similarly efficient (e.g., $O(|x| + \mathsf{polylog}(|C|))$).  
+
+\subsubsection{Digital Signatures}
+A digital signature scheme is composed of the following tuple of PPT algorithms $\mathsf{Setup}(1^\lambda)$, $\mathsf{KeyGen}(\mathsf{pp})$, $\mathsf{Sign}(sk,m)$, and $\mathsf{Verify}(pk,m,\sigma)$.
+
+\begin{definition}[EUF-CMA Security]
+A digital signature scheme \(\Sigma\) is existentially unforgeable under chosen-message attacks (EUF-CMA) if for all PPT adversaries $\mathcal{A}$ with access to a signing oracle $\mathcal{O}_{\mathsf{Sign}}$, the probability that $\mathcal{A}$ outputs a pair $(m^\star,\sigma^\star)$ such that $\mathsf{Verify}(\mathsf{pk},m^\star,\sigma^\star)=1$ and $m^\star$ was never queried to $\mathcal{O}_{\mathsf{Sign}}$ is negligible in $\lambda$.
+\end{definition}
+
+\noindent In this work, we instantiate the above notion with the \emph{Loquat} post-quantum signature scheme.
+
+\begin{definition}[Loquat: A SNARK-Friendly Post-Quantum Signature]
+    Loquat~\cite{loquat2024} is a digital signature scheme post-quantum secure under collision-resistant hashes and Legendre PRF, where
+    \begin{align*}
+    (\mathsf{L\text{-}pp}) &\leftarrow \mathsf{L\text{-}Setup}(1^\lambda),\\
+    (sk, pk) &\leftarrow \mathsf{L\text{-}KeyGen}(\mathsf{L\text{-}pp}),\\
+    \sigma &\leftarrow \mathsf{L\text{-}Sign}(\mathsf{L\text{-}pp}, sk, m),\\
+    \{0,1\} &\leftarrow \mathsf{L\text{-}Verify}(pk, m, \sigma, \mathsf{L\text{-}pp}).
+    \end{align*}
+\end{definition}
+
+\paragraph{Security.}
+Loquat is proven EUF-CMA secure in the random-oracle model under the hardness of breaking the underlying Legendre PRF and the collision resistance of $H$~\cite{loquat2024}.
+
+\noindent A crucial property for this work is that the Loquat verification algorithm admits an efficient rank-1 constraint system (R1CS) representation.
+
+\paragraph{SNARK-friendliness.}
+For the Loquat-128 parameter set instantiated with the Griffin hash function, the verification circuit can be represented using approximately $1.49\times 10^5$ R1CS constraints~\cite{loquat2024}. This is significantly smaller than known SNARK encodings of lattice-based post-quantum signature schemes such as CRYSTALS-Dilithium at comparable security levels~\cite{dilithium-spec}, and thus makes Loquat particularly suitable for use inside zkSNARK circuits.
+
+\subsection{Anonymous Credentials}
+\begin{definition}[Anonymous Credential System]
+An anonymous credential system over an attribute universe \(\mathcal{A}\) is a tuple of PPT algorithms $\mathsf{AC.Setup}(1^\lambda)$, $\mathsf{AC.KeyGen}(\mathsf{pp})$, $\mathsf{AC.Issue}(isk, ipk, \mathsf{attr} \subseteq \mathcal{A}, aux)$, $\mathsf{AC.Show}(\mathsf{cred}, \mathsf{subattr} \subseteq \mathsf{attr}, \mathsf{stmt})$, and $\mathsf{AC.Verify}(\mathsf{pk_I}, \mathsf{show}, \pi, \mathsf{subattr}, \mathsf{stmt}, aux)$.
+\end{definition}
+
+\begin{definition}[BDEC: Post-Quantum Blockchain-based Digital Education Credential]
+BDEC is a post-quantum anonymous credential system designed to securely and privately verify educational achievements on a blockchain. It builds upon generic anonymous credentials and ensures the following properties:
+\begin{itemize}
+    \item \textbf{Unforgeability}: No adversary can forge valid credentials.
+    \item \textbf{Anonymity}: Credentials hide the user's identity.
+    \item \textbf{Unlinkability}: Different proofs by the same user cannot be linked.
+    \item \textbf{Conditional Linkability}: Selective linking enables managing fragmented learning records.
+    \item \textbf{Revocation}: Credentials can be revoked if compromised.
+\end{itemize}
+\end{definition}
+
+\subsubsection{Static Circuit Limitation}
+BDEC fixes circuit size to maximum attributes $|A|\le N$ (e.g., $N=32$). Dynamic $|A|$ requires new $\mathsf{Setup}(N')$ per update, breaking efficiency.
+
+\subsection{Dynamic Approaches}
+\subsubsection{Zero-Knowledge Virtual Machines}
+
+\subsubsection{SNARK Circuit Compilers}

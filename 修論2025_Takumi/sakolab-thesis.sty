@@ -1,0 +1,166 @@
+%sakolab-thesis.sty
+
+\typeout{Sako Lab. thesis style file}
+
+\usepackage[T1]{fontenc}
+\usepackage[top=22truemm, bottom=30truemm, left=22truemm, right=22truemm]{geometry}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{silence}
+\usepackage{times}
+\providecommand{\gtfamily}{\sffamily}
+
+% 警告の抑制
+\WarningFilter{fancyhdr}{\fancyhead's `E' option without twoside option is useless}
+\WarningFilter{fancyhdr}{\headheight is too small}
+
+% -------------------- 表紙 --------------------
+% 表紙用の新変数
+\def\thesistype#1{\gdef\@thesistype{#1}}
+\def\etitle#1{\gdef\@etitle{#1}}
+\def\studentid#1{\gdef\@studentid{#1}}
+\def\supervisor#1{\gdef\@supervisor{#1}}
+\def\department#1{\gdef\@department{#1}}
+\def\major#1{\gdef\@major{#1}}
+\def\guidance#1{\gdef\@guidance{#1}}
+\def\titlesize#1{\gdef\@titlesize{#1}}
+\thesistype{}
+\etitle{}
+\studentid{}
+\supervisor{}
+\department{}
+\major{}
+\guidance{}
+\titlesize{24truept}
+
+\renewcommand\maketitle{
+    % 表紙の設定をグループ内スコープに閉じ込める
+    \begingroup
+        % ヘッダーとフッターを表示しない
+    	\thispagestyle{empty}
+
+        % 表紙の体裁
+        \newgeometry{top=10truemm, bottom=10truemm, left=10truemm, right=10truemm}
+        
+        % ゴシックフォント
+        \gtfamily
+    
+        % コンテンツ
+        \vspace*{60truemm}
+        \noindent
+        {\fontsize{14truept}{14truept}\selectfont\@thesistype}\vspace{1truemm}\\
+        {\fontsize{\@titlesize}{\@titlesize}\selectfont\@title}\\
+        \includegraphics[width=\linewidth]{figs/sakolab-thesis-style/underline_title.png}\vspace{1truemm}\\
+        {\fontsize{18truept}{18truept}\selectfont\@etitle}\\
+        
+        \begin{table}[!b]
+            % 縦線の幅を7.25ptにする
+            \setlength{\arrayrulewidth}{7.25truept}
+
+            % 行の高さを制御 
+            \renewcommand{\arraystretch}{1.5}
+            \begin{tabular}{|l}
+                {\fontsize{26truept}{26truept}\selectfont\@author} \\
+                {\fontsize{18truept}{18truept}\selectfont\@department}\rule{0pt}{22truept}\\
+                {\fontsize{18truept}{18truept}\selectfont\@major}\\
+                {\fontsize{18truept}{18truept}\selectfont\@studentid}\rule{0pt}{20truept}
+            \end{tabular}
+        \end{table}
+    
+        \begin{table}[!b]
+            % 縦線の幅を7.25ptにする
+            \setlength{\arrayrulewidth}{7.25truept}
+
+            % 行の高さを制御(デザイン都合)
+            \renewcommand{\arraystretch}{1.22}
+            
+            \begin{tabular}{l@{\fontsize{18truept}{18truept}\selectfont\hspace{2truemm}:\hspace{2truemm}}l}
+                {\hspace{-6pt}\vline\hspace{6pt}\fontsize{18truept}{18truept}\selectfont Submission Date} & {\fontsize{18truept}{18truept}\selectfont \@date}\vspace{6truept}\\
+                {\hspace{-6pt}\vline\hspace{6pt}\fontsize{18truept}{18truept}\selectfont Research Guidance:} & {\fontsize{18truept}{18truept}\selectfont \@guidance}\vspace{6truept}\\
+                {\hspace{-6pt}\vline\hspace{6pt}\fontsize{18truept}{18truept}\selectfont Advisor:} & {\fontsize{18truept}{18truept}\selectfont \@supervisor}\vspace{6truept}
+            \end{tabular}
+        \end{table}
+
+        % 表紙の体裁の適用 終端
+        \restoregeometry
+    \endgroup
+    
+    \vfill
+	\newpage
+}
+
+% -------------------- 概要 --------------------
+\newenvironment{coverabstract}{
+    \thispagestyle{empty} 
+    \vspace*{40truemm} 
+    \begin{center} {\bf Abstract}\end{center}
+    \begin{minipage}[t]{\textwidth}}{\end{minipage}
+}
+
+% -------------------- ヘッダー，フッター --------------------
+% スタイルの選択
+\pagestyle{fancyplain}
+
+% ページヘッダー，フッターの制御
+\fancyhead{}
+\fancyhead[RO,RE]{\rightmark}
+\fancyhead[LE,LO]{\leftmark}
+\fancyhead[RE]{\gdef\headrulewidth{.4pt}}
+\fancyhead[LO]{\gdef\headrulewidth{.4pt}}
+\fancyfoot[C]{\thepage}
+
+% 章番号とタイトルに改行を入れない
+\makeatletter
+\def\@makechapterhead#1{
+    \vspace*{2\Cvs}{
+        \parindent \z@ \raggedright \normalfont
+        \Huge\headfont
+        \ifnum \c@secnumdepth >\m@ne
+            \if@mainmatter
+                \@chapapp\thechapter\@chappos
+                \hskip1zw
+            \fi
+        \fi
+        #1\par\nobreak
+        \vskip 3\Cvs
+    }
+}
+\makeatother
+
+% -------------------- 参考文献を目次に表示する --------------------
+\makeatletter
+\renewenvironment{thebibliography}[1]
+{\section*{\refname}\@mkboth{\refname}{\refname}%
+   \addcontentsline{toc}{section}{\refname}
+   \list{\@biblabel{\@arabic\c@enumiv}}%
+        {\settowidth\labelwidth{\@biblabel{#1}}%
+         \leftmargin\labelwidth
+         \advance\leftmargin\labelsep
+         \@openbib@code
+         \usecounter{enumiv}%
+         \let\p@enumiv\@empty
+         \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+   \sloppy
+   \clubpenalty4000
+   \@clubpenalty\clubpenalty
+   \widowpenalty4000%
+   \sfcode`\.\@m}
+  {\def\@noitemerr
+    {\@latex@warning{Empty `thebibliography' environment}}%
+   \endlist}
+\makeatother
+
+% -------------------- 謝辞を目次に表示する --------------------
+\newcommand{\acknowledgement}[1][Acknowledgement]{
+    \markboth{#1}{#1}
+    \section*{#1}
+    \addcontentsline{toc}{section}{#1}
+}
+
+% \tableofcontentsでtocファイル作成時に\subsubsection まで索引を作成する。
+\setcounter{tocdepth}{3}
+
+% 索引の見出し、ページ番号のドットの間隔を変更
+\makeatletter
+\renewcommand{\@dotsep}{1}
+\makeatother
