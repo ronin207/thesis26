@@ -36,7 +36,14 @@ fn format_duration(duration: Duration) -> String {
     }
 }
 
-fn parse_args() -> Result<(usize, usize), Box<dyn std::error::Error>> {
+struct RunConfig {
+    security: usize,
+    message_len: usize,
+    run_aurora: bool,
+    aurora_queries: Option<usize>,
+}
+
+fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
     let mut args = env::args().skip(1);
     let security = args
         .next()
@@ -48,7 +55,38 @@ fn parse_args() -> Result<(usize, usize), Box<dyn std::error::Error>> {
         .map(|value| value.parse::<usize>())
         .transpose()?
         .unwrap_or(32);
-    Ok((security, message_len))
+    let mut run_aurora = true;
+    let mut aurora_queries = None;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--skip-aurora" | "--no-aurora" => run_aurora = false,
+            "--queries" => {
+                if let Some(next) = args.next() {
+                    if let Ok(q) = next.parse() {
+                        aurora_queries = Some(q);
+                    } else {
+                        eprintln!("Ignoring invalid --queries value '{next}'");
+                    }
+                }
+            }
+            _ if arg.starts_with("--queries=") => {
+                if let Some(val) = arg.split_once('=').map(|(_, v)| v) {
+                    if let Ok(q) = val.parse() {
+                        aurora_queries = Some(q);
+                    } else {
+                        eprintln!("Ignoring invalid --queries value '{val}'");
+                    }
+                }
+            }
+            other => eprintln!("Unrecognised argument '{other}', ignoring"),
+        }
+    }
+    Ok(RunConfig {
+        security,
+        message_len,
+        run_aurora,
+        aurora_queries,
+    })
 }
 
 fn synthetic_message(len: usize) -> Vec<u8> {
@@ -56,16 +94,16 @@ fn synthetic_message(len: usize) -> Vec<u8> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (security_level, message_len) = parse_args()?;
-    let message = synthetic_message(message_len);
+    let config = parse_args()?;
+    let message = synthetic_message(config.message_len);
 
     println!("=== Loquat SNARK Stats ===\n");
     println!(
         "security level: {}-bit   message bytes: {}",
-        security_level, message_len
+        config.security, config.message_len
     );
 
-    let params = loquat_setup(security_level)?;
+    let params = loquat_setup(config.security)?;
     let keypair = keygen_with_params(&params)?;
 
     let sign_start = Instant::now();
@@ -89,6 +127,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  artifact size (B):    {:>10}", artifact_bytes);
     println!("  transcript size (B):  {:>10}", transcript_bytes);
 
+    if !config.run_aurora {
+        println!("\nAurora proving skipped (--skip-aurora).");
+        return Ok(());
+    }
+
+    let query_count = config.aurora_queries.unwrap_or(4);
     let (instance, witness) =
         build_loquat_r1cs(&message, &signature, &keypair.public_key, &params)?;
     println!("\n--- R1CS stats ---");
@@ -96,8 +140,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  constraints:          {}", instance.constraints.len());
 
     let aurora_params = AuroraParams {
-        constraint_query_count: 8,
-        witness_query_count: 8,
+        constraint_query_count: query_count,
+        witness_query_count: query_count,
     };
     let aurora_opts = AuroraProverOptions::default();
 
