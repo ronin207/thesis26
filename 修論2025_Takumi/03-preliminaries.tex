@@ -1,12 +1,281 @@
 \section{Dynamism}\label{sec: Dynamism}
-\begin{theorem}[Architectural Constraint Overhead for BDEC]\label{Architectural Constraint Overhead for BDEC}
+\begin{definition}[Dynamic Zero-Knowledge Proof System for Credentials]\label{Dynamic Zero-Knowledge Proof System for Credentials}
+    Let $\lambda \in \mathbb{N}$ be the security parameter. Let $\{\mathcal{W}_n\}_{n \in \mathbb{N}}$ be a family of witness spaces, where $\mathcal{W}_n \subseteq \{0,1\}^\ast$ collects all admissible witnesses of "size" $n$ (e.g., number of attributes or program state size). Let $\mathcal{X}\subseteq \{0,1\}^\ast$ be the statement space, and let $\{R_n\}_{n \in \mathbb{N}}$ be a family of polynomial-time decidable relations
+    $$
+        R_n \subseteq \mathcal{X} \times \mathcal{W}_n
+    $$
+    such that $(x,w) \in R_n$ formalises "credential program $P$ is correct on input $w$ of size $n$ for statement $x$".
     
-\end{theorem}
+    \noindent A dynamic zero-knowledge proof system for $\{R_n\}_{n \in \mathbb{N}}$ is a tuple of probabilistic polynomial-time algorithms
+    $$
+        \Pi = (\mathsf{Setup},\mathsf{Prove},\mathsf{Verify})
+    $$
+    with the following syntax.
+    \begin{itemize}
+        \item Common reference string: $\mathsf{crs} \leftarrow \mathsf{Setup}(1^\lambda)$.
+        \item Proof generation: $\pi \leftarrow \mathsf{Prove}(\mathsf{crs},x,w)$ for $(x,w) \in R_n$.
+        \item Verification: $b \leftarrow \mathsf{Verify}(\mathsf{crs},x,\pi)$, where $b \in \{0,1\}$.
+    \end{itemize}
+    
+    \noindent The system $\Pi$ is dynamic if, for all $n \in \mathbb{N}$, all $x \in \mathcal{X}$, and all $w \in \mathcal{W}_n$, the following properties hold.
+    \begin{enumerate}
+        \item \textbf{Completeness.}  
+        For every PPT algorithm that honestly samples $(x,w)$ with $(x,w) \in R_n$,
+        $$
+            \Pr\big[\mathsf{Verify}(\mathsf{crs},x,\pi)=1 \,:\, \mathsf{crs}\leftarrow \mathsf{Setup}(1^\lambda),\ \pi\leftarrow \mathsf{Prove}(\mathsf{crs},x,w)\big] = 1 - \mathsf{negl}(\lambda).
+        $$
+        \item \textbf{Soundness.}
+        For every PPT adversary $\mathcal{A}$ there exists a PPT extractor $\mathcal{E}$ such that
+        $$
+            \Pr\big[ \mathsf{Verify}(\mathsf{crs},x,\pi)=1 \ \wedge\ (x,w)\notin R_n \big]
+        $$
+        is negligible in $\lambda$, where the probability is over $\mathsf{crs}\leftarrow \mathsf{Setup}(1^\lambda)$, $(x,\pi)\leftarrow \mathcal{A}(\mathsf{crs})$, and the internal randomness of all algorithms. Moreover, whenever $\mathsf{Verify}(\mathsf{crs},x,\pi)=1$, the extractor $\mathcal{E}^\mathcal{A}$ outputs $w \in \mathcal{W}_n$ with $(x,w)\in R_n$ except with negligible probability.
+        \item \textbf{Zero-knowledge.}  
+        There exists a PPT simulator $\mathsf{Sim}$ such that, for every PPT distinguisher $\mathcal{D}$, every $n$, every polynomial-time samplable distribution over $(x,w)$ with $(x,w) \in R_n$,
+        $$
+            \Big| \Pr\big[\mathcal{D}(x,\pi)=1\big] - \Pr\big[\mathcal{D}(x,\pi')=1\big] \Big|
+        $$
+        is negligible in $\lambda$, where in the first probability $\pi\leftarrow \mathsf{Prove}(\mathsf{crs},x,w)$ and in the second $\pi'\leftarrow \mathsf{Sim}(\mathsf{crs},x)$, both under $\mathsf{crs}\leftarrow \mathsf{Setup}(1^\lambda)$.
+        \item \textbf{Unlinkability across dimensions.}  
+        Consider any PPT adversary $\mathcal{A}$ interacting with an oracle that, on input a size parameter $n$ and an access pattern (e.g., which subset of attributes is disclosed), returns a simulated proof for some distribution of $(x,w)$ over $R_n$. The view of $\mathcal{A}$ when interacting with this oracle for size $n$ is computationally indistinguishable from its view when interacting with the same oracle for size $n'$, for any $n,n'$ of the same polynomial order in $\lambda$, even if the underlying credential belongs to the same user. Informally, the distribution of proofs for a given credential is independent (up to negligible terms) of the chosen n and of which attribute subsets are disclosed.
+        \item \textbf{Dynamic support for varying witness size.}  
+        The size of the common reference string $|\mathsf{crs}|$, the verifier's running time $\mathsf{T}_{\mathsf{Verify}}(\lambda,n)$, and the proof length $|\pi(\lambda,n)|$ are bounded by polynomials in $\lambda$ and $n$, and the setup algorithm $\mathsf{Setup}$ does not depend on $n$. That is, a single set of public parameters supports all relations $R_n$ without re-running setup or re-issuing credentials.
+    \end{enumerate} 
+\end{definition}
 
-\begin{theorem}[]\label{}
-    
-\end{theorem}
+\noindent In the context of BDEC instantiated with Loquat and a zkSNARK (or zkVM), the family $\{R_n\}_{n\in\mathbb{N}}$ represents verification of a credential with $n$ attributes (and associated system state), and a proof system is dynamic if it satisfies the above properties simultaneously for all $n$ using a single setup and without re-signing or recompiling verification circuits.
 
-\begin{theorem}[]\label{}
-    
-\end{theorem}
+\medskip
+\noindent We now present two compilation strategies for BDEC verification. Algorithm~\ref{alg:bdec-risczero} leverages zkVMs to achieve true dynamism per Definition~\ref{def:dynamic-zk}, while Algorithms~\ref{alg:bdec-snark-compiler} and~\ref{alg:bdec-snark-compiler-2} use circuit compilers to create a family of SNARKs---one per attribute count $n$.
+
+% Algorithm 1
+\begin{algorithm}[H]
+\caption{Compilation of BDEC Verification into a RISC Zero zkVM}
+\label{alg:bdec-risczero}
+
+\begin{algorithmic}[1]
+
+\Require $\mathsf{BDEC} = (\mathsf{Setup, PriGen, NymKey, CreGen, CreVer, ShowCre, ShowVer, RevCre}), \mathsf{Loquat} = (\mathsf{Loquat.Setup, Loquat.KeyGen, Loquat.Sign, Loquat.Verify}), \text{RISC-Zero zkVM}$
+\Ensure $\text{ Guest program } P_{\mathrm{BDEC}}, \text{ NP relations } \{R_n\}_{n\in\mathbb{N}}, \text{ Dynamic proof system } \Pi = (\mathsf{Setup, Prove, Verify})$
+
+\Statex
+\State \textbf{Witness and Statement Formats}
+\State Fix maximum attribute count $N$, with $n \le N$.
+\State $W_n \gets (a_1,\dots,a_n,\ \mathsf{mt\_path}_1,\dots,\mathsf{mt\_path}_n,\ \mathsf{aux})$
+\State $x \gets (\mathsf{pk}_U,\ \mathsf{pp},\ \mathsf{cred},\ \sigma,\ \mathsf{policy},\ n)$
+
+\Statex
+\State \textbf{Guest Verifier} $P_{\mathsf{BDEC}}(x,w)$
+\State $\mathsf{root}' \gets \mathsf{MerkleRoot}(a_i,\ \mathsf{mt\_path}_i)$
+\If{$\mathsf{root}' \ne \mathsf{cred.root}$}
+    \State \Return \textsc{Fail}
+\EndIf
+\If{$\mathsf{Loquat.Verify}(\mathsf{pk}_U,\ \mathsf{root}',\ \sigma)=0$}
+    \State \Return \textsc{Fail}
+\EndIf
+\If{$\mathsf{policy}(a_1,\dots,a_n)=\mathsf{false}$}
+    \State \Return \textsc{Fail}
+\EndIf
+\If{\textsc{RevocationCheck}$(x.\mathsf{revdata},\ \mathsf{cred})$ fails}
+    \State \Return \textsc{Fail}
+\EndIf
+\State \Return \textsc{OK}
+
+\Statex
+\State \textbf{Compilation to zkVM Method}
+\State $\mathsf{mid}_{\mathsf{BDEC}} \gets \mathsf{compile}(P_{\mathsf{BDEC}})$
+
+\Statex
+\State \textbf{NP Relations}
+\State $(x,w) \in R_n \iff$ running $P_{\mathsf{BDEC}}$ inside the zkVM with method ID $\mathsf{mid}_{\mathsf{BDEC}}$ commits \textsc{OK}.
+
+\Statex
+\State \textbf{Dynamic Proof System $\Pi$}
+\State $\mathsf{Setup}: \mathsf{crs} \gets$ zkVM parameters (STARK params, hash, method ID)
+\State $\mathsf{Prove}: \pi \gets$ zkVM receipt of execution on $(x,w)$
+\State $\mathsf{Verify}:$ check $\pi$, $\mathsf{mid}_{\mathsf{BDEC}}$, journal output
+
+\Statex
+\State \textbf{Dynamicity and Security}
+\State $n$ only changes witness shape; $\mathsf{crs}$ and $\mathsf{mid}_{\mathsf{BDEC}}$ remain fixed.
+\State Security inherits zkVM STARK soundness and zero-knowledge.
+\State Journal leaks only OK/FAIL (unlinkable).
+
+\end{algorithmic}
+\end{algorithm}
+
+\noindent Algorithm~\ref{alg:bdec-risczero} achieves true dynamism per Definition~\ref{def:dynamic-zk}. The STARK parameters $\mathsf{crs}$ and method ID $\mathsf{mid}_{\mathsf{BDEC}}$ remain fixed regardless of $n$, satisfying property~5. The journal output mechanism ensures unlinkability across dimensions (property~4).
+
+% Algorithm 2 (2.a)
+\begin{algorithm}[H]
+\caption{Compilation of BDEC Verification into a SNARK Circuit Compiler (Part 1: Circuit Synthesis)}
+\label{alg:bdec-snark-compiler}
+
+\begin{algorithmic}[1]
+
+\Require $\mathsf{BDEC}$, $\mathsf{Loquat}$, SNARK circuit compiler (e.g.\ zkLLVM or Circom)
+\Ensure Circuit family $\{C_n\}_{n\in\mathbb{N}}$, relations $\{R_n\}_{n\in\mathbb{N}}$, proof system $\Pi_{\mathsf{circ}}$
+
+\Statex
+\State \textbf{Witness and Statement Formats}
+\State Fix maximum attribute count $N$, with $n \le N$.
+\State $W_n \gets (a_1,\dots,a_n,\ \mathsf{mt\_path}_1,\dots,\mathsf{mt\_path}_n,\ \mathsf{aux})$
+\State $x \gets (\mathsf{pk}_U,\ \mathsf{pp},\ \mathsf{cred},\ \sigma,\ \mathsf{policy},\ n)$
+
+\Statex
+\State \textbf{High-Level Verifier Logic} $P_{\mathsf{BDEC}}(x,w)$
+\State $\mathsf{root}' \gets \mathsf{MerkleRoot}(a_i,\ \mathsf{mt\_path}_i)$
+\If{$\mathsf{root}' \ne \mathsf{cred.root}$}
+    \State \Return \textsc{Fail}
+\EndIf
+\If{$\mathsf{Loquat.Verify}(\mathsf{pk}_U,\ \mathsf{root}',\ \sigma)=0$}
+    \State \Return \textsc{Fail}
+\EndIf
+\If{$\mathsf{policy}(a_1,\dots,a_n)=\mathsf{false}$}
+    \State \Return \textsc{Fail}
+\EndIf
+\If{\textsc{RevocationCheck}$(x.\mathsf{revdata},\ \mathsf{cred})$ fails}
+    \State \Return \textsc{Fail}
+\EndIf
+\State \Return \textsc{OK}
+
+\Statex
+\State \textbf{Circuit Synthesis per Attribute Bound}
+\For{$n = 1$ \textbf{to} $N$}
+    \State Specialise $P_{\mathsf{BDEC}}$ to fixed arity $n$ (unroll loops over $a_1,\dots,a_n$)
+    \State Use the circuit compiler to generate an arithmetic circuit $C_n$ for:
+    \Statex \hspace{\algorithmicindent} \quad Input wires for public $x$ and private $w$
+    \Statex \hspace{\algorithmicindent} \quad Subcircuits for Merkle root recomputation
+    \Statex \hspace{\algorithmicindent} \quad Subcircuit for $\mathsf{Loquat.Verify}$
+    \Statex \hspace{\algorithmicindent} \quad Subcircuit for policy evaluation
+    \Statex \hspace{\algorithmicindent} \quad Optional revocation checks
+    \State Obtain constraint system (e.g.\ R1CS) for $C_n$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+% Algorithm 3 (2.b) - NP Relations and Security
+\begin{algorithm}[H]
+\caption{Compilation of BDEC Verification into a SNARK Circuit Compiler (Part 2: NP Relations \& Security)}
+\label{alg:bdec-snark-compiler-2}
+\begin{algorithmic}[1]
+
+\Statex
+\State \textbf{NP Relations}
+\For{$n = 1$ \textbf{to} $N$}
+    \State $(x,w) \in R_n \iff C_n(x,w)$ outputs \textsc{OK} (the circuit's output bit is 1)
+\EndFor
+
+\Statex
+\State \textbf{SNARK Setup and Proof System $\Pi_{\mathsf{circ}}$}
+\For{$n = 1$ \textbf{to} $N$}
+    \State $\mathsf{crs}_n \gets \mathsf{SNARK.Setup}(1^\lambda, C_n)$
+\EndFor
+\State Define:
+\State $\mathsf{Setup}_{\mathsf{circ}}: \text{output } \{\mathsf{crs}_n\}_{n=1}^N$
+\State $\mathsf{Prove}_{\mathsf{circ}}(\mathsf{crs}_n, x, w): \pi \gets \mathsf{SNARK.Prove}(\mathsf{crs}_n, C_n, x, w)$
+\State $\mathsf{Verify}_{\mathsf{circ}}(\mathsf{crs}_n, x, \pi): b \gets \mathsf{SNARK.Verify}(\mathsf{crs}_n, C_n, x, \pi)$
+
+\Statex
+\State \textbf{Dynamicity and Security Characteristics}
+\State Each $n$ has its own circuit $C_n$ and CRS $\mathsf{crs}_n$ (setup is circuit-specific).
+\State Changing $n$ generally requires switching to a different $(C_n,\mathsf{crs}_n)$ pair.
+\State Security (completeness, soundness, ZK) inherits from the underlying SNARK and Loquat/BDEC proofs.
+
+\end{algorithmic}
+\end{algorithm}
+
+\noindent Algorithms~\ref{alg:bdec-snark-compiler} and~\ref{alg:bdec-snark-compiler-2} produce a proof system family, but not a single dynamic system. Each $n$ requires its own circuit $C_n$ and CRS $\mathsf{crs}_n$, violating property~5 of Definition~\ref{def:dynamic-zk}. This approach trades dynamism for per-instance efficiency: smaller proofs and faster verification per fixed $n$.
+
+\subsection{Logic Updates and Benchmarking}
+
+% Algorithm 4
+\begin{algorithm}[H]
+\caption{Logic Update Workflow for BDEC Verification}
+\label{alg:logic-update}
+
+\begin{algorithmic}[1]
+
+\Require Original verification logic $\mathcal{L}$, updated logic $\mathcal{L}'$, zkVM method $P_{\mathsf{BDEC}}$, circuit family $\{C_n\}$
+\Ensure Updated zkVM method and/or circuit(s), recorded update cost $C_{\Delta \mathrm{logic}}$
+
+\Statex
+\State \textbf{Update in zkVM Architecture}
+\State Modify high-level Rust code from $\mathcal{L}$ to $\mathcal{L}'$ (e.g., change policy, add attributes)
+\State Recompile guest program to obtain new method binary $P'_{\mathsf{BDEC}}$
+\State $\mathsf{mid}'_{\mathsf{BDEC}} \gets \mathsf{compile}(P'_{\mathsf{BDEC}})$
+\State Record engineering steps (code changes, compile time) as part of $C_{\Delta \mathrm{logic},\mathsf{zkVM}}(\mathcal{L} \to \mathcal{L}')$
+\State Note: underlying zkVM proof parameters (STARK params, hash) remain unchanged
+
+\Statex
+\State \textbf{Update in SNARK Compiler Architecture}
+\For{each $n$ in the supported range}
+    \State Modify verifier description for $C_n$ to reflect $\mathcal{L}'$ (e.g., new policy, new checks)
+    \State Re-run circuit compilation to obtain updated circuit $C'_n$
+    \If{SNARK is preprocessing}
+        \State $\mathsf{crs}'_n \gets \mathsf{SNARK.Setup}(1^\lambda, C'_n)$
+    \EndIf
+\EndFor
+\State Record engineering steps (circuit changes, compilation time, setup time) as $C_{\Delta \mathrm{logic},\mathsf{circ}}(\mathcal{L} \to \mathcal{L}')$
+
+\Statex
+\State \textbf{Output}
+\State Return updated zkVM method ID $\mathsf{mid}'_{\mathsf{BDEC}}$ and updated circuit family $\{C'_n\}$ together with measured $C_{\Delta \mathrm{logic}}$ for both architectures
+
+\end{algorithmic}
+\end{algorithm}
+
+\noindent Algorithm~\ref{alg:logic-update} quantifies the engineering cost $C_{\Delta\text{logic}}$ of updating verification logic $L \to L'$. For zkVM, this requires $O(1)$ re-compilation to obtain $\mathsf{mid}'_{\mathsf{BDEC}}$ with no change to $\mathsf{crs}$. For circuit-SNARK with preprocessing, all $N$ circuits must be re-compiled and $N$ new trusted setups executed.
+
+% Algorithm 5
+\begin{algorithm}[H]
+\caption{Benchmark and Metric Collection for Dynamic BDEC Verification}
+\label{alg:benchmark}
+
+\begin{algorithmic}[1]
+
+\Require zkVM construction (Alg.~\ref{alg:bdec-risczero}), circuit construction (Alg.~\ref{alg:bdec-snark-compiler}), test set of $(n, \mathsf{policy})$ pairs
+\Ensure Measured metrics: $T_{\mathsf{prove}}$, $T_{\mathsf{verify}}$, $|\pi|$, constraint counts, $\rho$, $\Delta$-values
+
+\Statex
+\State \textbf{Select Test Instances}
+\State Choose a finite set $\mathcal{T} = \{(n_i, \mathsf{policy}_i)\}$ of attribute sizes and policies
+\For{each $(n_i, \mathsf{policy}_i) \in \mathcal{T}$}
+    \State Sample or construct representative witnesses $w$ and statements $x$ for BDEC+Loquat with $n_i$ attributes
+
+    \Statex
+    \State \textbf{Run zkVM Benchmarks}
+    \State Start timer; run $\pi_{\mathsf{zkVM}} \gets \mathsf{Prove}_{\mathsf{zkVM}}(\mathsf{crs}, x, w)$
+    \State Stop timer; record $T_{\mathsf{prove},\mathsf{zkVM}}(n_i)$
+    \State Measure proof size $|\pi_{\mathsf{zkVM}}(n_i)|$
+    \State Start timer; run $\mathsf{Verify}_{\mathsf{zkVM}}(\mathsf{crs}, x, \pi_{\mathsf{zkVM}})$
+    \State Stop timer; record $T_{\mathsf{verify},\mathsf{zkVM}}(n_i)$
+    \State Extract or estimate constraint count $C_{\mathsf{zkVM}}(\mathcal{L}, n_i)$ from zkVM tooling or documentation
+    \State Compute $\rho_{\mathsf{zkVM}}(\mathcal{L}, n_i) = \frac{C_{\mathsf{zkVM}}(\mathcal{L}, n_i)}{C_{\min}(\mathcal{L}, n_i)}$
+
+    \Statex
+    \State \textbf{Run Circuit-SNARK Benchmarks}
+    \State Select corresponding circuit $C_{n_i}$ and CRS $\mathsf{crs}_{n_i}$
+    \State Start timer; run $\pi_{\mathsf{circ}} \gets \mathsf{Prove}_{\mathsf{circ}}(\mathsf{crs}_{n_i}, x, w)$
+    \State Stop timer; record $T_{\mathsf{prove},\mathsf{circ}}(n_i)$
+    \State Measure proof size $|\pi_{\mathsf{circ}}(n_i)|$
+    \State Start timer; run $\mathsf{Verify}_{\mathsf{circ}}(\mathsf{crs}_{n_i}, x, \pi_{\mathsf{circ}})$
+    \State Stop timer; record $T_{\mathsf{verify},\mathsf{circ}}(n_i)$
+    \State Obtain constraint count $C_{\mathsf{circ}}(\mathcal{L}, n_i)$ from the compiler (e.g.\ R1CS size)
+    \State Compute $\rho_{\mathsf{circ}}(\mathcal{L}, n_i) = \frac{C_{\mathsf{circ}}(\mathcal{L}, n_i)}{C_{\min}(\mathcal{L}, n_i)}$
+
+    \Statex
+    \State \textbf{Compute Upgrade / Dynamism Metrics}
+    \State For successive $n_i, n_j$ in $\mathcal{T}$, compute:
+    \Statex \hspace{\algorithmicindent} $\Delta T_{\mathsf{prove}}$, $\Delta T_{\mathsf{verify}}$, $\Delta|\pi|$, $\Delta C$ for zkVM and circuit paths
+    \State Use these to instantiate dynamism and agility measures (e.g.\ $C_{\Delta \mathrm{logic}}$, scaling in $n$)
+\EndFor
+
+\Statex
+\State \textbf{Output}
+\State Return all recorded metrics for use in tables, plots, and analysis
+
+\end{algorithmic}
+\end{algorithm}
+
+\noindent Algorithm~\ref{alg:benchmark} provides empirical validation of dynamism properties. The measured metrics $\rho_{\mathsf{zkVM}}(L,n)$ and $\rho_{\mathsf{circ}}(L,n)$ quantify circuit overhead, while $\Delta T_{\text{prove}}$, $\Delta T_{\text{verify}}$, and $\Delta|\pi|$ measure scaling costs.
