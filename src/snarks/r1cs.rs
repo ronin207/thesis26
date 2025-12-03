@@ -97,6 +97,19 @@ impl R1csInstance {
         }
         hasher.finalize().into()
     }
+
+    pub fn is_satisfied(&self, witness: &R1csWitness) -> LoquatResult<()> {
+        witness.validate(self)?;
+        let z = witness.full_assignment();
+        for (idx, c) in self.constraints.iter().enumerate() {
+            let (az, bz, cz) = c.evaluate(&z);
+            if az * bz != cz {
+                return Err(LoquatError::invalid_parameters(
+                    &format!("constraint {} not satisfied: ({:?})*({:?}) != ({:?})", idx, az, bz, cz)));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Private assignment (without the constant 1 slot).

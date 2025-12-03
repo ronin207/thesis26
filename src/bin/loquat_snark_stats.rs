@@ -1,19 +1,13 @@
-//! Run with `RUST_LOG=vc_pqc=trace cargo run --bin loquat_snark_stats -- [security_levels] [msg_len]`.
-//! `security_levels` may be a single value (e.g. `100`) or a comma-separated list such as
-//! `80,100,128`. When omitted, the default trio `[80, 100, 128]` from Table 3 is used.
-
 use std::{env, time::Duration, time::Instant};
 
 use bincode::serialize;
 use serde::{Deserialize, Serialize};
-use tracing_subscriber::EnvFilter;
-use vc_pqc::loquat::setup::{SUPPORTED_SECURITY_LEVELS, security_profile};
 use vc_pqc::snarks::{
-    AuroraParams, AuroraProverOptions, aurora_prove_with_options, aurora_verify, build_loquat_r1cs,
+    aurora_prove_with_options, aurora_verify, build_loquat_r1cs, AuroraParams, AuroraProverOptions,
 };
 use vc_pqc::{
-    LoquatSignature, LoquatSignatureArtifact, LoquatSigningTranscript, keygen_with_params,
-    loquat_setup, loquat_sign, loquat_verify,
+    keygen_with_params, loquat_setup, loquat_sign, loquat_verify, LoquatSignature,
+    LoquatSignatureArtifact, LoquatSigningTranscript,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,82 +36,19 @@ fn format_duration(duration: Duration) -> String {
     }
 }
 
-const DEFAULT_SECURITY_LEVELS: [usize; 3] = [80, 100, 128];
-
-fn supported_levels_display() -> String {
-    SUPPORTED_SECURITY_LEVELS
-        .iter()
-        .map(|lvl| format!("{}-bit", lvl))
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-fn parse_security_token(raw: &str) -> Result<usize, Box<dyn std::error::Error>> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Err("empty security level token".into());
-    }
-    let digits: String = trimmed.chars().filter(|c| c.is_ascii_digit()).collect();
-    if digits.is_empty() {
-        return Err(format!(
-            "Could not parse security level '{raw}'. Try values like 80 or LOQUAT-100."
-        )
-        .into());
-    }
-    Ok(digits.parse::<usize>()?)
-}
-
-fn parse_security_levels(raw: Option<String>) -> Result<Vec<usize>, Box<dyn std::error::Error>> {
-    let tokens: Vec<String> = if let Some(raw_value) = raw {
-        if raw_value.eq_ignore_ascii_case("all")
-            || raw_value.eq_ignore_ascii_case("default")
-            || raw_value.is_empty()
-        {
-            DEFAULT_SECURITY_LEVELS
-                .iter()
-                .map(|lvl| lvl.to_string())
-                .collect()
-        } else {
-            raw_value
-                .split(',')
-                .map(|chunk| chunk.trim().to_string())
-                .filter(|chunk| !chunk.is_empty())
-                .collect()
-        }
-    } else {
-        DEFAULT_SECURITY_LEVELS
-            .iter()
-            .map(|lvl| lvl.to_string())
-            .collect()
-    };
-
-    let mut deduped = Vec::with_capacity(tokens.len());
-    for token in tokens {
-        let level = parse_security_token(&token)?;
-        if !SUPPORTED_SECURITY_LEVELS.contains(&level) {
-            return Err(format!(
-                "Unsupported security level {}. Supported levels: {}",
-                level,
-                supported_levels_display()
-            )
-            .into());
-        }
-        if !deduped.contains(&level) {
-            deduped.push(level);
-        }
-    }
-    Ok(deduped)
-}
-
-fn parse_args() -> Result<(Vec<usize>, usize), Box<dyn std::error::Error>> {
+fn parse_args() -> Result<(usize, usize), Box<dyn std::error::Error>> {
     let mut args = env::args().skip(1);
-    let security_levels = parse_security_levels(args.next())?;
+    let security = args
+        .next()
+        .map(|value| value.parse::<usize>())
+        .transpose()?
+        .unwrap_or(80);
     let message_len = args
         .next()
         .map(|value| value.parse::<usize>())
         .transpose()?
         .unwrap_or(32);
-    Ok((security_levels, message_len))
+    Ok((security, message_len))
 }
 
 fn synthetic_message(len: usize) -> Vec<u8> {
@@ -125,41 +56,14 @@ fn synthetic_message(len: usize) -> Vec<u8> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("vc_pqc=trace"));
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .with_target(false)
-        .compact()
-        .try_init()
-        .ok();
-
-    let (security_levels, message_len) = parse_args()?;
-    for (idx, security_level) in security_levels.iter().copied().enumerate() {
-        if idx > 0 {
-            println!();
-        }
-        run_for_security_level(security_level, message_len)?;
-    }
-
-    Ok(())
-}
-
-fn run_for_security_level(
-    security_level: usize,
-    message_len: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
+    let (security_level, message_len) = parse_args()?;
     let message = synthetic_message(message_len);
 
+    println!("=== Loquat SNARK Stats ===\n");
     println!(
-        "=== Loquat SNARK Stats (λ={} bits, message={} bytes) ===\n",
+        "security level: {}-bit   message bytes: {}",
         security_level, message_len
     );
-
-    if let Some(profile) = security_profile(security_level) {
-        println!("  public key bits (L): {}", profile.l);
-        println!("  query complexity κ:  {}", profile.kappa);
-    }
 
     let params = loquat_setup(security_level)?;
     let keypair = keygen_with_params(&params)?;

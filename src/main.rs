@@ -6,8 +6,8 @@ fn main() -> LoquatResult<()> {
     println!("Running Loquat signature scheme example...");
 
     // 1. Setup
-    println!("Generating public parameters for 128-bit security...");
-    let params = loquat_setup(128)?;
+    println!("Generating public parameters for 80-bit security...");
+    let params = loquat_setup(80)?;
     println!("Setup complete.");
 
     // 2. Key Generation
