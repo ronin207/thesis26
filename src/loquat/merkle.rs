@@ -10,7 +10,7 @@
 
 use super::field_utils::{self, F};
 use super::griffin::{griffin_permutation_raw, GRIFFIN_STATE_WIDTH};
-use super::hasher::{GriffinHasher, LoquatHasher};
+use super::hasher::GriffinHasher;
 #[cfg(not(feature = "std"))]
 use alloc::vec;
 #[cfg(not(feature = "std"))]
@@ -80,10 +80,7 @@ impl MerkleTree {
 
         // Build the tree from the leaves up
         for i in (1..chunked_leaf_count).rev() {
-            let mut hasher = GriffinHasher::new();
-            hasher.update(&nodes[2 * i]);
-            hasher.update(&nodes[2 * i + 1]);
-            nodes[i] = hasher.finalize();
+            nodes[i] = compress_internal_single_permutation(&nodes[2 * i], &nodes[2 * i + 1]);
         }
 
         Self {
@@ -146,15 +143,13 @@ impl MerkleTree {
         let mut current_index_in_level = leaf_index;
 
         for sibling_hash in path {
-            let mut hasher = GriffinHasher::new();
             if current_index_in_level % 2 == 0 {
-                hasher.update(&current_hash);
-                hasher.update(sibling_hash);
+                current_hash =
+                    compress_internal_single_permutation(&current_hash, sibling_hash);
             } else {
-                hasher.update(sibling_hash);
-                hasher.update(&current_hash);
+                current_hash =
+                    compress_internal_single_permutation(sibling_hash, &current_hash);
             }
-            current_hash = hasher.finalize();
             current_index_in_level /= 2;
         }
 
@@ -213,6 +208,32 @@ fn compress_leaf_single_permutation<T: AsRef<[u8]>>(leaves: &[T]) -> Vec<u8> {
 
     griffin_permutation_raw(&mut state);
 
+    let mut out = Vec::with_capacity(32);
+    out.extend_from_slice(&field_utils::field_to_bytes(&state[0]));
+    out.extend_from_slice(&field_utils::field_to_bytes(&state[1]));
+    out.truncate(32);
+    out
+}
+
+fn digest_to_fields(digest: &[u8]) -> [F; 2] {
+    let mut out = [F::zero(); 2];
+    for (i, chunk) in digest.chunks(16).enumerate() {
+        let mut limb = [0u8; 16];
+        limb.copy_from_slice(chunk);
+        out[i] = field_utils::bytes_to_field_element(&limb);
+    }
+    out
+}
+
+fn compress_internal_single_permutation(left: &[u8], right: &[u8]) -> Vec<u8> {
+    let lf = digest_to_fields(left);
+    let rf = digest_to_fields(right);
+    let mut state = [F::zero(); GRIFFIN_STATE_WIDTH];
+    state[0] = lf[0];
+    state[1] = lf[1];
+    state[2] = rf[0];
+    state[3] = rf[1];
+    griffin_permutation_raw(&mut state);
     let mut out = Vec::with_capacity(32);
     out.extend_from_slice(&field_utils::field_to_bytes(&state[0]));
     out.extend_from_slice(&field_utils::field_to_bytes(&state[1]));
