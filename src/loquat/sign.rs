@@ -17,7 +17,7 @@ use super::{
     fft::{evaluate_on_coset, interpolate_on_coset},
     field_utils::legendre_prf_secure,
     keygen::LoquatKeyPair,
-    merkle::MerkleTree,
+    merkle::{MerkleConfig, MerkleTree},
     setup::LoquatPublicParams,
     sumcheck::generate_sumcheck_proof,
 };
@@ -58,6 +58,12 @@ pub struct LoquatSignature {
     pub root_s: [u8; 32],
     /// Merkle root for h evaluations.
     pub root_h: [u8; 32],
+    /// Merkle auth paths for s(u) at queried positions (tree-cap arity = 2^eta).
+    pub s_auth_paths: Vec<Vec<Vec<u8>>>,
+    /// Merkle auth paths for h(u) at queried positions (tree-cap arity = 2^eta).
+    pub h_auth_paths: Vec<Vec<Vec<u8>>>,
+    /// Merkle auth paths for c'(u) at queried positions (tree-cap arity = 2^eta).
+    pub c_auth_paths: Vec<Vec<Vec<u8>>>,
     /// The values of the t polynomial at the query points.
     pub t_values: Vec<Vec<F>>,
     /// The values of the o polynomial at the query points.
@@ -110,6 +116,9 @@ impl LoquatSignature {
             root_c: artifact.root_c,
             root_s: artifact.root_s,
             root_h: artifact.root_h,
+            s_auth_paths: artifact.s_auth_paths,
+            h_auth_paths: artifact.h_auth_paths,
+            c_auth_paths: artifact.c_auth_paths,
             t_values: artifact.t_values,
             o_values: artifact.o_values,
             c_prime_evals: artifact.c_prime_evals,
@@ -231,6 +240,9 @@ pub struct LoquatSignatureArtifact {
     pub root_c: [u8; 32],
     pub root_s: [u8; 32],
     pub root_h: [u8; 32],
+    pub c_auth_paths: Vec<Vec<Vec<u8>>>,
+    pub s_auth_paths: Vec<Vec<Vec<u8>>>,
+    pub h_auth_paths: Vec<Vec<Vec<u8>>>,
     pub t_values: Vec<Vec<F>>,
     pub o_values: Vec<Vec<F>>,
     pub c_prime_evals: Vec<Vec<F2>>,
@@ -266,6 +278,9 @@ impl From<&LoquatSignature> for LoquatSignatureArtifact {
             root_c: sig.root_c,
             root_s: sig.root_s,
             root_h: sig.root_h,
+            c_auth_paths: sig.c_auth_paths.clone(),
+            s_auth_paths: sig.s_auth_paths.clone(),
+            h_auth_paths: sig.h_auth_paths.clone(),
             t_values: sig.t_values.clone(),
             o_values: sig.o_values.clone(),
             c_prime_evals: sig.c_prime_evals.clone(),
@@ -322,6 +337,10 @@ pub fn loquat_sign(
         "✓ Message commitment computed: {} bytes",
         message_commitment.len()
     );
+
+    // Use TreeCap to halve Merkle leaf count as in paper §4.3.
+    let merkle_leaf_arity = 1usize << params.eta;
+    let merkle_config = MerkleConfig::tree_cap(merkle_leaf_arity);
 
     loquat_debug!("\n================== ALGORITHM 4: LOQUAT SIGN PART I ==================");
 
@@ -408,7 +427,7 @@ pub fn loquat_sign(
         .iter()
         .map(|evals| field_utils::serialize_field2_slice(evals))
         .collect();
-    let merkle_tree = MerkleTree::new(&leaves);
+    let merkle_tree = MerkleTree::new_with_config(&leaves, merkle_config);
     let root_c: [u8; 32] = merkle_tree
         .root()
         .unwrap()
@@ -567,7 +586,7 @@ pub fn loquat_sign(
     }
     let s_sum: F2 = s_on_h.iter().copied().sum();
     let s_leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(&s_on_u);
-    let s_merkle = MerkleTree::new(&s_leaves);
+    let s_merkle = MerkleTree::new_with_config(&s_leaves, merkle_config);
     let root_s_vec = s_merkle.root().ok_or_else(|| LoquatError::MerkleError {
         operation: "s_commitment".to_string(),
         details: "Merkle tree root is empty".to_string(),
@@ -617,7 +636,7 @@ pub fn loquat_sign(
     }
 
     let h_leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(&h_on_u);
-    let h_merkle = MerkleTree::new(&h_leaves);
+    let h_merkle = MerkleTree::new_with_config(&h_leaves, merkle_config);
     let root_h_vec = h_merkle.root().ok_or_else(|| LoquatError::MerkleError {
         operation: "h_commitment".to_string(),
         details: "Merkle tree root is empty".to_string(),
@@ -700,8 +719,25 @@ pub fn loquat_sign(
         "✓ LDT codeword length: {} (evaluations of f^(0) over U)",
         ldt_codeword.len()
     );
-    let (ldt_proof, fri_challenges, fri_codewords, fri_rows) =
-        ldt_protocol(&pi_rows, &ldt_codeword, params, &mut transcript)?;
+    let (ldt_proof, fri_challenges, fri_codewords, fri_rows) = ldt_protocol(
+        &pi_rows,
+        &ldt_codeword,
+        params,
+        merkle_config,
+        &mut transcript,
+    )?;
+
+    // Collect auth paths for c', s, h at queried positions (aligned with LDT queries)
+    let leaf_arity = merkle_config.leaf_arity();
+    let mut c_auth_paths = Vec::with_capacity(params.kappa);
+    let mut s_auth_paths = Vec::with_capacity(params.kappa);
+    let mut h_auth_paths = Vec::with_capacity(params.kappa);
+    for opening in &ldt_proof.openings {
+        let chunk_index = opening.position / leaf_arity;
+        c_auth_paths.push(merkle_tree.generate_auth_path(chunk_index));
+        s_auth_paths.push(s_merkle.generate_auth_path(chunk_index));
+        h_auth_paths.push(h_merkle.generate_auth_path(chunk_index));
+    }
 
     loquat_debug!("\n--- FINAL SIGNATURE ASSEMBLY ---");
 
@@ -709,6 +745,9 @@ pub fn loquat_sign(
         root_c,
         root_s,
         root_h,
+        c_auth_paths,
+        s_auth_paths,
+        h_auth_paths,
         t_values,
         o_values,
         c_prime_evals: c_prime_on_u_per_j,
@@ -746,6 +785,7 @@ fn ldt_protocol(
     pi_rows: &[Vec<F2>],
     codeword: &[F2],
     params: &LoquatPublicParams,
+    merkle_config: MerkleConfig,
     transcript: &mut Transcript,
 ) -> LoquatResult<(LDTProof, Vec<F2>, Vec<Vec<F2>>, Vec<Vec<Vec<F2>>>)> {
     let chunk_size = 1 << params.eta;
@@ -760,7 +800,7 @@ fn ldt_protocol(
     let mut merkle_commitments = Vec::with_capacity(params.r + 1);
 
     let initial_leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(codeword);
-    let initial_merkle_tree = MerkleTree::new(&initial_leaves);
+    let initial_merkle_tree = MerkleTree::new_with_config(&initial_leaves, merkle_config);
     let initial_commitment_vec =
         initial_merkle_tree
             .root()
@@ -819,7 +859,7 @@ fn ldt_protocol(
         current_codeword = next_codeword;
 
         let leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(&current_codeword);
-        let merkle_tree = MerkleTree::new(&leaves);
+        let merkle_tree = MerkleTree::new_with_config(&leaves, merkle_config);
         let commitment_vec = merkle_tree.root().ok_or_else(|| LoquatError::MerkleError {
             operation: "commitment".to_string(),
             details: "Merkle tree root is empty".to_string(),
@@ -871,7 +911,10 @@ fn ldt_protocol(
         }
 
         let final_eval = layer_codewords.last().unwrap()[fold_index];
-        let auth_path = merkle_trees.last().unwrap().generate_auth_path(fold_index);
+        let auth_path = merkle_trees
+            .last()
+            .unwrap()
+            .generate_auth_path(fold_index / merkle_config.leaf_arity());
 
         openings.push(LDTOpening {
             position,

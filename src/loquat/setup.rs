@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use super::errors::{LoquatError, LoquatResult};
-use super::field_utils::{F, F2};
+use super::field_utils::{F, F2, legendre_symbol_secure};
 #[cfg(feature = "std")]
 use super::hasher::{GriffinHasher, LoquatHasher};
 #[cfg(not(feature = "std"))]
@@ -80,6 +80,7 @@ pub struct LoquatPublicParams {
     pub public_indices: Vec<F>,
     pub m: usize,
     pub n: usize,
+    pub qr_non_residue: F,
 
     // Parameters for Univariate Sumcheck and LDT
     pub coset_h: Vec<F2>,
@@ -286,6 +287,14 @@ pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
         public_indices.len()
     );
 
+    let qr_non_residue = loop {
+        let candidate = F::rand_nonzero(&mut rng);
+        if legendre_symbol_secure(candidate) == -1 {
+            break candidate;
+        }
+    };
+    loquat_debug!("✓ Sampled quadratic non-residue α for QR checks");
+
     let m = 16;
     let n = (b + m - 1) / m;
     loquat_debug!(
@@ -384,6 +393,7 @@ pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
         public_indices,
         m,
         n,
+        qr_non_residue,
         coset_h,
         coset_u,
         h_shift: shift_h,
@@ -406,6 +416,104 @@ pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
     loquat_debug!("✓ All parameter constraints satisfied");
 
     loquat_debug!("\n--- OUTPUT: L-pp Generated Successfully ---");
+    Ok(params)
+}
+
+/// Tiny, test-only parameter set for quick local runs (non-production).
+#[cfg(feature = "std")]
+pub fn loquat_setup_tiny() -> LoquatResult<LoquatPublicParams> {
+    loquat_debug!("\n================== LOQUAT SETUP (TINY) ==================");
+    let lambda = 32;
+    let mut rng = init_rng("loquat-setup-tiny", lambda);
+
+    // Drastically reduced sizes for constrained machines (benchmark only).
+    let l = 1024;
+    let b = 16;
+    let public_indices = sample_distinct_public_indices(&mut rng, l);
+    let m = 16;
+    let n = 1;
+    let eta = 2;
+    let kappa = 8;
+
+    let min_rate_denominator: usize = 4 * m + (kappa * (1 << eta));
+    let h_size = 2 * m;
+    let (coset_h, generator_h, shift_h) = build_power_of_two_coset(h_size, &mut rng)?;
+
+    let u_size = min_rate_denominator.next_power_of_two();
+    let (coset_u, generator_u, shift_u) = build_power_of_two_coset(u_size, &mut rng)?;
+
+    // ρ parameters and LDT depth.
+    let mut rho_star_value = 1usize;
+    while rho_star_value * coset_u.len() <= min_rate_denominator {
+        rho_star_value <<= 1;
+    }
+    let rho_star_num = rho_star_value * coset_u.len();
+    let rho_star = rho_star_num as f64 / coset_u.len() as f64;
+    let rho_numerators = [
+        2 * m + (kappa * (1 << eta)) + 1,
+        4 * m + (kappa * (1 << eta)),
+        2 * m + (kappa * (1 << eta)),
+        2 * m - 1,
+    ];
+
+    let log_u = log2_pow2(coset_u.len());
+    let rho_star_log = if rho_star_value.is_power_of_two() {
+        log2_pow2(rho_star_value)
+    } else {
+        ((rho_star_value as f64).log2().ceil()) as usize
+    };
+    let r = ((log_u + rho_star_log) / eta).max(1);
+
+    let mut u_subgroups = Vec::with_capacity(r);
+    let mut current_size = coset_u.len();
+    let mut current_shift = shift_u;
+    let mut current_generator = generator_u;
+    for round in 0..r {
+        current_size = (current_size >> eta).max(1);
+        current_shift = current_shift.pow_two(eta);
+        current_generator = current_generator.pow_two(eta);
+        let layer = generate_coset_elements(current_generator, current_size, current_shift);
+        loquat_debug!("  • U({}) size: {}", round + 1, layer.len());
+        u_subgroups.push(layer);
+    }
+
+    let hash_count = 5 + r + 1;
+    let hash_functions = generate_hash_functions(hash_count);
+    let expand_domain = b"Loquat/Expand".to_vec();
+
+    let qr_non_residue = loop {
+        let candidate = F::rand_nonzero(&mut rng);
+        if legendre_symbol_secure(candidate) == -1 {
+            break candidate;
+        }
+    };
+
+    let params = LoquatPublicParams {
+        l,
+        b,
+        public_indices,
+        m,
+        n,
+        qr_non_residue,
+        coset_h,
+        coset_u,
+        h_shift: shift_h,
+        h_generator: generator_h,
+        u_shift: shift_u,
+        u_generator: generator_u,
+        eta,
+        kappa,
+        rho_star,
+        rho_star_num,
+        rho_numerators,
+        r,
+        u_subgroups,
+        hash_functions,
+        expand_domain,
+    };
+
+    validate_loquat_parameters(&params)?;
+    loquat_debug!("✓ Tiny parameters validated (debug-only)");
     Ok(params)
 }
 
@@ -434,6 +542,11 @@ fn validate_loquat_parameters(params: &LoquatPublicParams) -> LoquatResult<()> {
     if params.u_subgroups.len() != params.r {
         return Err(LoquatError::invalid_parameters(
             "number of U layers must equal r",
+        ));
+    }
+    if legendre_symbol_secure(params.qr_non_residue) != -1 {
+        return Err(LoquatError::invalid_parameters(
+            "qr_non_residue must be a quadratic non-residue",
         ));
     }
     for &num in params.rho_numerators.iter() {

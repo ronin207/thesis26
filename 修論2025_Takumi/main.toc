@@ -15,9 +15,10 @@
 \contentsline {subsubsection}{\numberline {2.3.1}Zero-Knowledge Virtual Machines}{9}{}%
 \contentsline {subsubsection}{\numberline {2.3.2}SNARK Circuit Compilers}{9}{}%
 \contentsline {section}{\numberline {3}Dynamism}{10}{}%
-\contentsline {section}{\numberline {4}Evaluation}{11}{}%
-\contentsline {section}{\numberline {5}Discussion}{12}{}%
-\contentsline {section}{\numberline {6}Conclusion}{13}{}%
-\contentsline {section}{Acknowledgement}{14}{}%
-\contentsline {section}{References}{15}{}%
-\contentsline {section}{\numberline {A}Proof of Theorem}{16}{}%
+\contentsline {subsection}{\numberline {3.1}Logic Updates and Benchmarking}{12}{}%
+\contentsline {section}{\numberline {4}Evaluation}{14}{}%
+\contentsline {section}{\numberline {5}Discussion}{15}{}%
+\contentsline {section}{\numberline {6}Conclusion}{16}{}%
+\contentsline {section}{Acknowledgement}{17}{}%
+\contentsline {section}{References}{18}{}%
+\contentsline {section}{\numberline {A}Proof of Theorem}{19}{}%

@@ -112,7 +112,7 @@ pub fn aurora_prove_with_options(
 
     let mut residual_evals = vec![F2::zero(); eval_len];
     for (idx, constraint) in instance.constraints.iter().enumerate() {
-        let (a_eval, b_eval, c_eval) = constraint.evaluate(&assignment);
+        let (a_eval, b_eval, c_eval) = constraint.evaluate(&assignment)?;
         residual_evals[idx] = F2::new(a_eval * b_eval - c_eval, F::zero());
     }
 
@@ -388,14 +388,14 @@ fn evaluate_constraint_with_openings(
     ))
 }
 
-fn partial_inner_product(coeffs: &[F], assignments: &HashMap<usize, F>) -> LoquatResult<F> {
+fn partial_inner_product(
+    coeffs: &[(usize, F)],
+    assignments: &HashMap<usize, F>,
+) -> LoquatResult<F> {
     let mut sum = F::zero();
-    for (idx, coeff) in coeffs.iter().enumerate() {
-        if coeff.is_zero() {
-            continue;
-        }
+    for (idx, coeff) in coeffs.iter() {
         let value = assignments
-            .get(&idx)
+            .get(idx)
             .copied()
             .ok_or_else(|| LoquatError::verification_failure("missing witness opening"))?;
         sum += *coeff * value;

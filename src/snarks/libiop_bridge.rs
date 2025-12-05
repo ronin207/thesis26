@@ -167,14 +167,15 @@ fn serialize_constraints(constraints: &[R1csConstraint], num_variables: usize) -
     for (i, constraint) in constraints.iter().enumerate() {
         let offset = i * padded_row_len;
 
-        // Helper to write a row
-        let write_row = |coeffs: &[crate::loquat::field_utils::F], buf: &mut [u8]| {
-            for (var_idx, coeff) in coeffs.iter().enumerate() {
-                if var_idx >= padded_num_variables {
-                    break;
+        // Helper to write a sparse row
+        let write_row = |coeffs: &[(usize, crate::loquat::field_utils::F)],
+                        buf: &mut [u8]| {
+            for (var_idx, coeff) in coeffs.iter() {
+                if *var_idx >= padded_num_variables {
+                    continue;
                 }
                 let bytes = crate::loquat::field_utils::field_to_bytes(coeff);
-                let start = offset + var_idx * field_bytes;
+                let start = offset + *var_idx * field_bytes;
                 buf[start..start + field_bytes].copy_from_slice(&bytes[..field_bytes]);
             }
         };

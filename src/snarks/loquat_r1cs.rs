@@ -3,65 +3,142 @@ fn merkle_path_opening(
     leaf: &[Byte],
     path: &[Vec<u8>],
     position: usize,
-) -> [BitWord; 8] {
+) -> Vec<Byte> {
     loquat_debug!(
         "[r1cs] merkle_path_opening depth={} position={}",
         path.len(),
         position
     );
-    let mut current = sha256_hash_bytes(builder, leaf);
+    let mut current = griffin_hash_bytes_circuit(builder, leaf);
     let mut idx = position;
     for sibling_bytes in path {
         let sibling_byte_structs = sibling_bytes
             .iter()
             .map(|&byte| Byte::from_constant(builder, byte))
             .collect::<Vec<_>>();
-        let sibling_bits = sha256_hash_bytes(builder, &sibling_byte_structs);
+        let sibling_digest = griffin_hash_bytes_circuit(builder, &sibling_byte_structs);
         let mut concat = Vec::new();
         if idx % 2 == 0 {
-            concat.extend(bytes_from_bitwords(&current));
-            concat.extend(bytes_from_bitwords(&sibling_bits));
+            concat.extend_from_slice(&current);
+            concat.extend_from_slice(&sibling_digest);
         } else {
-            concat.extend(bytes_from_bitwords(&sibling_bits));
-            concat.extend(bytes_from_bitwords(&current));
+            concat.extend_from_slice(&sibling_digest);
+            concat.extend_from_slice(&current);
         }
-        current = sha256_hash_bytes(builder, &concat);
+        current = griffin_hash_bytes_circuit(builder, &concat);
         idx /= 2;
     }
     current
 }
+
+fn compress_leaf_fields_single_perm(
+    builder: &mut R1csBuilder,
+    leaf_fields: &[FieldVar],
+) -> Vec<FieldVar> {
+    let mut acc0: Option<FieldVar> = None;
+    let mut acc1: Option<FieldVar> = None;
+    for (idx, field) in leaf_fields.iter().enumerate() {
+        let target = if idx % 2 == 0 {
+            &mut acc0
+        } else {
+            &mut acc1
+        };
+        *target = Some(match target.take() {
+            None => *field,
+            Some(prev) => field_add(builder, prev, *field),
+        });
+    }
+    let zero = FieldVar::constant(builder, F::zero());
+    let acc0 = acc0.unwrap_or(zero);
+    let acc1 = acc1.unwrap_or(zero);
+    let len_tag = FieldVar::constant(builder, F::new(leaf_fields.len() as u128));
+
+    let params = get_griffin_params();
+    let mut state = vec![
+        acc0,
+        acc1,
+        len_tag,
+        FieldVar::constant(builder, F::zero()),
+    ];
+    griffin_permutation_circuit(builder, params, &mut state);
+    state.truncate(GRIFFIN_DIGEST_ELEMENTS);
+    state
+}
+
+fn merkle_path_opening_fields(
+    builder: &mut R1csBuilder,
+    leaf_fields: &[FieldVar],
+    path: &[Vec<u8>],
+    position: usize,
+) -> LoquatResult<Vec<FieldVar>> {
+    let mut current = compress_leaf_fields_single_perm(builder, leaf_fields);
+    let mut idx = position;
+    for sibling_bytes in path {
+        let sibling_fields = digest_bytes_to_field_vars(builder, sibling_bytes)?;
+        let mut concat = Vec::with_capacity(current.len() + sibling_fields.len());
+        if idx % 2 == 0 {
+            concat.extend_from_slice(&current);
+            concat.extend_from_slice(&sibling_fields);
+        } else {
+            concat.extend_from_slice(&sibling_fields);
+            concat.extend_from_slice(&current);
+        }
+        current = griffin_hash_field_vars_circuit(builder, &concat);
+        idx /= 2;
+    }
+    Ok(current)
+}
+
+fn digest_bytes_to_field_vars(
+    builder: &mut R1csBuilder,
+    digest: &[u8],
+) -> LoquatResult<Vec<FieldVar>> {
+    if digest.len() != 32 {
+        return Err(LoquatError::verification_failure(
+            "invalid digest length (expected 32)",
+        ));
+    }
+    let mut out = Vec::with_capacity(GRIFFIN_DIGEST_ELEMENTS);
+    for chunk in digest.chunks(16) {
+        let mut limb = [0u8; 16];
+        limb.copy_from_slice(chunk);
+        let value = field_utils::bytes_to_field_element(&limb);
+        out.push(FieldVar::constant(builder, value));
+    }
+    Ok(out)
+}
+
+fn enforce_field_digest_equals_bytes(
+    builder: &mut R1csBuilder,
+    digest_fields: &[FieldVar],
+    digest_bytes: &[u8],
+) -> LoquatResult<()> {
+    let expected = digest_bytes_to_field_vars(builder, digest_bytes)?;
+    if expected.len() != digest_fields.len() {
+        return Err(LoquatError::verification_failure(
+            "digest length mismatch while enforcing equality",
+        ));
+    }
+    for (lhs, rhs) in digest_fields.iter().zip(expected.iter()) {
+        builder.enforce_eq(lhs.idx, rhs.idx);
+    }
+    Ok(())
+}
+
 use crate::loquat::encoding;
 use crate::loquat::errors::{LoquatError, LoquatResult};
 use crate::loquat::fft::{evaluate_on_coset, interpolate_on_coset};
-use crate::loquat::field_utils::{self, F, F2, field_to_u128, field2_to_bytes};
+use crate::loquat::field_utils::{self, F, F2, field_to_u128, field2_to_bytes, sqrt_canonical};
+use crate::loquat::griffin::{
+    GRIFFIN_DIGEST_ELEMENTS, GRIFFIN_FIELD_MODULUS, GRIFFIN_RATE, GRIFFIN_STATE_WIDTH,
+    GriffinParams, get_griffin_params,
+};
+use crate::loquat::hasher::{GriffinHasher, LoquatHasher};
 use crate::loquat::setup::LoquatPublicParams;
 use crate::loquat::sign::LoquatSignature;
 use crate::loquat::sumcheck::replay_sumcheck_challenges;
 use crate::loquat::transcript::Transcript;
 use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
-use sha2::{Digest, Sha256};
-
-const LEGENDRE_EXPONENT_BITS: usize = 126;
-const LEGENDRE_EXPONENT_ITERS: usize = LEGENDRE_EXPONENT_BITS - 1;
-const WORD_BITS: usize = 32;
-const SHA256_K: [u32; 64] = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-];
-const SHA256_IV: [u32; 8] = [
-    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
-];
-
-struct LegendreConstants {
-    two: F,
-    two_inv: F,
-}
 
 struct TranscriptData {
     i_indices: Vec<usize>,
@@ -84,74 +161,15 @@ struct F2Var {
 }
 
 #[derive(Clone, Debug)]
-struct BitWord {
-    bits: Vec<usize>,
-    value: u32,
-}
-
-#[derive(Clone, Debug)]
 struct Byte {
     bits: [usize; 8],
     value: u8,
 }
 
-impl BitWord {
-    fn len(&self) -> usize {
-        self.bits.len()
-    }
-
-    fn bit_value(&self, index: usize) -> bool {
-        ((self.value >> index) & 1) == 1
-    }
-
-    fn rotate_right(&self, amount: usize) -> Self {
-        let len = self.bits.len();
-        if len == 0 {
-            return self.clone();
-        }
-        let shift = amount % len;
-        let mut rotated_bits = Vec::with_capacity(len);
-        for i in 0..len {
-            rotated_bits.push(self.bits[(i + shift) % len]);
-        }
-        Self {
-            bits: rotated_bits,
-            value: self.value.rotate_right(shift as u32),
-        }
-    }
-
-    fn shift_right(&self, amount: usize, builder: &mut R1csBuilder) -> Self {
-        let len = self.bits.len();
-        if amount >= len {
-            let zero_bits = (0..len)
-                .map(|_| builder.alloc_bit(false))
-                .collect::<Vec<_>>();
-            return Self {
-                bits: zero_bits,
-                value: 0,
-            };
-        }
-        let mut bits = Vec::with_capacity(len);
-        for _ in 0..amount {
-            bits.push(builder.alloc_bit(false));
-        }
-        for i in amount..len {
-            bits.push(self.bits[i - amount]);
-        }
-        Self {
-            bits,
-            value: self.value >> amount,
-        }
-    }
-
-    fn from_constant(builder: &mut R1csBuilder, value: u32) -> Self {
-        let mut bits = Vec::with_capacity(WORD_BITS);
-        for i in 0..WORD_BITS {
-            let bit_val = ((value >> i) & 1) == 1;
-            bits.push(builder.alloc_bit(bit_val));
-        }
-        Self { bits, value }
-    }
+#[derive(Clone, Copy)]
+struct FieldVar {
+    idx: usize,
+    value: F,
 }
 
 impl Byte {
@@ -167,6 +185,75 @@ impl Byte {
         }
         Self { bits, value }
     }
+}
+
+impl FieldVar {
+    fn new(idx: usize, value: F) -> Self {
+        Self { idx, value }
+    }
+
+    fn existing(idx: usize, value: F) -> Self {
+        Self { idx, value }
+    }
+
+    fn constant(builder: &mut R1csBuilder, value: F) -> Self {
+        let idx = builder.alloc(value);
+        Self { idx, value }
+    }
+}
+
+fn field_add(builder: &mut R1csBuilder, left: FieldVar, right: FieldVar) -> FieldVar {
+    let sum_value = left.value + right.value;
+    let sum_idx = builder.alloc(sum_value);
+    builder.enforce_linear_relation(
+        &[
+            (sum_idx, F::one()),
+            (left.idx, -F::one()),
+            (right.idx, -F::one()),
+        ],
+        F::zero(),
+    );
+    FieldVar::new(sum_idx, sum_value)
+}
+
+fn field_add_const(builder: &mut R1csBuilder, var: FieldVar, constant: F) -> FieldVar {
+    let sum_value = var.value + constant;
+    let sum_idx = builder.alloc(sum_value);
+    builder.enforce_linear_relation(&[(sum_idx, F::one()), (var.idx, -F::one())], constant);
+    FieldVar::new(sum_idx, sum_value)
+}
+
+fn field_mul(builder: &mut R1csBuilder, left: FieldVar, right: FieldVar) -> FieldVar {
+    let prod_value = left.value * right.value;
+    let prod_idx = builder.alloc(prod_value);
+    builder.enforce_mul_vars(left.idx, right.idx, prod_idx);
+    FieldVar::new(prod_idx, prod_value)
+}
+
+fn field_mul_const(builder: &mut R1csBuilder, var: FieldVar, constant: F) -> FieldVar {
+    let prod_value = var.value * constant;
+    let prod_idx = builder.alloc(prod_value);
+    builder.enforce_mul_const_var(constant, var.idx, prod_idx);
+    FieldVar::new(prod_idx, prod_value)
+}
+
+fn field_pow_const(builder: &mut R1csBuilder, base: FieldVar, exponent: u128) -> FieldVar {
+    if exponent == 0 {
+        return FieldVar::constant(builder, F::one());
+    }
+    let mut result = FieldVar::constant(builder, F::one());
+    let mut current = base;
+    let mut exp = exponent;
+    while exp > 0 {
+        if exp & 1 == 1 {
+            result = field_mul(builder, result, current);
+        }
+        exp >>= 1;
+        if exp > 0 {
+            current = field_mul(builder, current, current);
+        }
+    }
+    result
 }
 
 impl SparseLC {
@@ -216,6 +303,31 @@ impl SparseLC {
             dense[*idx] += *coeff;
         }
         dense
+    }
+
+    fn to_sparse(&self) -> Vec<(usize, F)> {
+        let mut terms = self.terms.clone();
+        if !self.constant.is_zero() {
+            terms.push((0, self.constant));
+        }
+        terms.sort_by_key(|(idx, _)| *idx);
+        let mut out: Vec<(usize, F)> = Vec::with_capacity(terms.len());
+        for (idx, coeff) in terms {
+            if coeff.is_zero() {
+                continue;
+            }
+            if let Some(last) = out.last_mut() {
+                if last.0 == idx {
+                    last.1 += coeff;
+                    if last.1.is_zero() {
+                        out.pop();
+                    }
+                    continue;
+                }
+            }
+            out.push((idx, coeff));
+        }
+        out
     }
 }
 
@@ -465,16 +577,55 @@ impl R1csBuilder {
             .constraints
             .into_iter()
             .map(|pending| {
-                let a = pending.a.to_dense(num_variables);
-                let b = pending.b.to_dense(num_variables);
-                let c = pending.c.to_dense(num_variables);
-                R1csConstraint::new(a, b, c)
+                let a = pending.a.to_sparse();
+                let b = pending.b.to_sparse();
+                let c = pending.c.to_sparse();
+                R1csConstraint::from_sparse(a, b, c)
             })
             .collect::<Vec<_>>();
         let instance = R1csInstance::new(num_variables, constraints)?;
         let witness = R1csWitness::new(self.witness);
         witness.validate(&instance)?;
         Ok((instance, witness))
+    }
+
+    fn num_constraints(&self) -> usize {
+        self.constraints.len()
+    }
+
+    fn num_variables(&self) -> usize {
+        self.witness.len() + 1
+    }
+}
+
+struct ConstraintTracker {
+    last_constraints: usize,
+    last_variables: usize,
+}
+
+impl ConstraintTracker {
+    fn new(builder: &R1csBuilder) -> Self {
+        Self {
+            last_constraints: builder.num_constraints(),
+            last_variables: builder.num_variables(),
+        }
+    }
+
+    fn record(&mut self, builder: &R1csBuilder, label: &str) {
+        let constraints = builder.num_constraints();
+        let variables = builder.num_variables();
+        let delta_constraints = constraints.saturating_sub(self.last_constraints);
+        let delta_variables = variables.saturating_sub(self.last_variables);
+        loquat_debug!(
+            "[r1cs][stats] {:<32} Δc={:>6} (total {:>8}), Δv={:>6} (total {:>8})",
+            label,
+            delta_constraints,
+            constraints,
+            delta_variables,
+            variables
+        );
+        self.last_constraints = constraints;
+        self.last_variables = variables;
     }
 }
 
@@ -487,7 +638,7 @@ fn expand_challenge<T>(
     let mut results = Vec::with_capacity(count);
     let mut counter: u32 = 0;
     while results.len() < count {
-        let mut hasher = Sha256::new();
+        let mut hasher = GriffinHasher::new();
         hasher.update(seed);
         hasher.update(domain_separator);
         hasher.update(&counter.to_le_bytes());
@@ -506,9 +657,7 @@ fn replay_transcript_data(
     let mut transcript = Transcript::new(b"loquat_signature");
     transcript.append_message(b"message", message);
 
-    let mut hasher = Sha256::new();
-    hasher.update(message);
-    let message_commitment = hasher.finalize().to_vec();
+    let message_commitment = GriffinHasher::hash(message);
     if message_commitment != signature.message_commitment {
         return Err(LoquatError::verification_failure(
             "message commitment mismatch",
@@ -616,16 +765,23 @@ pub fn build_loquat_r1cs(
     message_commitment.copy_from_slice(&signature.message_commitment);
 
     let mut builder = R1csBuilder::new();
+    let mut constraint_tracker = ConstraintTracker::new(&builder);
+    if params.eta >= usize::BITS as usize {
+        return Err(LoquatError::invalid_parameters(
+            "η parameter exceeds machine word size",
+        ));
+    }
+    let fri_leaf_arity = 1usize << params.eta;
     let message_bytes = bytes_from_constants(&mut builder, message);
-    let computed_commitment = sha256_hash_bytes(&mut builder, &message_bytes);
+    let computed_commitment = griffin_hash_bytes_circuit(&mut builder, &message_bytes);
     enforce_digest_equals_bytes(&mut builder, &computed_commitment, &message_commitment);
     trace_stage("message commitment enforced inside circuit");
+    constraint_tracker.record(&builder, "message commitment");
+    // Byte representations of commitments (still used for root equality checks)
     let message_commitment_bytes = bytes_from_constants(&mut builder, &message_commitment);
     let root_c_bytes = bytes_from_constants(&mut builder, &signature.root_c);
     let root_s_bytes = bytes_from_constants(&mut builder, &signature.root_s);
     let root_h_bytes = bytes_from_constants(&mut builder, &signature.root_h);
-    let s_sum_raw = field_utils::field2_to_bytes(&signature.s_sum);
-    let s_sum_bytes = bytes_from_constants(&mut builder, &s_sum_raw);
 
     let mu_c0_idx = builder.alloc(signature.mu.c0);
     let mu_c1_idx = builder.alloc(signature.mu.c1);
@@ -641,8 +797,7 @@ pub fn build_loquat_r1cs(
         }
         t_var_indices.push(row_indices);
     }
-    let t_matrix_bytes =
-        serialize_field_matrix_bytes(&mut builder, &t_var_indices, &signature.t_values)?;
+    // NOTE: We no longer serialize t_matrix to bytes here; instead we hash field vars directly.
     trace_stage(&format!(
         "allocated {} t-value rows (max row len {})",
         t_var_indices.len(),
@@ -653,6 +808,7 @@ pub fn build_loquat_r1cs(
             .max()
             .unwrap_or(0)
     ));
+    constraint_tracker.record(&builder, "t-values allocated");
 
     let mut o_var_indices = vec![Vec::with_capacity(params.m); params.n];
 
@@ -675,24 +831,22 @@ pub fn build_loquat_r1cs(
         pi_row_vars.push(row_vars);
     }
 
+    // Allocate s(u) evaluations and enforce sum constraint
     let mut s_vars = Vec::with_capacity(signature.s_evals.len());
     for &value in &signature.s_evals {
         s_vars.push(builder.alloc_f2(value));
     }
     builder.enforce_f2_sum_equals_const(&s_vars, signature.s_sum);
-    let s_leaves = build_f2_vector_leaves(&mut builder, &s_vars, &signature.s_evals);
-    let s_root = merkle_root_from_leaves(&mut builder, &s_leaves);
-    enforce_digest_equals_bytes(&mut builder, &s_root, &signature.root_s);
-    trace_stage("s(u) Merkle root enforced");
+    trace_stage("s(u) values allocated");
+    constraint_tracker.record(&builder, "s(u) alloc");
 
+    // Allocate h(u) evaluations
     let mut h_vars = Vec::with_capacity(signature.h_evals.len());
     for &value in &signature.h_evals {
         h_vars.push(builder.alloc_f2(value));
     }
-    let h_leaves = build_f2_vector_leaves(&mut builder, &h_vars, &signature.h_evals);
-    let h_root = merkle_root_from_leaves(&mut builder, &h_leaves);
-    enforce_digest_equals_bytes(&mut builder, &h_root, &signature.root_h);
-    trace_stage("h(u) Merkle root enforced");
+    trace_stage("h(u) values allocated");
+    constraint_tracker.record(&builder, "h(u) alloc");
     let mut p_vars = Vec::with_capacity(signature.p_evals.len());
     for &value in &signature.p_evals {
         p_vars.push(builder.alloc_f2(value));
@@ -734,26 +888,13 @@ pub fn build_loquat_r1cs(
         fri_row_vars.push(layer_rows);
     }
 
-    let c_merkle_leaves =
-        build_c_merkle_leaves(&mut builder, &c_prime_vars, &signature.c_prime_evals);
-    let c_merkle_root = merkle_root_from_leaves(&mut builder, &c_merkle_leaves);
-    enforce_digest_equals_bytes(&mut builder, &c_merkle_root, &signature.root_c);
-    trace_stage("c'(u) Merkle root enforced");
+    trace_stage("c'(u) values allocated (auth-path verified)");
+    constraint_tracker.record(&builder, "c'(u) alloc (auth-path)");
 
-    for (layer_idx, layer_vars) in fri_codeword_vars.iter().enumerate() {
-        let leaves = build_fri_layer_leaves(
-            &mut builder,
-            layer_vars,
-            &signature.fri_codewords[layer_idx],
-        );
-        let root = merkle_root_from_leaves(&mut builder, &leaves);
-        enforce_digest_equals_bytes(
-            &mut builder,
-            &root,
-            &signature.ldt_proof.commitments[layer_idx],
-        );
-    }
-    trace_stage("FRI layer commitments enforced");
+    // NOTE: FRI layer commitment verification is done via auth paths in enforce_ldt_queries.
+    // Building full Merkle trees here would be redundant and expensive.
+    trace_stage("FRI layer commitments (verified via LDT auth paths)");
+    constraint_tracker.record(&builder, "FRI commitments (skipped - auth paths)");
 
     let q_hat_on_u = compute_q_hat_on_u(params, &transcript_data)?;
     let h_order = params.coset_h.len() as u128;
@@ -854,44 +995,79 @@ pub fn build_loquat_r1cs(
     }
 
     let two = F::new(2);
-    let two_inv = two
-        .inverse()
-        .ok_or_else(|| LoquatError::invalid_parameters("field has characteristic two"))?;
-    let legendre_consts = LegendreConstants { two, two_inv };
     for j in 0..params.n {
         for i in 0..params.m {
             let pk_index = transcript_data.i_indices[j * params.m + i];
             let pk_value = *public_key
                 .get(pk_index)
                 .ok_or_else(|| LoquatError::invalid_parameters("public key index out of range"))?;
-            enforce_legendre_constraint(
+            enforce_qr_witness_constraint(
                 &mut builder,
                 o_var_indices[j][i],
                 signature.o_values[j][i],
                 t_var_indices[j][i],
                 signature.t_values[j][i],
                 pk_value,
-                &legendre_consts,
+                params.qr_non_residue,
+                two,
             )?;
         }
     }
+    trace_stage("quadratic residuosity constraints enforced");
+    constraint_tracker.record(&builder, "quadratic residuosity");
 
-    let o_matrix_bytes =
-        serialize_field_matrix_bytes(&mut builder, &o_var_indices, &signature.o_values)?;
     trace_stage("allocated o-value matrix inside circuit");
-    enforce_transcript_relations(
+
+    // Re-enable Fiat–Shamir binding: derive challenges in-circuit from commitments.
+    // Hash field elements directly (small inputs) to stay within the paper's budget.
+    // Validate challenge structure (imaginary parts zero) as before.
+    // First, build compact commitments to t_values and o_values over the field.
+    let t_field_vars: Vec<FieldVar> = t_var_indices
+        .iter()
+        .zip(signature.t_values.iter())
+        .flat_map(|(row_vars, row_vals)| {
+            row_vars
+                .iter()
+                .zip(row_vals.iter())
+                .map(|(&idx, &val)| FieldVar::existing(idx, val))
+        })
+        .collect();
+    let t_commitment_fields = griffin_hash_field_vars_circuit(&mut builder, &t_field_vars);
+
+    let o_field_vars: Vec<FieldVar> = o_var_indices
+        .iter()
+        .zip(signature.o_values.iter())
+        .flat_map(|(row_vars, row_vals)| {
+            row_vars
+                .iter()
+                .zip(row_vals.iter())
+                .map(|(&idx, &val)| FieldVar::existing(idx, val))
+        })
+        .collect();
+    let o_commitment_fields = griffin_hash_field_vars_circuit(&mut builder, &o_field_vars);
+
+    // Convert commitment bytes to field elements (first limb) for transcript chaining.
+    let message_commitment_field = pack_const_bytes_to_field(&message_commitment_bytes[..16]);
+    let root_c_field = pack_const_bytes_to_field(&root_c_bytes[..16]);
+    let root_s_field = pack_const_bytes_to_field(&root_s_bytes[..16]);
+    let root_h_field = pack_const_bytes_to_field(&root_h_bytes[..16]);
+    let s_sum_field = FieldVar::existing(builder.alloc(signature.s_sum.c0), signature.s_sum.c0);
+
+    enforce_transcript_relations_field_native(
         &mut builder,
         signature,
-        &message_bytes,
-        &message_commitment_bytes,
-        &root_c_bytes,
-        &t_matrix_bytes,
-        &o_matrix_bytes,
-        &root_s_bytes,
-        &s_sum_bytes,
-        &root_h_bytes,
+        message_commitment_field,
+        root_c_field,
+        &t_commitment_fields,
+        &o_commitment_fields,
+        root_s_field,
+        s_sum_field,
+        root_h_field,
     )?;
     trace_stage("Fiat-Shamir transcript replay enforced");
+    constraint_tracker.record(&builder, "transcript binding");
+    trace_stage("Fiat-Shamir transcript replay enforced");
+    constraint_tracker.record(&builder, "transcript binding");
 
     builder.enforce_sum_equals(&contrib_c0_terms, mu_c0_idx);
     builder.enforce_sum_equals(&contrib_c1_terms, mu_c1_idx);
@@ -957,6 +1133,7 @@ pub fn build_loquat_r1cs(
         );
     }
     trace_stage("sumcheck rounds enforced");
+    constraint_tracker.record(&builder, "sumcheck");
 
     let final_eval_var = builder.alloc_f2(signature.pi_us.final_evaluation);
     builder.enforce_f2_eq(last_sum, final_eval_var);
@@ -978,99 +1155,103 @@ pub fn build_loquat_r1cs(
         signature,
         &fri_codeword_vars,
         &fri_row_vars,
+        fri_leaf_arity,
+        &c_prime_vars,
+        &signature.c_prime_evals,
+        &s_vars,
+        &signature.s_evals,
+        &h_vars,
+        &signature.h_evals,
     )?;
     trace_stage("enforced all LDT queries");
+    constraint_tracker.record(&builder, "LDT queries");
 
+    let num_vars = builder.witness.len() + 1;
+    let num_constraints = builder.constraints.len();
     trace_stage(&format!(
         "finalizing R1CS: vars={} constraints={}",
-        builder.witness.len() + 1,
-        builder.constraints.len()
+        num_vars, num_constraints
     ));
+
+    // Check if we should skip expensive dense materialization.
+    // The env var LOQUAT_R1CS_STATS_ONLY=1 allows collecting stats without OOM.
+    let stats_only = std::env::var("LOQUAT_R1CS_STATS_ONLY")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    if stats_only {
+        // Return a stats-reporting R1CS without dense materialization.
+        // This avoids the O(num_vars × num_constraints) memory explosion.
+        // We create a "virtual" constraint count by using an empty constraint vec
+        // but storing the real count in num_variables (hack for reporting).
+        println!("\n--- R1CS Build Stats (stats-only mode) ---");
+        println!("  true variables:       {}", num_vars);
+        println!("  true constraints:     {}", num_constraints);
+        println!("  (skipping dense materialization to avoid OOM)");
+
+        // Return minimal instance just to satisfy type requirements
+        let instance = R1csInstance {
+            num_variables: num_vars,
+            constraints: Vec::new(), // Empty - stats already printed above
+        };
+        let witness = R1csWitness::new(builder.witness);
+        return Ok((instance, witness));
+    }
+
     builder.finalize()
 }
 
-fn enforce_legendre_constraint(
+fn enforce_qr_witness_constraint(
     builder: &mut R1csBuilder,
     o_idx: usize,
     o_value: F,
     t_idx: usize,
     t_value: F,
     pk_value: F,
-    constants: &LegendreConstants,
+    qr_alpha: F,
+    two_const: F,
 ) -> LoquatResult<()> {
-    let (ls_idx, ls_value) = enforce_legendre_symbol(builder, o_idx, o_value);
-    let (prf_idx, _) = enforce_prf_from_symbol(builder, ls_idx, ls_value, constants)?;
-    let expected_idx = enforce_expected_relation(builder, t_idx, t_value, pk_value, constants.two)?;
-    builder.enforce_eq(prf_idx, expected_idx);
+    if o_value.is_zero() {
+        return Err(LoquatError::verification_failure(
+            "o-value must be non-zero to derive QR witness",
+        ));
+    }
+    let (expected_idx, expected_value) =
+        enforce_expected_relation(builder, t_idx, t_value, pk_value, two_const)?;
+
+    let alpha_expected_value = qr_alpha * expected_value;
+    let alpha_expected_idx = builder.alloc(alpha_expected_value);
+    builder.enforce_mul_const_var(qr_alpha, expected_idx, alpha_expected_idx);
+
+    let one_minus_expected_value = F::one() - expected_value;
+    let one_minus_expected_idx = builder.alloc(one_minus_expected_value);
+    builder.enforce_linear_relation(
+        &[(one_minus_expected_idx, F::one()), (expected_idx, F::one())],
+        -F::one(),
+    );
+
+    let scalar_value = alpha_expected_value + one_minus_expected_value;
+    let scalar_idx = builder.alloc(scalar_value);
+    builder.enforce_linear_relation(
+        &[
+            (scalar_idx, F::one()),
+            (alpha_expected_idx, -F::one()),
+            (one_minus_expected_idx, -F::one()),
+        ],
+        F::zero(),
+    );
+
+    let target_value = o_value * scalar_value;
+    let target_idx = builder.alloc(target_value);
+    builder.enforce_mul_vars(o_idx, scalar_idx, target_idx);
+
+    let sqrt_value = sqrt_canonical(target_value).ok_or_else(|| {
+        LoquatError::verification_failure("quadratic residuosity witness missing square root")
+    })?;
+    let sqrt_idx = builder.alloc(sqrt_value);
+    builder.enforce_mul_vars(sqrt_idx, sqrt_idx, target_idx);
+
     Ok(())
-}
-
-fn enforce_legendre_symbol(
-    builder: &mut R1csBuilder,
-    base_idx: usize,
-    base_value: F,
-) -> (usize, F) {
-    if LEGENDRE_EXPONENT_ITERS == 0 {
-        return (base_idx, base_value);
-    }
-    let mut current_idx = base_idx;
-    let mut current_value = base_value;
-    for _ in 0..LEGENDRE_EXPONENT_ITERS {
-        let square_value = current_value * current_value;
-        let square_idx = builder.alloc(square_value);
-        builder.enforce_mul_vars(current_idx, current_idx, square_idx);
-
-        let mul_value = square_value * base_value;
-        let mul_idx = builder.alloc(mul_value);
-        builder.enforce_mul_vars(square_idx, base_idx, mul_idx);
-
-        current_idx = mul_idx;
-        current_value = mul_value;
-    }
-    (current_idx, current_value)
-}
-
-fn enforce_prf_from_symbol(
-    builder: &mut R1csBuilder,
-    ls_idx: usize,
-    ls_value: F,
-    constants: &LegendreConstants,
-) -> LoquatResult<(usize, F)> {
-    let ls_squared_value = ls_value * ls_value;
-    let ls_squared_idx = builder.alloc(ls_squared_value);
-    builder.enforce_mul_vars(ls_idx, ls_idx, ls_squared_idx);
-
-    let is_zero_value = F::one() - ls_squared_value;
-    let is_zero_idx = builder.alloc(is_zero_value);
-    builder.enforce_linear_relation(
-        &[(is_zero_idx, F::one()), (ls_squared_idx, F::one())],
-        -F::one(),
-    );
-    builder.enforce_boolean(is_zero_idx);
-
-    let non_zero_value = F::one() - is_zero_value;
-    let non_zero_idx = builder.alloc(non_zero_value);
-    builder.enforce_linear_relation(
-        &[(non_zero_idx, F::one()), (is_zero_idx, F::one())],
-        -F::one(),
-    );
-
-    let one_minus_ls_value = F::one() - ls_value;
-    let one_minus_ls_idx = builder.alloc(one_minus_ls_value);
-    builder.enforce_linear_relation(
-        &[(one_minus_ls_idx, F::one()), (ls_idx, F::one())],
-        -F::one(),
-    );
-
-    let half_term_value = constants.two_inv * one_minus_ls_value;
-    let half_term_idx = builder.alloc(half_term_value);
-    builder.enforce_mul_const_var(constants.two_inv, one_minus_ls_idx, half_term_idx);
-
-    let prf_value = non_zero_value * half_term_value;
-    let prf_idx = builder.alloc(prf_value);
-    builder.enforce_mul_vars(non_zero_idx, half_term_idx, prf_idx);
-
-    Ok((prf_idx, prf_value))
 }
 
 fn enforce_expected_relation(
@@ -1079,7 +1260,7 @@ fn enforce_expected_relation(
     t_value: F,
     pk_value: F,
     two_const: F,
-) -> LoquatResult<usize> {
+) -> LoquatResult<(usize, F)> {
     let two_pk = two_const * pk_value;
     let two_pk_t_value = two_pk * t_value;
     let two_pk_t_idx = builder.alloc(two_pk_t_value);
@@ -1096,7 +1277,7 @@ fn enforce_expected_relation(
         -pk_value,
     );
 
-    Ok(expected_idx)
+    Ok((expected_idx, expected_value))
 }
 
 fn enforce_sumcheck_round(
@@ -1212,18 +1393,20 @@ fn enforce_ldt_queries(
     signature: &LoquatSignature,
     fri_codeword_vars: &[Vec<F2Var>],
     fri_row_vars: &[Vec<Vec<F2Var>>],
+    leaf_arity: usize,
+    c_prime_vars: &[Vec<F2Var>],
+    c_prime_values: &[Vec<F2>],
+    s_vars: &[F2Var],
+    s_values: &[F2],
+    h_vars: &[F2Var],
+    h_values: &[F2],
 ) -> LoquatResult<()> {
-    if params.eta >= usize::BITS as usize {
-        return Err(LoquatError::invalid_parameters(
-            "η parameter exceeds machine word size",
-        ));
-    }
-    let chunk_size = 1usize << params.eta;
-    if chunk_size == 0 {
+    if leaf_arity == 0 {
         return Err(LoquatError::invalid_parameters(
             "chunk size computed as zero",
         ));
     }
+    let chunk_size = leaf_arity;
     let final_commitment = signature
         .ldt_proof
         .commitments
@@ -1232,7 +1415,7 @@ fn enforce_ldt_queries(
         .ok_or_else(|| LoquatError::verification_failure("missing final LDT commitment"))?;
     let num_rounds = params.r;
 
-    for (_opening_idx, opening) in signature.ldt_proof.openings.iter().enumerate() {
+    for (opening_idx, opening) in signature.ldt_proof.openings.iter().enumerate() {
         if opening.codeword_chunks.len() != num_rounds || opening.row_chunks.len() != num_rounds {
             return Err(LoquatError::verification_failure(
                 "LDT opening does not contain all rounds",
@@ -1411,200 +1594,101 @@ fn enforce_ldt_queries(
         let final_eval_var = builder.alloc_f2(opening.final_eval);
         builder.enforce_f2_eq(final_eval_var, final_value_var);
 
-        let leaf_bytes = bytes_from_f2(builder, final_eval_var, opening.final_eval);
-        let root_bits = merkle_path_opening(builder, &leaf_bytes, &opening.auth_path, fold_index);
-        enforce_digest_equals_bytes(builder, &root_bits, &final_commitment);
+        let final_layer_values = signature
+            .fri_codewords
+            .last()
+            .ok_or_else(|| LoquatError::verification_failure("missing final FRI values"))?;
+        let chunk_start = (fold_index / chunk_size) * chunk_size;
+        let chunk_end = (chunk_start + chunk_size).min(final_layer_vars.len());
+        let mut leaf_fields = Vec::with_capacity((chunk_end - chunk_start) * 2);
+        for idx in chunk_start..chunk_end {
+            leaf_fields.push(FieldVar::existing(
+                final_layer_vars[idx].c0,
+                final_layer_values[idx].c0,
+            ));
+            leaf_fields.push(FieldVar::existing(
+                final_layer_vars[idx].c1,
+                final_layer_values[idx].c1,
+            ));
+        }
+        let root_fields = merkle_path_opening_fields(
+            builder,
+            &leaf_fields,
+            &opening.auth_path,
+            fold_index / chunk_size,
+        )?;
+        enforce_field_digest_equals_bytes(builder, &root_fields, &final_commitment)?;
+
+        // Tree-cap auth paths for c', s, h (leaf_arity = chunk_size)
+        let chunk_index = opening.position / chunk_size;
+
+        // c'(u) leaf: concatenate all c'_j chunks at the queried positions
+        if opening_idx >= signature.c_auth_paths.len() {
+            return Err(LoquatError::verification_failure(
+                "missing c' auth path for query",
+            ));
+        }
+        let c_chunk_start = chunk_index * chunk_size;
+        let c_chunk_end = (c_chunk_start + chunk_size).min(c_prime_vars[0].len());
+        let mut c_leaf_fields = Vec::with_capacity((c_chunk_end - c_chunk_start) * c_prime_vars.len() * 2);
+        for col in c_chunk_start..c_chunk_end {
+            for (row_vars, row_vals) in c_prime_vars.iter().zip(c_prime_values.iter()) {
+                c_leaf_fields.push(FieldVar::existing(row_vars[col].c0, row_vals[col].c0));
+                c_leaf_fields.push(FieldVar::existing(row_vars[col].c1, row_vals[col].c1));
+            }
+        }
+        let c_root_fields = merkle_path_opening_fields(
+            builder,
+            &c_leaf_fields,
+            &signature.c_auth_paths[opening_idx],
+            chunk_index,
+        )?;
+        enforce_field_digest_equals_bytes(builder, &c_root_fields, &signature.root_c)?;
+
+        // s(u) leaf
+        if opening_idx >= signature.s_auth_paths.len() {
+            return Err(LoquatError::verification_failure(
+                "missing s auth path for query",
+            ));
+        }
+        let s_chunk_start = chunk_index * chunk_size;
+        let s_chunk_end = (s_chunk_start + chunk_size).min(s_vars.len());
+        let mut s_leaf_fields = Vec::with_capacity((s_chunk_end - s_chunk_start) * 2);
+        for idx in s_chunk_start..s_chunk_end {
+            s_leaf_fields.push(FieldVar::existing(s_vars[idx].c0, s_values[idx].c0));
+            s_leaf_fields.push(FieldVar::existing(s_vars[idx].c1, s_values[idx].c1));
+        }
+        let s_root_fields = merkle_path_opening_fields(
+            builder,
+            &s_leaf_fields,
+            &signature.s_auth_paths[opening_idx],
+            chunk_index,
+        )?;
+        enforce_field_digest_equals_bytes(builder, &s_root_fields, &signature.root_s)?;
+
+        // h(u) leaf
+        if opening_idx >= signature.h_auth_paths.len() {
+            return Err(LoquatError::verification_failure(
+                "missing h auth path for query",
+            ));
+        }
+        let h_chunk_start = chunk_index * chunk_size;
+        let h_chunk_end = (h_chunk_start + chunk_size).min(h_vars.len());
+        let mut h_leaf_fields = Vec::with_capacity((h_chunk_end - h_chunk_start) * 2);
+        for idx in h_chunk_start..h_chunk_end {
+            h_leaf_fields.push(FieldVar::existing(h_vars[idx].c0, h_values[idx].c0));
+            h_leaf_fields.push(FieldVar::existing(h_vars[idx].c1, h_values[idx].c1));
+        }
+        let h_root_fields = merkle_path_opening_fields(
+            builder,
+            &h_leaf_fields,
+            &signature.h_auth_paths[opening_idx],
+            chunk_index,
+        )?;
+        enforce_field_digest_equals_bytes(builder, &h_root_fields, &signature.root_h)?;
     }
 
     Ok(())
-}
-
-fn xor_words(builder: &mut R1csBuilder, left: &BitWord, right: &BitWord) -> BitWord {
-    let len = left.len();
-    let mut bits = Vec::with_capacity(len);
-    for i in 0..len {
-        let (bit_idx, _) = builder.xor_bits(
-            left.bits[i],
-            right.bits[i],
-            left.bit_value(i),
-            right.bit_value(i),
-        );
-        bits.push(bit_idx);
-    }
-    BitWord {
-        bits,
-        value: left.value ^ right.value,
-    }
-}
-
-fn choice_word(builder: &mut R1csBuilder, x: &BitWord, y: &BitWord, z: &BitWord) -> BitWord {
-    let len = x.len();
-    let mut bits = Vec::with_capacity(len);
-    let mut value = 0u32;
-    for i in 0..len {
-        let (bit_idx, bit_val) = builder.choice_bits(
-            x.bits[i],
-            y.bits[i],
-            z.bits[i],
-            x.bit_value(i),
-            y.bit_value(i),
-            z.bit_value(i),
-        );
-        if bit_val {
-            value |= 1 << i;
-        }
-        bits.push(bit_idx);
-    }
-    BitWord { bits, value }
-}
-
-fn majority_word(builder: &mut R1csBuilder, a: &BitWord, b: &BitWord, c: &BitWord) -> BitWord {
-    let len = a.len();
-    let mut bits = Vec::with_capacity(len);
-    let mut value = 0u32;
-    for i in 0..len {
-        let (bit_idx, bit_val) = builder.majority_bits(
-            a.bits[i],
-            b.bits[i],
-            c.bits[i],
-            a.bit_value(i),
-            b.bit_value(i),
-            c.bit_value(i),
-        );
-        if bit_val {
-            value |= 1 << i;
-        }
-        bits.push(bit_idx);
-    }
-    BitWord { bits, value }
-}
-
-fn add_word_pair(builder: &mut R1csBuilder, left: &BitWord, right: &BitWord) -> BitWord {
-    let len = left.len();
-    let mut result_bits = Vec::with_capacity(len);
-    let mut carry_idx = builder.alloc_bit(false);
-    let mut carry_val = false;
-    for i in 0..len {
-        let (sum_idx, _sum_val) = builder.xor3_bits(
-            left.bits[i],
-            right.bits[i],
-            carry_idx,
-            left.bit_value(i),
-            right.bit_value(i),
-            carry_val,
-        );
-        result_bits.push(sum_idx);
-        let (carry_idx_new, carry_val_new) = builder.majority_bits(
-            left.bits[i],
-            right.bits[i],
-            carry_idx,
-            left.bit_value(i),
-            right.bit_value(i),
-            carry_val,
-        );
-        carry_idx = carry_idx_new;
-        carry_val = carry_val_new;
-    }
-    BitWord {
-        bits: result_bits,
-        value: left.value.wrapping_add(right.value),
-    }
-}
-
-fn add_words(builder: &mut R1csBuilder, words: &[BitWord]) -> BitWord {
-    let mut iter = words.iter();
-    let mut acc = iter.next().expect("at least one word for addition").clone();
-    for word in iter {
-        acc = add_word_pair(builder, &acc, word);
-    }
-    acc
-}
-
-fn sigma_small_0(builder: &mut R1csBuilder, word: &BitWord) -> BitWord {
-    let rot7 = word.rotate_right(7);
-    let rot18 = word.rotate_right(18);
-    let shr3 = word.shift_right(3, builder);
-    let tmp = xor_words(builder, &rot7, &rot18);
-    xor_words(builder, &tmp, &shr3)
-}
-
-fn sigma_small_1(builder: &mut R1csBuilder, word: &BitWord) -> BitWord {
-    let rot17 = word.rotate_right(17);
-    let rot19 = word.rotate_right(19);
-    let shr10 = word.shift_right(10, builder);
-    let tmp = xor_words(builder, &rot17, &rot19);
-    xor_words(builder, &tmp, &shr10)
-}
-
-fn sigma_big_0(builder: &mut R1csBuilder, word: &BitWord) -> BitWord {
-    let rot2 = word.rotate_right(2);
-    let rot13 = word.rotate_right(13);
-    let rot22 = word.rotate_right(22);
-    let tmp = xor_words(builder, &rot2, &rot13);
-    xor_words(builder, &tmp, &rot22)
-}
-
-fn sigma_big_1(builder: &mut R1csBuilder, word: &BitWord) -> BitWord {
-    let rot6 = word.rotate_right(6);
-    let rot11 = word.rotate_right(11);
-    let rot25 = word.rotate_right(25);
-    let tmp = xor_words(builder, &rot6, &rot11);
-    xor_words(builder, &tmp, &rot25)
-}
-
-fn expand_message_schedule(
-    builder: &mut R1csBuilder,
-    initial_words: &[BitWord; 16],
-) -> [BitWord; 64] {
-    let mut schedule: Vec<BitWord> = initial_words.to_vec();
-    for i in 16..64 {
-        let s0 = sigma_small_0(builder, &schedule[i - 15]);
-        let s1 = sigma_small_1(builder, &schedule[i - 2]);
-        let sum = add_words(
-            builder,
-            &[s1, schedule[i - 7].clone(), s0, schedule[i - 16].clone()],
-        );
-        schedule.push(sum);
-    }
-    schedule.try_into().unwrap()
-}
-
-fn sha256_compress(builder: &mut R1csBuilder, chunk_words: &[BitWord; 16]) -> [BitWord; 8] {
-    let mut state: Vec<BitWord> = SHA256_IV
-        .iter()
-        .map(|&value| BitWord::from_constant(builder, value))
-        .collect();
-
-    let schedule = expand_message_schedule(builder, chunk_words);
-
-    for t in 0..64 {
-        let s1 = sigma_big_1(builder, &state[4]);
-        let ch = choice_word(builder, &state[4], &state[5], &state[6]);
-        let k_word = BitWord::from_constant(builder, SHA256_K[t]);
-        let temp1 = add_words(
-            builder,
-            &[state[7].clone(), s1, ch, k_word, schedule[t].clone()],
-        );
-        let s0 = sigma_big_0(builder, &state[0]);
-        let maj = majority_word(builder, &state[0], &state[1], &state[2]);
-        let temp2 = add_words(builder, &[s0, maj]);
-
-        state[7] = state[6].clone();
-        state[6] = state[5].clone();
-        state[5] = state[4].clone();
-        state[4] = add_word_pair(builder, &state[3], &temp1);
-        state[3] = state[2].clone();
-        state[2] = state[1].clone();
-        state[1] = state[0].clone();
-        state[0] = add_word_pair(builder, &temp1, &temp2);
-    }
-
-    for i in 0..8 {
-        let const_word = BitWord::from_constant(builder, SHA256_IV[i]);
-        state[i] = add_word_pair(builder, &state[i], &const_word);
-    }
-
-    state.try_into().unwrap()
 }
 
 fn bytes_from_field(builder: &mut R1csBuilder, var_idx: usize, value: F) -> Vec<Byte> {
@@ -1666,7 +1750,7 @@ struct TranscriptCircuit {
 
 impl TranscriptCircuit {
     fn new(builder: &mut R1csBuilder, label: &[u8]) -> Self {
-        let mut bytes = bytes_from_constants(builder, b"loquat.transcript");
+        let mut bytes = bytes_from_constants(builder, b"loquat.transcript.griffin");
         bytes.extend(bytes_from_constants(
             builder,
             &(label.len() as u64).to_le_bytes(),
@@ -1689,6 +1773,9 @@ impl TranscriptCircuit {
     }
 
     fn challenge(&mut self, builder: &mut R1csBuilder, label: &[u8]) -> Vec<Byte> {
+        let mut output = Vec::with_capacity(32);
+        let mut chunk_index: u32 = 0;
+        while output.len() < 32 {
         let mut input = self.bytes.clone();
         input.extend(bytes_from_constants(
             builder,
@@ -1696,12 +1783,19 @@ impl TranscriptCircuit {
         ));
         input.extend(bytes_from_constants(builder, label));
         input.extend(bytes_from_constants(builder, &self.counter.to_le_bytes()));
-        input.extend(bytes_from_constants(builder, &(0u32).to_le_bytes()));
-        let digest = sha256_hash_bytes(builder, &input);
-        let digest_bytes = bytes_from_bitwords(&digest);
+            input.extend(bytes_from_constants(builder, &chunk_index.to_le_bytes()));
+            let digest = griffin_hash_bytes_circuit(builder, &input);
+            for byte in digest {
+                if output.len() == 32 {
+                    break;
+                }
+                output.push(byte);
+            }
+            chunk_index = chunk_index.wrapping_add(1);
+        }
+        self.append_message(builder, label, &output);
         self.counter = self.counter.wrapping_add(1);
-        self.append_message(builder, label, &digest_bytes);
-        digest_bytes
+        output
     }
 }
 
@@ -1723,17 +1817,28 @@ fn enforce_field_matches_digest(
     Ok(())
 }
 
-fn enforce_transcript_relations(
+/// Pack constant bytes (from signature) into a field element constant.
+fn pack_const_bytes_to_field(bytes: &[Byte]) -> F {
+    let mut value = 0u128;
+    for (i, byte) in bytes.iter().take(16).enumerate() {
+        value |= (byte.value as u128) << (i * 8);
+    }
+    F::new(value)
+}
+
+/// Field-native transcript relations - operates entirely on field elements.
+/// This avoids byte serialization and bit decomposition overhead.
+/// Only converts to bytes for final challenge value verification.
+fn enforce_transcript_relations_field_native(
     builder: &mut R1csBuilder,
     signature: &LoquatSignature,
-    message_bytes: &[Byte],
-    message_commitment_bytes: &[Byte],
-    root_c_bytes: &[Byte],
-    t_matrix_bytes: &[Byte],
-    o_matrix_bytes: &[Byte],
-    root_s_bytes: &[Byte],
-    s_sum_bytes: &[Byte],
-    root_h_bytes: &[Byte],
+    message_commitment: F,
+    root_c: F,
+    t_commitment: &[FieldVar],
+    o_commitment: &[FieldVar],
+    root_s: F,
+    s_sum: FieldVar,
+    root_h: F,
 ) -> LoquatResult<()> {
     if signature.z_challenge.c1 != F::zero() {
         return Err(LoquatError::verification_failure(
@@ -1749,182 +1854,416 @@ fn enforce_transcript_relations(
         }
     }
 
-    let mut transcript = TranscriptCircuit::new(builder, b"loquat_signature");
-    transcript.append_message(builder, b"message", message_bytes);
-    transcript.append_message(builder, b"message_commitment", message_commitment_bytes);
-    transcript.append_message(builder, b"root_c", root_c_bytes);
-    transcript.append_message(builder, b"t_values", t_matrix_bytes);
-    let _h1_bytes = transcript.challenge(builder, b"h1");
+    // Field-native hash chain: operates directly on field elements.
+    // Each hash takes field element inputs and produces field element outputs.
+    // This matches the paper's efficient model.
 
-    transcript.append_message(builder, b"o_values", o_matrix_bytes);
-    let _h2_bytes = transcript.challenge(builder, b"h2");
+    // Domain separator as field constant
+    let domain_h1 = F::new(0x6831); // "h1" as a field constant
 
-    transcript.append_message(builder, b"root_s", root_s_bytes);
-    transcript.append_message(builder, b"s_sum", s_sum_bytes);
-    let h3_bytes = transcript.challenge(builder, b"h3");
-    enforce_field_matches_digest(builder, &h3_bytes[..16], signature.z_challenge.c0)?;
+    // h1 = H(domain || message_commitment || root_c || t_commitment)
+    let mut h1_input = vec![
+        FieldVar::constant(builder, domain_h1),
+        FieldVar::constant(builder, message_commitment),
+        FieldVar::constant(builder, root_c),
+    ];
+    h1_input.extend_from_slice(t_commitment);
+    let h1_fields = griffin_hash_field_vars_circuit(builder, &h1_input);
 
-    transcript.append_message(builder, b"root_h", root_h_bytes);
-    let h4_bytes = transcript.challenge(builder, b"h4");
+    // h2 = H(h1 || o_commitment)
+    let mut h2_input = h1_fields.clone();
+    h2_input.extend_from_slice(o_commitment);
+    let h2_fields = griffin_hash_field_vars_circuit(builder, &h2_input);
 
-    let domain_bytes = bytes_from_constants(builder, b"e_vector");
+    // h3 = H(h2 || root_s || s_sum) -> z_challenge
+    let mut h3_input = h2_fields.clone();
+    h3_input.push(FieldVar::constant(builder, root_s));
+    h3_input.push(s_sum);
+    let h3_fields = griffin_hash_field_vars_circuit(builder, &h3_input);
+
+    // Verify z_challenge matches h3 output
+    let expected_z = builder.alloc(signature.z_challenge.c0);
+    builder.enforce_eq(h3_fields[0].idx, expected_z);
+
+    // h4 = H(h3 || root_h) -> e_vector expansion base
+    let mut h4_input = h3_fields.clone();
+    h4_input.push(FieldVar::constant(builder, root_h));
+    let h4_fields = griffin_hash_field_vars_circuit(builder, &h4_input);
+
+    // e_vector[i] = H(h4 || domain || i)[0] as field element
+    let domain_e = F::new(0x655f766563746f72); // "e_vector" truncated
     for (idx, entry) in signature.e_vector.iter().enumerate() {
-        let mut expand_input = h4_bytes.clone();
-        expand_input.extend(domain_bytes.clone());
-        expand_input.extend(bytes_from_constants(builder, &(idx as u32).to_le_bytes()));
-        let digest = sha256_hash_bytes(builder, &expand_input);
-        let digest_bytes = bytes_from_bitwords(&digest);
-        enforce_field_matches_digest(builder, &digest_bytes[..16], entry.c0)?;
+        let mut expand_input = h4_fields.clone();
+        expand_input.push(FieldVar::constant(builder, domain_e));
+        expand_input.push(FieldVar::constant(builder, F::new(idx as u128)));
+        let digest_fields = griffin_hash_field_vars_circuit(builder, &expand_input);
+
+        // Verify e_vector[i] matches hash output
+        let expected_e = builder.alloc(entry.c0);
+        builder.enforce_eq(digest_fields[0].idx, expected_e);
     }
 
     Ok(())
 }
 
-fn word_from_bytes(bytes: &[Byte; 4]) -> BitWord {
-    let mut bits = Vec::with_capacity(32);
-    let mut value = 0u32;
-    for bit_pos in 0..32 {
-        let byte_index = 3 - (bit_pos / 8);
-        let bit_in_byte = bit_pos % 8;
-        bits.push(bytes[byte_index].bits[bit_in_byte]);
-        if ((bytes[byte_index].value >> bit_in_byte) & 1) == 1 {
-            value |= 1 << bit_pos;
-        }
+fn enforce_digest_equals_bytes(builder: &mut R1csBuilder, digest: &[Byte], expected: &[u8; 32]) {
+    for (idx, &expected_value) in expected.iter().enumerate() {
+        let expected_byte = Byte::from_constant(builder, expected_value);
+        enforce_byte_equality(builder, &digest[idx], &expected_byte);
     }
-    BitWord { bits, value }
 }
 
-fn bytes_from_bitwords(words: &[BitWord; 8]) -> Vec<Byte> {
-    let mut bytes = Vec::with_capacity(32);
-    for word in words {
-        for byte_index in 0..4 {
-            let mut byte_bits = [0usize; 8];
-            let mut byte_value = 0u8;
-            for bit_in_byte in 0..8 {
-                let word_bit = byte_index * 8 + bit_in_byte;
-                byte_bits[bit_in_byte] = word.bits[word_bit];
-                if ((word.value >> word_bit) & 1) == 1 {
-                    byte_value |= 1 << bit_in_byte;
-                }
-            }
-            bytes.push(Byte::from_bits(byte_bits, byte_value));
-        }
-    }
-    bytes
-}
-
-fn sha256_hash_bytes(builder: &mut R1csBuilder, bytes: &[Byte]) -> [BitWord; 8] {
-    let mut message = bytes.to_vec();
-    let bit_len = (message.len() as u64) * 8;
-    message.push(Byte::from_constant(builder, 0x80));
-    while (message.len() % 64) != 56 {
-        message.push(Byte::from_constant(builder, 0x00));
-    }
-    for shift in (0..8).rev() {
-        let byte = ((bit_len >> (shift * 8)) & 0xff) as u8;
-        message.push(Byte::from_constant(builder, byte));
-    }
-
-    let mut state = SHA256_IV
+fn merkle_root_from_leaves(builder: &mut R1csBuilder, leaves: &[Vec<Byte>]) -> Vec<Byte> {
+    let mut level: Vec<Vec<Byte>> = leaves
         .iter()
-        .map(|&value| BitWord::from_constant(builder, value))
-        .collect::<Vec<_>>();
-
-    for chunk in message.chunks(64) {
-        let mut words = core::array::from_fn(|_| BitWord {
-            bits: Vec::new(),
-            value: 0,
-        });
-        for (i, word_bytes) in chunk.chunks(4).enumerate() {
-            let array_vec: Vec<Byte> = word_bytes.iter().cloned().collect();
-            let array: [Byte; 4] = array_vec.try_into().unwrap();
-            words[i] = word_from_bytes(&array);
-        }
-        let compressed = sha256_compress(builder, &words);
-        state = compressed.to_vec();
-    }
-
-    state.try_into().unwrap()
-}
-
-fn enforce_digest_equals_bytes(
-    builder: &mut R1csBuilder,
-    digest: &[BitWord; 8],
-    expected: &[u8; 32],
-) {
-    let bytes = bytes_from_bitwords(digest);
-    for (byte, &expected_value) in bytes.iter().zip(expected.iter()) {
-        for bit in 0..8 {
-            let bit_idx = byte.bits[bit];
-            let target = if ((expected_value >> bit) & 1) == 1 {
-                F::one()
-            } else {
-                F::zero()
-            };
-            builder.enforce_linear_relation(&[(bit_idx, F::one())], -target);
-        }
-    }
-}
-
-fn merkle_root_from_leaves(builder: &mut R1csBuilder, leaves: &[Vec<Byte>]) -> [BitWord; 8] {
-    let mut level: Vec<[BitWord; 8]> = leaves
-        .iter()
-        .map(|leaf| sha256_hash_bytes(builder, leaf))
+        .map(|leaf| griffin_hash_bytes_circuit(builder, leaf))
         .collect();
     while level.len() > 1 {
-        let mut next = Vec::with_capacity(level.len() / 2);
+        let mut next = Vec::with_capacity((level.len() + 1) / 2);
         for chunk in level.chunks(2) {
-            let mut bytes = bytes_from_bitwords(&chunk[0]);
-            bytes.extend(bytes_from_bitwords(&chunk[1]));
-            let digest = sha256_hash_bytes(builder, &bytes);
+            let mut bytes = chunk[0].clone();
+            if chunk.len() > 1 {
+                bytes.extend_from_slice(&chunk[1]);
+            } else {
+                bytes.extend_from_slice(&chunk[0]);
+            }
+            let digest = griffin_hash_bytes_circuit(builder, &bytes);
             next.push(digest);
         }
         level = next;
     }
-    level.pop().unwrap()
+    level
+        .pop()
+        .unwrap_or_else(|| griffin_hash_bytes_circuit(builder, &[]))
 }
-fn build_c_merkle_leaves(
-    builder: &mut R1csBuilder,
-    c_prime_vars: &[Vec<F2Var>],
-    c_prime_values: &[Vec<F2>],
-) -> Vec<Vec<Byte>> {
-    let leaf_count = c_prime_vars[0].len();
-    let mut leaves = Vec::with_capacity(leaf_count);
-    for idx in 0..leaf_count {
-        let mut leaf_bytes = Vec::new();
-        for j in 0..c_prime_vars.len() {
-            leaf_bytes.extend(bytes_from_f2(
-                builder,
-                c_prime_vars[j][idx],
-                c_prime_values[j][idx],
-            ));
-        }
-        leaves.push(leaf_bytes);
-    }
-    leaves
-}
-
-fn build_f2_vector_leaves(
-    builder: &mut R1csBuilder,
-    vars: &[F2Var],
-    values: &[F2],
-) -> Vec<Vec<Byte>> {
-    vars.iter()
-        .zip(values.iter())
-        .map(|(var, value)| bytes_from_f2(builder, *var, *value))
-        .collect()
-}
-
 fn build_fri_layer_leaves(
     builder: &mut R1csBuilder,
     layer_vars: &[F2Var],
     layer_values: &[F2],
+    chunk_size: usize,
 ) -> Vec<Vec<Byte>> {
-    layer_vars
-        .iter()
-        .zip(layer_values.iter())
-        .map(|(var, value)| bytes_from_f2(builder, *var, *value))
+    let size = chunk_size.max(1);
+    let mut leaves = Vec::with_capacity((layer_vars.len() + size - 1) / size);
+    let mut idx = 0;
+    while idx < layer_vars.len() {
+        let end = (idx + size).min(layer_vars.len());
+        let mut chunk_bytes = Vec::new();
+        for (var, value) in layer_vars[idx..end]
+            .iter()
+            .zip(layer_values[idx..end].iter())
+        {
+            chunk_bytes.extend(bytes_from_f2(builder, *var, *value));
+        }
+        leaves.push(chunk_bytes);
+        idx = end;
+    }
+    leaves
+}
+
+fn bytes_to_field_elements(builder: &mut R1csBuilder, bytes: &[Byte]) -> Vec<FieldVar> {
+    bytes
+        .chunks(16)
+        .map(|chunk| pack_bytes_to_field(builder, chunk))
         .collect()
+}
+
+fn pack_bytes_to_field(builder: &mut R1csBuilder, chunk: &[Byte]) -> FieldVar {
+    let mut value = 0u128;
+    let mut relation_terms = Vec::with_capacity(chunk.len() * 8 + 1);
+    for (byte_pos, byte) in chunk.iter().enumerate() {
+        value += (byte.value as u128) << (byte_pos * 8);
+        for bit in 0..8 {
+            let shift = byte_pos * 8 + bit;
+            if shift >= 128 {
+                continue;
+            }
+            let coeff = F::new(1u128 << shift);
+            relation_terms.push((byte.bits[bit], coeff));
+        }
+    }
+    let field_value = F::new(value);
+    let field_idx = builder.alloc(field_value);
+    let mut terms = vec![(field_idx, -F::one())];
+    terms.extend(relation_terms);
+    builder.enforce_linear_relation(&terms, F::zero());
+    FieldVar::new(field_idx, field_value)
+}
+
+fn griffin_hash_bytes_circuit(builder: &mut R1csBuilder, bytes: &[Byte]) -> Vec<Byte> {
+    let inputs = bytes_to_field_elements(builder, bytes);
+    let digest_fields = griffin_hash_field_vars_circuit(builder, &inputs);
+    let mut outputs = field_vars_to_bytes(builder, &digest_fields);
+    if outputs.len() > 32 {
+        outputs.truncate(32);
+    }
+    outputs
+}
+
+fn griffin_hash_field_vars_circuit(
+    builder: &mut R1csBuilder,
+    inputs: &[FieldVar],
+) -> Vec<FieldVar> {
+    let params = get_griffin_params();
+    let mut absorb_inputs = inputs.to_vec();
+    let mut state: Vec<FieldVar> = (0..GRIFFIN_STATE_WIDTH)
+        .map(|_| FieldVar::constant(builder, F::zero()))
+        .collect();
+
+    if absorb_inputs.len() % GRIFFIN_RATE != 0 {
+        state[GRIFFIN_RATE] = FieldVar::constant(builder, F::one());
+        absorb_inputs.push(FieldVar::constant(builder, F::one()));
+    }
+    while absorb_inputs.len() % GRIFFIN_RATE != 0 {
+        absorb_inputs.push(FieldVar::constant(builder, F::zero()));
+    }
+
+    let mut absorb_idx = 0;
+    while absorb_idx < absorb_inputs.len() {
+        for lane in 0..GRIFFIN_RATE {
+            state[lane] = field_add(builder, state[lane], absorb_inputs[absorb_idx + lane]);
+        }
+        griffin_permutation_circuit(builder, params, &mut state);
+        absorb_idx += GRIFFIN_RATE;
+    }
+
+    let mut outputs = Vec::new();
+    let mut remaining = GRIFFIN_DIGEST_ELEMENTS;
+    while remaining > 0 {
+        for lane in 0..GRIFFIN_RATE {
+            if remaining == 0 {
+                break;
+            }
+            outputs.push(state[lane]);
+            remaining -= 1;
+        }
+        if remaining > 0 {
+            griffin_permutation_circuit(builder, params, &mut state);
+        }
+    }
+    outputs
+}
+
+fn field_vars_to_bytes(builder: &mut R1csBuilder, vars: &[FieldVar]) -> Vec<Byte> {
+    let mut bytes = Vec::with_capacity(vars.len() * 16);
+    for var in vars {
+        bytes.extend(bytes_from_field(builder, var.idx, var.value));
+    }
+    bytes
+}
+
+fn collect_f2_field_vars(vars: &[F2Var], values: &[F2]) -> Vec<FieldVar> {
+    vars.iter()
+        .zip(values.iter())
+        .flat_map(|(var, value)| {
+            [
+                FieldVar::existing(var.c0, value.c0),
+                FieldVar::existing(var.c1, value.c1),
+            ]
+        })
+        .collect()
+}
+
+fn griffin_hash_f2_chunk(
+    builder: &mut R1csBuilder,
+    vars: &[F2Var],
+    values: &[F2],
+) -> Vec<FieldVar> {
+    let inputs = collect_f2_field_vars(vars, values);
+    griffin_hash_field_vars_circuit(builder, &inputs)
+}
+
+fn hash_chunked_f2_vector(
+    builder: &mut R1csBuilder,
+    vars: &[F2Var],
+    values: &[F2],
+    chunk_size: usize,
+) -> Vec<Vec<FieldVar>> {
+    let chunk = chunk_size.max(1);
+    let mut leaves = Vec::with_capacity((vars.len() + chunk - 1) / chunk);
+    let mut idx = 0;
+    while idx < vars.len() {
+        let end = (idx + chunk).min(vars.len());
+        let digest = griffin_hash_f2_chunk(builder, &vars[idx..end], &values[idx..end]);
+        leaves.push(digest);
+        idx = end;
+    }
+    leaves
+}
+
+fn hash_chunked_c_columns(
+    builder: &mut R1csBuilder,
+    c_prime_vars: &[Vec<F2Var>],
+    c_prime_values: &[Vec<F2>],
+    chunk_size: usize,
+) -> LoquatResult<Vec<Vec<FieldVar>>> {
+    if c_prime_vars.is_empty() || c_prime_values.is_empty() {
+        return Err(LoquatError::verification_failure(
+            "c' matrix must be non-empty",
+        ));
+    }
+    if c_prime_vars.len() != c_prime_values.len() {
+        return Err(LoquatError::verification_failure(
+            "c' matrix dimension mismatch",
+        ));
+    }
+    let column_count = c_prime_vars[0].len();
+    for (row_vars, row_vals) in c_prime_vars.iter().zip(c_prime_values.iter()) {
+        if row_vars.len() != column_count || row_vals.len() != column_count {
+            return Err(LoquatError::verification_failure(
+                "c' column length mismatch",
+            ));
+        }
+    }
+
+    let chunk = chunk_size.max(1);
+    let mut leaves = Vec::with_capacity((column_count + chunk - 1) / chunk);
+    let mut col = 0;
+    while col < column_count {
+        let end = (col + chunk).min(column_count);
+        let mut inputs = Vec::new();
+        for column_idx in col..end {
+            for row_idx in 0..c_prime_vars.len() {
+                inputs.push(FieldVar::existing(
+                    c_prime_vars[row_idx][column_idx].c0,
+                    c_prime_values[row_idx][column_idx].c0,
+                ));
+                inputs.push(FieldVar::existing(
+                    c_prime_vars[row_idx][column_idx].c1,
+                    c_prime_values[row_idx][column_idx].c1,
+                ));
+            }
+        }
+        leaves.push(griffin_hash_field_vars_circuit(builder, &inputs));
+        col = end;
+    }
+    Ok(leaves)
+}
+
+fn merkle_root_from_field_digests(
+    builder: &mut R1csBuilder,
+    mut leaves: Vec<Vec<FieldVar>>,
+) -> Vec<FieldVar> {
+    if leaves.is_empty() {
+        return griffin_hash_field_vars_circuit(builder, &[]);
+    }
+    while leaves.len() > 1 {
+        let mut next = Vec::with_capacity((leaves.len() + 1) / 2);
+        for pair in leaves.chunks(2) {
+            if pair.len() == 2 {
+                let mut concat = pair[0].clone();
+                concat.extend_from_slice(&pair[1]);
+                next.push(griffin_hash_field_vars_circuit(builder, &concat));
+            } else {
+                next.push(pair[0].clone());
+            }
+        }
+        leaves = next;
+    }
+    leaves.pop().unwrap()
+}
+
+fn merkle_root_from_f2_vector(
+    builder: &mut R1csBuilder,
+    vars: &[F2Var],
+    values: &[F2],
+    chunk_size: usize,
+) -> Vec<Byte> {
+    let leaves = hash_chunked_f2_vector(builder, vars, values, chunk_size);
+    let root_fields = merkle_root_from_field_digests(builder, leaves);
+    field_vars_to_bytes(builder, &root_fields)
+}
+
+fn merkle_root_from_c_matrix(
+    builder: &mut R1csBuilder,
+    c_prime_vars: &[Vec<F2Var>],
+    c_prime_values: &[Vec<F2>],
+    chunk_size: usize,
+) -> LoquatResult<Vec<Byte>> {
+    let leaves = hash_chunked_c_columns(builder, c_prime_vars, c_prime_values, chunk_size)?;
+    let root_fields = merkle_root_from_field_digests(builder, leaves);
+    Ok(field_vars_to_bytes(builder, &root_fields))
+}
+
+fn griffin_permutation_circuit(
+    builder: &mut R1csBuilder,
+    params: &GriffinParams,
+    state: &mut [FieldVar],
+) {
+    for round in 0..params.rounds - 1 {
+        apply_nonlinear_layer_circuit(builder, params, state);
+        apply_linear_layer_circuit(builder, params, state);
+        apply_round_constants_circuit(builder, params, state, round);
+    }
+    apply_nonlinear_layer_circuit(builder, params, state);
+    apply_linear_layer_circuit(builder, params, state);
+}
+
+fn apply_nonlinear_layer_circuit(
+    builder: &mut R1csBuilder,
+    params: &GriffinParams,
+    state: &mut [FieldVar],
+) {
+    state[0] = field_pow_const(builder, state[0], params.d_inv);
+    state[1] = field_pow_const(builder, state[1], params.d);
+
+    let zero = FieldVar::constant(builder, F::zero());
+    let l2 = linear_form_circuit(builder, state[0], state[1], zero, 2);
+    let l2_sq = field_mul(builder, l2, l2);
+    let alpha_term = field_mul_const(builder, l2, params.alphas[0]);
+    let sum = field_add(builder, l2_sq, alpha_term);
+    let poly = field_add_const(builder, sum, params.betas[0]);
+    state[2] = field_mul(builder, state[2], poly);
+
+    for idx in 3..GRIFFIN_STATE_WIDTH {
+        let li = linear_form_circuit(builder, state[0], state[1], state[idx - 1], idx);
+        let li_sq = field_mul(builder, li, li);
+        let alpha_term = field_mul_const(builder, li, params.alphas[idx - 2]);
+        let sum = field_add(builder, li_sq, alpha_term);
+        let poly = field_add_const(builder, sum, params.betas[idx - 2]);
+        state[idx] = field_mul(builder, state[idx], poly);
+    }
+}
+
+fn apply_linear_layer_circuit(
+    builder: &mut R1csBuilder,
+    params: &GriffinParams,
+    state: &mut [FieldVar],
+) {
+    let mut next = Vec::with_capacity(GRIFFIN_STATE_WIDTH);
+    for row in 0..GRIFFIN_STATE_WIDTH {
+        let mut acc = FieldVar::constant(builder, F::zero());
+        for col in 0..GRIFFIN_STATE_WIDTH {
+            let term = field_mul_const(builder, state[col], params.matrix[row][col]);
+            acc = field_add(builder, acc, term);
+        }
+        next.push(acc);
+    }
+    state.clone_from_slice(&next);
+}
+
+fn apply_round_constants_circuit(
+    builder: &mut R1csBuilder,
+    params: &GriffinParams,
+    state: &mut [FieldVar],
+    round: usize,
+) {
+    for lane in 0..GRIFFIN_STATE_WIDTH {
+        let constant = params.round_constants[round * GRIFFIN_STATE_WIDTH + lane];
+        state[lane] = field_add_const(builder, state[lane], constant);
+    }
+}
+
+fn linear_form_circuit(
+    builder: &mut R1csBuilder,
+    z0: FieldVar,
+    z1: FieldVar,
+    z2: FieldVar,
+    index: usize,
+) -> FieldVar {
+    let lambda = F::new((index as u128 - 1) % GRIFFIN_FIELD_MODULUS);
+    let scaled_z0 = field_mul_const(builder, z0, lambda);
+    let sum = field_add(builder, scaled_z0, z1);
+    field_add(builder, sum, z2)
 }
 
 fn compute_q_hat_on_u(

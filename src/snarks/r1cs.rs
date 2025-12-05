@@ -5,46 +5,51 @@ use sha2::{Digest, Sha256};
 use std::vec::Vec;
 
 /// Describes a single R1CS constraint `<a, z> * <b, z> = <c, z>`.
+/// Coefficients are stored sparsely as `(index, coefficient)` pairs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R1csConstraint {
-    pub a: Vec<F>,
-    pub b: Vec<F>,
-    pub c: Vec<F>,
+    pub a: Vec<(usize, F)>,
+    pub b: Vec<(usize, F)>,
+    pub c: Vec<(usize, F)>,
 }
 
 impl R1csConstraint {
-    pub fn new(a: Vec<F>, b: Vec<F>, c: Vec<F>) -> Self {
+    /// Construct from dense coefficient vectors (kept for compatibility in tests/examples).
+    pub fn new(a_dense: Vec<F>, b_dense: Vec<F>, c_dense: Vec<F>) -> Self {
+        Self::from_dense(a_dense, b_dense, c_dense)
+    }
+
+    pub fn from_dense(a_dense: Vec<F>, b_dense: Vec<F>, c_dense: Vec<F>) -> Self {
+        let a = dense_to_sparse(a_dense);
+        let b = dense_to_sparse(b_dense);
+        let c = dense_to_sparse(c_dense);
         Self { a, b, c }
     }
 
-    pub fn len(&self) -> usize {
-        self.a.len()
+    pub fn from_sparse(
+        a_terms: Vec<(usize, F)>,
+        b_terms: Vec<(usize, F)>,
+        c_terms: Vec<(usize, F)>,
+    ) -> Self {
+        Self {
+            a: compress_terms(a_terms),
+            b: compress_terms(b_terms),
+            c: compress_terms(c_terms),
+        }
     }
 
-    pub fn evaluate(&self, assignment: &[F]) -> (F, F, F) {
-        (
-            inner_product(&self.a, assignment),
-            inner_product(&self.b, assignment),
-            inner_product(&self.c, assignment),
-        )
+    pub fn evaluate(&self, assignment: &[F]) -> LoquatResult<(F, F, F)> {
+        Ok((
+            sparse_inner_product(&self.a, assignment)?,
+            sparse_inner_product(&self.b, assignment)?,
+            sparse_inner_product(&self.c, assignment)?,
+        ))
     }
 
     pub fn support(&self) -> Vec<usize> {
         let mut indices = Vec::new();
-        for (idx, coeff) in self.a.iter().enumerate() {
-            if !coeff.is_zero() {
-                indices.push(idx);
-            }
-        }
-        for (idx, coeff) in self.b.iter().enumerate() {
-            if !coeff.is_zero() {
-                indices.push(idx);
-            }
-        }
-        for (idx, coeff) in self.c.iter().enumerate() {
-            if !coeff.is_zero() {
-                indices.push(idx);
-            }
+        for (idx, _) in self.a.iter().chain(self.b.iter()).chain(self.c.iter()) {
+            indices.push(*idx);
         }
         indices.sort_unstable();
         indices.dedup();
@@ -67,14 +72,18 @@ impl R1csInstance {
             ));
         }
         for (idx, constraint) in constraints.iter().enumerate() {
-            if constraint.len() != num_variables
-                || constraint.b.len() != num_variables
-                || constraint.c.len() != num_variables
+            for (var_idx, _) in constraint
+                .a
+                .iter()
+                .chain(constraint.b.iter())
+                .chain(constraint.c.iter())
             {
-                return Err(LoquatError::invalid_parameters(&format!(
-                    "constraint {} does not match num_variables",
-                    idx
-                )));
+                if *var_idx >= num_variables {
+                    return Err(LoquatError::invalid_parameters(&format!(
+                        "constraint {} references variable {} beyond {}",
+                        idx, var_idx, num_variables
+                    )));
+                }
             }
         }
         Ok(Self {
@@ -91,9 +100,9 @@ impl R1csInstance {
         let mut hasher = Sha256::new();
         hasher.update(self.num_variables.to_le_bytes());
         for constraint in &self.constraints {
-            absorb_vector(&mut hasher, &constraint.a);
-            absorb_vector(&mut hasher, &constraint.b);
-            absorb_vector(&mut hasher, &constraint.c);
+            absorb_sparse_row(&mut hasher, &constraint.a);
+            absorb_sparse_row(&mut hasher, &constraint.b);
+            absorb_sparse_row(&mut hasher, &constraint.c);
         }
         hasher.finalize().into()
     }
@@ -102,10 +111,12 @@ impl R1csInstance {
         witness.validate(self)?;
         let z = witness.full_assignment();
         for (idx, c) in self.constraints.iter().enumerate() {
-            let (az, bz, cz) = c.evaluate(&z);
+            let (az, bz, cz) = c.evaluate(&z)?;
             if az * bz != cz {
-                return Err(LoquatError::invalid_parameters(
-                    &format!("constraint {} not satisfied: ({:?})*({:?}) != ({:?})", idx, az, bz, cz)));
+                return Err(LoquatError::invalid_parameters(&format!(
+                    "constraint {} not satisfied: ({:?})*({:?}) != ({:?})",
+                    idx, az, bz, cz
+                )));
             }
         }
         Ok(())
@@ -140,19 +151,54 @@ impl R1csWitness {
     }
 }
 
-fn inner_product(lhs: &[F], rhs: &[F]) -> F {
-    debug_assert_eq!(lhs.len(), rhs.len());
-    let mut acc = F::zero();
-    for (a, b) in lhs.iter().zip(rhs.iter()) {
-        acc += *a * *b;
+fn absorb_sparse_row(hasher: &mut Sha256, values: &[(usize, F)]) {
+    hasher.update((values.len() as u64).to_le_bytes());
+    for (idx, coeff) in values {
+        hasher.update(idx.to_le_bytes());
+        hasher.update(field_to_bytes(coeff));
     }
-    acc
 }
 
-fn absorb_vector(hasher: &mut Sha256, values: &[F]) {
-    for value in values {
-        hasher.update(field_to_bytes(value));
+fn dense_to_sparse(row: Vec<F>) -> Vec<(usize, F)> {
+    let mut terms = Vec::new();
+    for (idx, coeff) in row.into_iter().enumerate() {
+        if !coeff.is_zero() {
+            terms.push((idx, coeff));
+        }
     }
+    compress_terms(terms)
+}
+
+fn compress_terms(mut terms: Vec<(usize, F)>) -> Vec<(usize, F)> {
+    terms.sort_by_key(|(idx, _)| *idx);
+    let mut out: Vec<(usize, F)> = Vec::with_capacity(terms.len());
+    for (idx, coeff) in terms {
+        if coeff.is_zero() {
+            continue;
+        }
+        if let Some(last) = out.last_mut() {
+            if last.0 == idx {
+                last.1 += coeff;
+                if last.1.is_zero() {
+                    out.pop();
+                }
+                continue;
+            }
+        }
+        out.push((idx, coeff));
+    }
+    out
+}
+
+fn sparse_inner_product(row: &[(usize, F)], assignment: &[F]) -> LoquatResult<F> {
+    let mut acc = F::zero();
+    for (idx, coeff) in row {
+        let value = assignment.get(*idx).ok_or_else(|| {
+            LoquatError::invalid_parameters("sparse inner product index out of range")
+        })?;
+        acc += *coeff * *value;
+    }
+    Ok(acc)
 }
 
 #[cfg(test)]

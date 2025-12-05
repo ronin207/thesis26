@@ -7,7 +7,7 @@
 //! lower circuit complexity compared to SHA256.
 
 use super::field_p127::Fp127;
-use super::griffin::{GriffinParams, get_griffin_params, griffin_hash};
+use super::griffin::griffin_hash;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 #[cfg(feature = "std")]
@@ -63,16 +63,12 @@ pub trait LoquatHasher: Clone {
 /// Griffin hasher implementation
 #[derive(Clone)]
 pub struct GriffinHasher {
-    params: GriffinParams,
     buffer: Vec<u8>,
 }
 
 impl LoquatHasher for GriffinHasher {
     fn new() -> Self {
-        Self {
-            params: get_griffin_params(),
-            buffer: Vec::new(),
-        }
+        Self { buffer: Vec::new() }
     }
 
     fn update(&mut self, data: &[u8]) {
@@ -80,7 +76,7 @@ impl LoquatHasher for GriffinHasher {
     }
 
     fn finalize(self) -> Vec<u8> {
-        griffin_hash(&self.params, &self.buffer)
+        griffin_hash(&self.buffer)
     }
 
     fn reset(&mut self) {

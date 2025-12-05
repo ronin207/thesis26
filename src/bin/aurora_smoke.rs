@@ -3,8 +3,8 @@ use std::time::Instant;
 use vc_pqc::{
     keygen_with_params, loquat_setup, loquat_sign,
     snarks::{
-        aurora_prove_with_options, aurora_verify, build_loquat_r1cs, AuroraParams,
-        AuroraProverOptions,
+        AuroraParams, AuroraProverOptions, aurora_prove_with_options, aurora_verify,
+        build_loquat_r1cs,
     },
 };
 
@@ -17,7 +17,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let keypair = keygen_with_params(&params)?;
     let signature = loquat_sign(&message, &keypair, &params)?;
 
-    let (instance, witness) = build_loquat_r1cs(&message, &signature, &keypair.public_key, &params)?;
+    let (instance, witness) =
+        build_loquat_r1cs(&message, &signature, &keypair.public_key, &params)?;
     instance.is_satisfied(&witness)?;
     println!(
         "R1CS ready: {} variables, {} constraints",
@@ -45,7 +46,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Aurora prove:   {:.2?}", prove_time);
     println!("Aurora verify:  {:.2?}", verify_time);
-    println!("Verification result: {}", if verification.is_some() { "success" } else { "failure" });
+    println!(
+        "Verification result: {}",
+        if verification.is_some() {
+            "success"
+        } else {
+            "failure"
+        }
+    );
 
     Ok(())
 }

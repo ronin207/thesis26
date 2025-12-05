@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.5.28)  28 NOV 2025 20:04
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.5.28)  3 DEC 2025 19:47
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -316,11 +316,7 @@ File: l3backend-pdftex.def 2024-05-08 L3 backend support: PDF output (pdfTeX)
 LaTeX Warning: Unused global option(s):
     [a4j].
 
-(./main.aux
-
-LaTeX Warning: Label `' multiply defined.
-
-)
+No file main.aux.
 \openout1 = `main.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 66.
@@ -337,7 +333,6 @@ LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 66.
 LaTeX Font Info:    ... okay on input line 66.
 LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 66.
 LaTeX Font Info:    ... okay on input line 66.
-
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
 *geometry* verbose mode - [ preamble ] result:
@@ -461,6 +456,22 @@ Non-PDF special ignored!
 Non-PDF special ignored!
 <special> color pop
 ]
+
+LaTeX Warning: Citation `cryptoeprint:2024/868' on page 2 undefined on input line 72.
+
+
+LaTeX Warning: Citation `10.1007/978-981-96-0957-4_3' on page 2 undefined on input line 72.
+
+
+LaTeX Warning: Citation `cryptoeprint:2014/349' on page 2 undefined on input line 72.
+
+
+LaTeX Warning: Citation `cryptoeprint:2023/1032' on page 2 undefined on input line 72.
+
+
+LaTeX Warning: Citation `lavin2024surveyapplicationszeroknowledgeproofs' on page 2 undefined on input line 72.
+
+
 Underfull \hbox (badness 10000) in paragraph at lines 71--76
 
  []
@@ -481,7 +492,8 @@ Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
 <special> color pop
-] (./main.toc)
+]
+No file main.toc.
 \tf@toc=\write4
 \openout4 = `main.toc'.
 
@@ -496,39 +508,8 @@ Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
 <special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-] (./main.lof)
+]
+No file main.lof.
 \tf@lof=\write5
 \openout5 = `main.lof'.
 
@@ -543,7 +524,8 @@ Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
 <special> color pop
-] (./main.lot)
+]
+No file main.lot.
 \tf@lot=\write6
 \openout6 = `main.lot'.
 
@@ -681,7 +663,7 @@ Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
 <special> color pop
-] (./03-preliminaries.tex)
+] (./03-preliminaries.tex
 
 [10
 Non-PDF special ignored!
@@ -704,9 +686,6 @@ Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
 <special> color pop
-] (./05-evaluation.tex)
-
-[11
 Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
@@ -715,20 +694,10 @@ Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
 <special> color pop
-] (./06-discussion.tex)
-
-[12
 Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
 <special> color pop
-Non-PDF special ignored!
-<special> color push  Black
-Non-PDF special ignored!
-<special> color pop
-] (./07-conclusion.tex)
-
-[13
 Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
@@ -739,7 +708,2131 @@ Non-PDF special ignored!
 <special> color pop
 ]
 
+LaTeX Warning: Reference `alg:bdec-risczero' on page 11 undefined on input line 49.
+
+
+LaTeX Warning: Reference `def:dynamic-zk' on page 11 undefined on input line 49.
+
+
+LaTeX Warning: Reference `alg:bdec-snark-compiler' on page 11 undefined on input line 49.
+
+
+LaTeX Warning: Reference `alg:bdec-snark-compiler-2' on page 11 undefined on input line 49.
+
+
+./03-preliminaries.tex:52: LaTeX Error: Environment algorithm undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.52 \begin{algorithm}
+                      [H]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:53: LaTeX Error: \caption outside float.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.53 \caption
+             {Compilation of BDEC Verification into a RISC Zero zkVM}
+You're in trouble here.  Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+./03-preliminaries.tex:53: Undefined control sequence.
+\caption ... \endcsname \fi \fi \@dblarg {\@tempf 
+                                                  \@captype }
+l.53 \caption
+             {Compilation of BDEC Verification into a RISC Zero zkVM}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:53: Undefined control sequence.
+\caption ...e \fi \fi \@dblarg {\@tempf \@captype 
+                                                  }
+l.53 \caption
+             {Compilation of BDEC Verification into a RISC Zero zkVM}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:56: LaTeX Error: Environment algorithmic undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.56 \begin{algorithmic}
+                        [1]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+./03-preliminaries.tex:58: Undefined control sequence.
+l.58 \Require
+              $\mathsf{BDEC} = (\mathsf{Setup, PriGen, NymKey, CreGen, CreVe...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:59: Undefined control sequence.
+l.59 \Ensure
+             $\text{ Guest program } P_{\mathrm{BDEC}}, \text{ NP relations ...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+Overfull \hbox (353.34753pt too wide) in paragraph at lines 58--60
+[]$[] \OT1/cmr/m/n/12 = ([])\OML/cmm/m/it/12 ; [] \OT1/cmr/m/n/12 = ([])\OML/cmm/m/it/12 ; []$
+ []
+
+./03-preliminaries.tex:61: Undefined control sequence.
+l.61 \Statex
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:62: Undefined control sequence.
+l.62 \State
+            \textbf{Witness and Statement Formats}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:63: Undefined control sequence.
+l.63 \State
+            Fix maximum attribute count $N$, with $n \le N$.
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:64: Undefined control sequence.
+l.64 \State
+            $W_n \gets (a_1,\dots,a_n,\ \mathsf{mt\_path}_1,\dots,\mathsf{mt...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:65: Undefined control sequence.
+l.65 \State
+            $x \gets (\mathsf{pk}_U,\ \mathsf{pp},\ \mathsf{cred},\ \sigma,\...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+Overfull \hbox (157.89365pt too wide) in paragraph at lines 62--66
+[]\T1/ptm/b/n/12 Witness and State-ment For-mats \T1/ptm/m/n/12 Fix max-i-mum at-tribute count $\OML/cmm/m/it/12 N$\T1/ptm/m/n/12 , with $\OML/cmm/m/it/12 n \OMS/cmsy/m/n/12 ^^T \OML/cmm/m/it/12 N$\T1/ptm/m/n/12 . $\OML/cmm/m/it/12 W[] \OMS/cmsy/m/n/12   \OT1/cmr/m/n/12 (\OML/cmm/m/it/12 a[]; [] ; a[];  [][]; [] ; [][];  []\OT1/cmr/m/n/12 )$
+ []
+
+./03-preliminaries.tex:67: Undefined control sequence.
+l.67 \Statex
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:68: Undefined control sequence.
+l.68 \State
+            \textbf{Guest Verifier} $P_{\mathsf{BDEC}}(x,w)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:69: Undefined control sequence.
+l.69 \State
+            $\mathsf{root}' \gets \mathsf{MerkleRoot}(a_i,\ \mathsf{mt\_path...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:70: Undefined control sequence.
+l.70 \If
+        {$\mathsf{root}' \ne \mathsf{cred.root}$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:71: Undefined control sequence.
+l.71     \State
+                \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:72: Undefined control sequence.
+l.72 \EndIf
+           
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:73: Undefined control sequence.
+l.73 \If
+        {$\mathsf{Loquat.Verify}(\mathsf{pk}_U,\ \mathsf{root}',\ \sigma)=0$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:74: Undefined control sequence.
+l.74     \State
+                \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:75: Undefined control sequence.
+l.75 \EndIf
+           
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:76: Undefined control sequence.
+l.76 \If
+        {$\mathsf{policy}(a_1,\dots,a_n)=\mathsf{false}$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:77: Undefined control sequence.
+l.77     \State
+                \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:78: Undefined control sequence.
+l.78 \EndIf
+           
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:79: Undefined control sequence.
+l.79 \If
+        {\textsc{RevocationCheck}$(x.\mathsf{revdata},\ \mathsf{cred})$ fails}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:80: Undefined control sequence.
+l.80     \State
+                \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:81: Undefined control sequence.
+l.81 \EndIf
+           
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:82: Undefined control sequence.
+l.82 \State
+            \Return \textsc{OK}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+Overfull \hbox (117.65172pt too wide) in paragraph at lines 68--83
+[]\T1/ptm/b/n/12 Guest Ver-i-fier $\OML/cmm/m/it/12 P[]\OT1/cmr/m/n/12 (\OML/cmm/m/it/12 x; w\OT1/cmr/m/n/12 )$ $[][] \OMS/cmsy/m/n/12   []\OT1/cmr/m/n/12 (\OML/cmm/m/it/12 a[];  [][]\OT1/cmr/m/n/12 )$ $[][] \OMS/cmsy/m/n/12 6\OT1/cmr/m/n/12 = []$ []\T1/ptm/m/sc/12 Fail $[]\OT1/cmr/m/n/12 ([][]\OML/cmm/m/it/12 ;  [][];  ^^[\OT1/cmr/m/n/12 ) =
+ []
+
+./03-preliminaries.tex:84: Undefined control sequence.
+l.84 \Statex
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:85: Undefined control sequence.
+l.85 \State
+            \textbf{Compilation to zkVM Method}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:86: Undefined control sequence.
+l.86 \State
+            $\mathsf{mid}_{\mathsf{BDEC}} \gets \mathsf{compile}(P_{\mathsf{...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:88: Undefined control sequence.
+l.88 \Statex
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:89: Undefined control sequence.
+l.89 \State
+            \textbf{NP Relations}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:90: Undefined control sequence.
+l.90 \State
+            $(x,w) \in R_n \iff$ running $P_{\mathsf{BDEC}}$ inside the zkVM...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:92: Undefined control sequence.
+l.92 \Statex
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:93: Undefined control sequence.
+l.93 \State
+            \textbf{Dynamic Proof System $\Pi$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:94: Undefined control sequence.
+l.94 \State
+            $\mathsf{Setup}: \mathsf{crs} \gets$ zkVM parameters (STARK para...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:95: Undefined control sequence.
+l.95 \State
+            $\mathsf{Prove}: \pi \gets$ zkVM receipt of execution on $(x,w)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:96: Undefined control sequence.
+l.96 \State
+            $\mathsf{Verify}:$ check $\pi$, $\mathsf{mid}_{\mathsf{BDEC}}$, ...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:98: Undefined control sequence.
+l.98 \Statex
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:99: Undefined control sequence.
+l.99 \State
+            \textbf{Dynamicity and Security}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:100: Undefined control sequence.
+l.100 \State
+             $n$ only changes witness shape; $\mathsf{crs}$ and $\mathsf{mid...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:101: Undefined control sequence.
+l.101 \State
+             Security inherits zkVM STARK soundness and zero-knowledge.
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:102: Undefined control sequence.
+l.102 \State
+             Journal leaks only OK/FAIL (unlinkable).
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:104: LaTeX Error: \begin{document} ended by \end{algorithmic}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.104 \end{algorithmic}
+                       
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:105: LaTeX Error: \begin{document} ended by \end{algorithm}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.105 \end{algorithm}
+                     
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+LaTeX Warning: Reference `alg:bdec-risczero' on page 11 undefined on input line 107.
+
+
+LaTeX Warning: Reference `def:dynamic-zk' on page 11 undefined on input line 107.
+
+
+./03-preliminaries.tex:110: LaTeX Error: Environment algorithm undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.110 \begin{algorithm}
+                       [H]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:111: LaTeX Error: \caption outside float.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.111 \caption
+              {Compilation of BDEC Verification into a SNARK Circuit Compile...
+You're in trouble here.  Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+./03-preliminaries.tex:111: Undefined control sequence.
+\caption ... \endcsname \fi \fi \@dblarg {\@tempf 
+                                                  \@captype }
+l.111 \caption
+              {Compilation of BDEC Verification into a SNARK Circuit Compile...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:111: Undefined control sequence.
+\caption ...e \fi \fi \@dblarg {\@tempf \@captype 
+                                                  }
+l.111 \caption
+              {Compilation of BDEC Verification into a SNARK Circuit Compile...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:114: LaTeX Error: Environment algorithmic undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.114 \begin{algorithmic}
+                         [1]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+./03-preliminaries.tex:116: Undefined control sequence.
+l.116 \Require
+               $\mathsf{BDEC}$, $\mathsf{Loquat}$, SNARK circuit compiler (e...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:117: Undefined control sequence.
+l.117 \Ensure
+              Circuit family $\{C_n\}_{n\in\mathbb{N}}$, relations $\{R_n\}_...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:119: Undefined control sequence.
+l.119 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:120: Undefined control sequence.
+l.120 \State
+             \textbf{Witness and Statement Formats}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:121: Undefined control sequence.
+l.121 \State
+             Fix maximum attribute count $N$, with $n \le N$.
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:122: Undefined control sequence.
+l.122 \State
+             $W_n \gets (a_1,\dots,a_n,\ \mathsf{mt\_path}_1,\dots,\mathsf{m...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:123: Undefined control sequence.
+l.123 \State
+             $x \gets (\mathsf{pk}_U,\ \mathsf{pp},\ \mathsf{cred},\ \sigma,...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+Overfull \hbox (157.89365pt too wide) in paragraph at lines 120--124
+[]\T1/ptm/b/n/12 Witness and State-ment For-mats \T1/ptm/m/n/12 Fix max-i-mum at-tribute count $\OML/cmm/m/it/12 N$\T1/ptm/m/n/12 , with $\OML/cmm/m/it/12 n \OMS/cmsy/m/n/12 ^^T \OML/cmm/m/it/12 N$\T1/ptm/m/n/12 . $\OML/cmm/m/it/12 W[] \OMS/cmsy/m/n/12   \OT1/cmr/m/n/12 (\OML/cmm/m/it/12 a[]; [] ; a[];  [][]; [] ; [][];  []\OT1/cmr/m/n/12 )$
+ []
+
+./03-preliminaries.tex:125: Undefined control sequence.
+l.125 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:126: Undefined control sequence.
+l.126 \State
+             \textbf{High-Level Verifier Logic} $P_{\mathsf{BDEC}}(x,w)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:127: Undefined control sequence.
+l.127 \State
+             $\mathsf{root}' \gets \mathsf{MerkleRoot}(a_i,\ \mathsf{mt\_pat...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:128: Undefined control sequence.
+l.128 \If
+         {$\mathsf{root}' \ne \mathsf{cred.root}$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:129: Undefined control sequence.
+l.129     \State
+                 \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:130: Undefined control sequence.
+l.130 \EndIf
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:131: Undefined control sequence.
+l.131 \If
+         {$\mathsf{Loquat.Verify}(\mathsf{pk}_U,\ \mathsf{root}',\ \sigma)=0$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:132: Undefined control sequence.
+l.132     \State
+                 \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:133: Undefined control sequence.
+l.133 \EndIf
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:134: Undefined control sequence.
+l.134 \If
+         {$\mathsf{policy}(a_1,\dots,a_n)=\mathsf{false}$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:135: Undefined control sequence.
+l.135     \State
+                 \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:136: Undefined control sequence.
+l.136 \EndIf
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:137: Undefined control sequence.
+l.137 \If
+         {\textsc{RevocationCheck}$(x.\mathsf{revdata},\ \mathsf{cred})$ fails}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:138: Undefined control sequence.
+l.138     \State
+                 \Return \textsc{Fail}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:139: Undefined control sequence.
+l.139 \EndIf
+            
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:140: Undefined control sequence.
+l.140 \State
+             \Return \textsc{OK}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:142: Undefined control sequence.
+l.142 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:143: Undefined control sequence.
+l.143 \State
+             \textbf{Circuit Synthesis per Attribute Bound}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:144: Undefined control sequence.
+l.144 \For
+          {$n = 1$ \textbf{to} $N$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:145: Undefined control sequence.
+l.145     \State
+                 Specialise $P_{\mathsf{BDEC}}$ to fixed arity $n$ (unroll l...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:146: Undefined control sequence.
+l.146     \State
+                 Use the circuit compiler to generate an arithmetic circuit ...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:147: Undefined control sequence.
+l.147     \Statex
+                  \hspace{\algorithmicindent} \quad Input wires for public $...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:147: Undefined control sequence.
+<argument> \algorithmicindent 
+                              
+l.147     \Statex \hspace{\algorithmicindent}
+                                              \quad Input wires for public $...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:147: Missing number, treated as zero.
+<to be read again> 
+                   \relax 
+l.147     \Statex \hspace{\algorithmicindent}
+                                              \quad Input wires for public $...
+A number should have been here; I inserted `0'.
+(If you can't figure out why I needed to see a number,
+look up `weird error' in the index to The TeXbook.)
+
+./03-preliminaries.tex:147: Illegal unit of measure (pt inserted).
+<to be read again> 
+                   \relax 
+l.147     \Statex \hspace{\algorithmicindent}
+                                              \quad Input wires for public $...
+Dimensions can be in units of em, ex, in, pt, pc,
+cm, mm, dd, cc, nd, nc, bp, or sp; but yours is a new one!
+I'll assume that you meant to say pt, for printer's points.
+To recover gracefully from this error, it's best to
+delete the erroneous units; e.g., type `2' to delete
+two letters. (See Chapter 27 of The TeXbook.)
+
+./03-preliminaries.tex:148: Undefined control sequence.
+l.148     \Statex
+                  \hspace{\algorithmicindent} \quad Subcircuits for Merkle r...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:148: Undefined control sequence.
+<argument> \algorithmicindent 
+                              
+l.148     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuits for Merkle r...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:148: Missing number, treated as zero.
+<to be read again> 
+                   \relax 
+l.148     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuits for Merkle r...
+A number should have been here; I inserted `0'.
+(If you can't figure out why I needed to see a number,
+look up `weird error' in the index to The TeXbook.)
+
+./03-preliminaries.tex:148: Illegal unit of measure (pt inserted).
+<to be read again> 
+                   \relax 
+l.148     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuits for Merkle r...
+Dimensions can be in units of em, ex, in, pt, pc,
+cm, mm, dd, cc, nd, nc, bp, or sp; but yours is a new one!
+I'll assume that you meant to say pt, for printer's points.
+To recover gracefully from this error, it's best to
+delete the erroneous units; e.g., type `2' to delete
+two letters. (See Chapter 27 of The TeXbook.)
+
+./03-preliminaries.tex:149: Undefined control sequence.
+l.149     \Statex
+                  \hspace{\algorithmicindent} \quad Subcircuit for $\mathsf{...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:149: Undefined control sequence.
+<argument> \algorithmicindent 
+                              
+l.149     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuit for $\mathsf{...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:149: Missing number, treated as zero.
+<to be read again> 
+                   \relax 
+l.149     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuit for $\mathsf{...
+A number should have been here; I inserted `0'.
+(If you can't figure out why I needed to see a number,
+look up `weird error' in the index to The TeXbook.)
+
+./03-preliminaries.tex:149: Illegal unit of measure (pt inserted).
+<to be read again> 
+                   \relax 
+l.149     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuit for $\mathsf{...
+Dimensions can be in units of em, ex, in, pt, pc,
+cm, mm, dd, cc, nd, nc, bp, or sp; but yours is a new one!
+I'll assume that you meant to say pt, for printer's points.
+To recover gracefully from this error, it's best to
+delete the erroneous units; e.g., type `2' to delete
+two letters. (See Chapter 27 of The TeXbook.)
+
+./03-preliminaries.tex:150: Undefined control sequence.
+l.150     \Statex
+                  \hspace{\algorithmicindent} \quad Subcircuit for policy ev...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:150: Undefined control sequence.
+<argument> \algorithmicindent 
+                              
+l.150     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuit for policy ev...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:150: Missing number, treated as zero.
+<to be read again> 
+                   \relax 
+l.150     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuit for policy ev...
+A number should have been here; I inserted `0'.
+(If you can't figure out why I needed to see a number,
+look up `weird error' in the index to The TeXbook.)
+
+./03-preliminaries.tex:150: Illegal unit of measure (pt inserted).
+<to be read again> 
+                   \relax 
+l.150     \Statex \hspace{\algorithmicindent}
+                                              \quad Subcircuit for policy ev...
+Dimensions can be in units of em, ex, in, pt, pc,
+cm, mm, dd, cc, nd, nc, bp, or sp; but yours is a new one!
+I'll assume that you meant to say pt, for printer's points.
+To recover gracefully from this error, it's best to
+delete the erroneous units; e.g., type `2' to delete
+two letters. (See Chapter 27 of The TeXbook.)
+
+./03-preliminaries.tex:151: Undefined control sequence.
+l.151     \Statex
+                  \hspace{\algorithmicindent} \quad Optional revocation checks
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:151: Undefined control sequence.
+<argument> \algorithmicindent 
+                              
+l.151     \Statex \hspace{\algorithmicindent}
+                                              \quad Optional revocation checks
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:151: Missing number, treated as zero.
+<to be read again> 
+                   \relax 
+l.151     \Statex \hspace{\algorithmicindent}
+                                              \quad Optional revocation checks
+A number should have been here; I inserted `0'.
+(If you can't figure out why I needed to see a number,
+look up `weird error' in the index to The TeXbook.)
+
+./03-preliminaries.tex:151: Illegal unit of measure (pt inserted).
+<to be read again> 
+                   \relax 
+l.151     \Statex \hspace{\algorithmicindent}
+                                              \quad Optional revocation checks
+Dimensions can be in units of em, ex, in, pt, pc,
+cm, mm, dd, cc, nd, nc, bp, or sp; but yours is a new one!
+I'll assume that you meant to say pt, for printer's points.
+To recover gracefully from this error, it's best to
+delete the erroneous units; e.g., type `2' to delete
+two letters. (See Chapter 27 of The TeXbook.)
+
+./03-preliminaries.tex:152: Undefined control sequence.
+l.152     \State
+                 Obtain constraint system (e.g.\ R1CS) for $C_n$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:153: Undefined control sequence.
+l.153 \EndFor
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:154: LaTeX Error: \begin{document} ended by \end{algorithmic}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.154 \end{algorithmic}
+                       
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:155: LaTeX Error: \begin{document} ended by \end{algorithm}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.155 \end{algorithm}
+                     
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+
+[11
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+]
+
+./03-preliminaries.tex:158: LaTeX Error: Environment algorithm undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.158 \begin{algorithm}
+                       [H]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:159: LaTeX Error: \caption outside float.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.159 \caption
+              {Compilation of BDEC Verification into a SNARK Circuit Compile...
+You're in trouble here.  Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+./03-preliminaries.tex:159: Undefined control sequence.
+\caption ... \endcsname \fi \fi \@dblarg {\@tempf 
+                                                  \@captype }
+l.159 \caption
+              {Compilation of BDEC Verification into a SNARK Circuit Compile...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:159: Undefined control sequence.
+\caption ...e \fi \fi \@dblarg {\@tempf \@captype 
+                                                  }
+l.159 \caption
+              {Compilation of BDEC Verification into a SNARK Circuit Compile...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:161: LaTeX Error: Environment algorithmic undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.161 \begin{algorithmic}
+                         [1]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+./03-preliminaries.tex:163: Undefined control sequence.
+l.163 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:164: Undefined control sequence.
+l.164 \State
+             \textbf{NP Relations}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:165: Undefined control sequence.
+l.165 \For
+          {$n = 1$ \textbf{to} $N$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:166: Undefined control sequence.
+l.166     \State
+                 $(x,w) \in R_n \iff C_n(x,w)$ outputs \textsc{OK} (the circ...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:167: Undefined control sequence.
+l.167 \EndFor
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:169: Undefined control sequence.
+l.169 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:170: Undefined control sequence.
+l.170 \State
+             \textbf{SNARK Setup and Proof System $\Pi_{\mathsf{circ}}$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:171: Undefined control sequence.
+l.171 \For
+          {$n = 1$ \textbf{to} $N$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:172: Undefined control sequence.
+l.172     \State
+                 $\mathsf{crs}_n \gets \mathsf{SNARK.Setup}(1^\lambda, C_n)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:173: Undefined control sequence.
+l.173 \EndFor
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:174: Undefined control sequence.
+l.174 \State
+             Define:
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:175: Undefined control sequence.
+l.175 \State
+             $\mathsf{Setup}_{\mathsf{circ}}: \text{output } \{\mathsf{crs}_...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:176: Undefined control sequence.
+l.176 \State
+             $\mathsf{Prove}_{\mathsf{circ}}(\mathsf{crs}_n, x, w): \pi \get...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:177: Undefined control sequence.
+l.177 \State
+             $\mathsf{Verify}_{\mathsf{circ}}(\mathsf{crs}_n, x, \pi): b \ge...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+Overfull \hbox (23.14351pt too wide) in paragraph at lines 170--178
+[][] \OT1/cmr/m/n/12 : []\OMS/cmsy/m/n/12 f[][]g[]$ $[][]\OT1/cmr/m/n/12 ([][]\OML/cmm/m/it/12 ; x; w\OT1/cmr/m/n/12 ) : \OML/cmm/m/it/12 ^^Y \OMS/cmsy/m/n/12   []\OT1/cmr/m/n/12 ([][]\OML/cmm/m/it/12 ; C[]; x; w\OT1/cmr/m/n/12 )$ $[][]([][]\OML/cmm/m/it/12 ; x; ^^Y\OT1/cmr/m/n/12 ) :
+ []
+
+./03-preliminaries.tex:179: Undefined control sequence.
+l.179 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:180: Undefined control sequence.
+l.180 \State
+             \textbf{Dynamicity and Security Characteristics}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:181: Undefined control sequence.
+l.181 \State
+             Each $n$ has its own circuit $C_n$ and CRS $\mathsf{crs}_n$ (se...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:182: Undefined control sequence.
+l.182 \State
+             Changing $n$ generally requires switching to a different $(C_n,...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:183: Undefined control sequence.
+l.183 \State
+             Security (completeness, soundness, ZK) inherits from the underl...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:185: LaTeX Error: \begin{document} ended by \end{algorithmic}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.185 \end{algorithmic}
+                       
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:186: LaTeX Error: \begin{document} ended by \end{algorithm}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.186 \end{algorithm}
+                     
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+LaTeX Warning: Reference `alg:bdec-snark-compiler' on page 12 undefined on input line 188.
+
+
+LaTeX Warning: Reference `alg:bdec-snark-compiler-2' on page 12 undefined on input line 188.
+
+
+LaTeX Warning: Reference `def:dynamic-zk' on page 12 undefined on input line 188.
+
+
+./03-preliminaries.tex:193: LaTeX Error: Environment algorithm undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.193 \begin{algorithm}
+                       [H]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:194: LaTeX Error: \caption outside float.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.194 \caption
+              {Logic Update Workflow for BDEC Verification}
+You're in trouble here.  Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+./03-preliminaries.tex:194: Undefined control sequence.
+\caption ... \endcsname \fi \fi \@dblarg {\@tempf 
+                                                  \@captype }
+l.194 \caption
+              {Logic Update Workflow for BDEC Verification}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:194: Undefined control sequence.
+\caption ...e \fi \fi \@dblarg {\@tempf \@captype 
+                                                  }
+l.194 \caption
+              {Logic Update Workflow for BDEC Verification}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:197: LaTeX Error: Environment algorithmic undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.197 \begin{algorithmic}
+                         [1]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+./03-preliminaries.tex:199: Undefined control sequence.
+l.199 \Require
+               Original verification logic $\mathcal{L}$, updated logic $\ma...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:200: Undefined control sequence.
+l.200 \Ensure
+              Updated zkVM method and/or circuit(s), recorded update cost $C...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:202: Undefined control sequence.
+l.202 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:203: Undefined control sequence.
+l.203 \State
+             \textbf{Update in zkVM Architecture}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:204: Undefined control sequence.
+l.204 \State
+             Modify high-level Rust code from $\mathcal{L}$ to $\mathcal{L}'...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:205: Undefined control sequence.
+l.205 \State
+             Recompile guest program to obtain new method binary $P'_{\maths...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:206: Undefined control sequence.
+l.206 \State
+             $\mathsf{mid}'_{\mathsf{BDEC}} \gets \mathsf{compile}(P'_{\math...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:207: Undefined control sequence.
+l.207 \State
+             Record engineering steps (code changes, compile time) as part o...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:208: Undefined control sequence.
+l.208 \State
+             Note: underlying zkVM proof parameters (STARK params, hash) rem...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:210: Undefined control sequence.
+l.210 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:211: Undefined control sequence.
+l.211 \State
+             \textbf{Update in SNARK Compiler Architecture}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:212: Undefined control sequence.
+l.212 \For
+          {each $n$ in the supported range}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:213: Undefined control sequence.
+l.213     \State
+                 Modify verifier description for $C_n$ to reflect $\mathcal{...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:214: Undefined control sequence.
+l.214     \State
+                 Re-run circuit compilation to obtain updated circuit $C'_n$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:215: Undefined control sequence.
+l.215     \If
+             {SNARK is preprocessing}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:216: Undefined control sequence.
+l.216         \State
+                     $\mathsf{crs}'_n \gets \mathsf{SNARK.Setup}(1^\lambda, ...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:217: Undefined control sequence.
+l.217     \EndIf
+                
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:218: Undefined control sequence.
+l.218 \EndFor
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:219: Undefined control sequence.
+l.219 \State
+             Record engineering steps (circuit changes, compilation time, se...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:221: Undefined control sequence.
+l.221 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:222: Undefined control sequence.
+l.222 \State
+             \textbf{Output}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:223: Undefined control sequence.
+l.223 \State
+             Return updated zkVM method ID $\mathsf{mid}'_{\mathsf{BDEC}}$ a...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:225: LaTeX Error: \begin{document} ended by \end{algorithmic}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.225 \end{algorithmic}
+                       
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:226: LaTeX Error: \begin{document} ended by \end{algorithm}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.226 \end{algorithm}
+                     
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+LaTeX Warning: Reference `alg:logic-update' on page 12 undefined on input line 228.
+
+
+./03-preliminaries.tex:231: LaTeX Error: Environment algorithm undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.231 \begin{algorithm}
+                       [H]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:232: LaTeX Error: \caption outside float.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.232 \caption
+              {Benchmark and Metric Collection for Dynamic BDEC Verification}
+You're in trouble here.  Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+./03-preliminaries.tex:232: Undefined control sequence.
+\caption ... \endcsname \fi \fi \@dblarg {\@tempf 
+                                                  \@captype }
+l.232 \caption
+              {Benchmark and Metric Collection for Dynamic BDEC Verification}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:232: Undefined control sequence.
+\caption ...e \fi \fi \@dblarg {\@tempf \@captype 
+                                                  }
+l.232 \caption
+              {Benchmark and Metric Collection for Dynamic BDEC Verification}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:235: LaTeX Error: Environment algorithmic undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.235 \begin{algorithmic}
+                         [1]
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+./03-preliminaries.tex:237: Undefined control sequence.
+l.237 \Require
+               zkVM construction (Alg.~\ref{alg:bdec-risczero}), circuit con...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+LaTeX Warning: Reference `alg:bdec-risczero' on page 12 undefined on input line 237.
+
+
+LaTeX Warning: Reference `alg:bdec-snark-compiler' on page 12 undefined on input line 237.
+
+./03-preliminaries.tex:238: Undefined control sequence.
+l.238 \Ensure
+              Measured metrics: $T_{\mathsf{prove}}$, $T_{\mathsf{verify}}$,...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:240: Undefined control sequence.
+l.240 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:241: Undefined control sequence.
+l.241 \State
+             \textbf{Select Test Instances}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:242: Undefined control sequence.
+l.242 \State
+             Choose a finite set $\mathcal{T} = \{(n_i, \mathsf{policy}_i)\}...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:243: Undefined control sequence.
+l.243 \For
+          {each $(n_i, \mathsf{policy}_i) \in \mathcal{T}$}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:244: Undefined control sequence.
+l.244     \State
+                 Sample or construct representative witnesses $w$ and statem...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:246: Undefined control sequence.
+l.246     \Statex
+                 
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:247: Undefined control sequence.
+l.247     \State
+                 \textbf{Run zkVM Benchmarks}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:248: Undefined control sequence.
+l.248     \State
+                 Start timer; run $\pi_{\mathsf{zkVM}} \gets \mathsf{Prove}_...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:249: Undefined control sequence.
+l.249     \State
+                 Stop timer; record $T_{\mathsf{prove},\mathsf{zkVM}}(n_i)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:250: Undefined control sequence.
+l.250     \State
+                 Measure proof size $|\pi_{\mathsf{zkVM}}(n_i)|$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:251: Undefined control sequence.
+l.251     \State
+                 Start timer; run $\mathsf{Verify}_{\mathsf{zkVM}}(\mathsf{c...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:252: Undefined control sequence.
+l.252     \State
+                 Stop timer; record $T_{\mathsf{verify},\mathsf{zkVM}}(n_i)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:253: Undefined control sequence.
+l.253     \State
+                 Extract or estimate constraint count $C_{\mathsf{zkVM}}(\ma...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:254: Undefined control sequence.
+l.254     \State
+                 Compute $\rho_{\mathsf{zkVM}}(\mathcal{L}, n_i) = \frac{C_{...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+Overfull \hbox (33.26321pt too wide) in paragraph at lines 247--255
+[]\T1/ptm/b/n/12 Run zkVM Bench-marks \T1/ptm/m/n/12 Start timer; run $\OML/cmm/m/it/12 ^^Y[] \OMS/cmsy/m/n/12   [][]\OT1/cmr/m/n/12 ([]\OML/cmm/m/it/12 ; x; w\OT1/cmr/m/n/12 )$ \T1/ptm/m/n/12 Stop timer; record $\OML/cmm/m/it/12 T[]\OT1/cmr/m/n/12 (\OML/cmm/m/it/12 n[]\OT1/cmr/m/n/12 )$
+ []
+
+
+Overfull \hbox (13.00449pt too wide) in paragraph at lines 247--255
+\T1/ptm/m/n/12 Mea-sure proof size $\OMS/cmsy/m/n/12 j\OML/cmm/m/it/12 ^^Y[]\OT1/cmr/m/n/12 (\OML/cmm/m/it/12 n[]\OT1/cmr/m/n/12 )\OMS/cmsy/m/n/12 j$ \T1/ptm/m/n/12 Start timer; run $[][]\OT1/cmr/m/n/12 ([]\OML/cmm/m/it/12 ; x; ^^Y[]\OT1/cmr/m/n/12 )$ \T1/ptm/m/n/12 Stop timer; record $\OML/cmm/m/it/12 T[]\OT1/cmr/m/n/12 (\OML/cmm/m/it/12 n[]\OT1/cmr/m/n/12 )$
+ []
+
+./03-preliminaries.tex:256: Undefined control sequence.
+l.256     \Statex
+                 
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:257: Undefined control sequence.
+l.257     \State
+                 \textbf{Run Circuit-SNARK Benchmarks}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+
+[12
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+]
+./03-preliminaries.tex:258: Undefined control sequence.
+l.258     \State
+                 Select corresponding circuit $C_{n_i}$ and CRS $\mathsf{crs...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:259: Undefined control sequence.
+l.259     \State
+                 Start timer; run $\pi_{\mathsf{circ}} \gets \mathsf{Prove}_...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:260: Undefined control sequence.
+l.260     \State
+                 Stop timer; record $T_{\mathsf{prove},\mathsf{circ}}(n_i)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:261: Undefined control sequence.
+l.261     \State
+                 Measure proof size $|\pi_{\mathsf{circ}}(n_i)|$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:262: Undefined control sequence.
+l.262     \State
+                 Start timer; run $\mathsf{Verify}_{\mathsf{circ}}(\mathsf{c...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:263: Undefined control sequence.
+l.263     \State
+                 Stop timer; record $T_{\mathsf{verify},\mathsf{circ}}(n_i)$
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:264: Undefined control sequence.
+l.264     \State
+                 Obtain constraint count $C_{\mathsf{circ}}(\mathcal{L}, n_i...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:265: Undefined control sequence.
+l.265     \State
+                 Compute $\rho_{\mathsf{circ}}(\mathcal{L}, n_i) = \frac{C_{...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:267: Undefined control sequence.
+l.267     \Statex
+                 
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:268: Undefined control sequence.
+l.268     \State
+                 \textbf{Compute Upgrade / Dynamism Metrics}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:269: Undefined control sequence.
+l.269     \State
+                 For successive $n_i, n_j$ in $\mathcal{T}$, compute:
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:270: Undefined control sequence.
+l.270     \Statex
+                  \hspace{\algorithmicindent} $\Delta T_{\mathsf{prove}}$, $...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:270: Undefined control sequence.
+<argument> \algorithmicindent 
+                              
+l.270     \Statex \hspace{\algorithmicindent}
+                                              $\Delta T_{\mathsf{prove}}$, $...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:270: Missing number, treated as zero.
+<to be read again> 
+                   \relax 
+l.270     \Statex \hspace{\algorithmicindent}
+                                              $\Delta T_{\mathsf{prove}}$, $...
+A number should have been here; I inserted `0'.
+(If you can't figure out why I needed to see a number,
+look up `weird error' in the index to The TeXbook.)
+
+./03-preliminaries.tex:270: Illegal unit of measure (pt inserted).
+<to be read again> 
+                   \relax 
+l.270     \Statex \hspace{\algorithmicindent}
+                                              $\Delta T_{\mathsf{prove}}$, $...
+Dimensions can be in units of em, ex, in, pt, pc,
+cm, mm, dd, cc, nd, nc, bp, or sp; but yours is a new one!
+I'll assume that you meant to say pt, for printer's points.
+To recover gracefully from this error, it's best to
+delete the erroneous units; e.g., type `2' to delete
+two letters. (See Chapter 27 of The TeXbook.)
+
+./03-preliminaries.tex:271: Undefined control sequence.
+l.271     \State
+                 Use these to instantiate dynamism and agility measures (e.g...
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:272: Undefined control sequence.
+l.272 \EndFor
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:274: Undefined control sequence.
+l.274 \Statex
+             
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:275: Undefined control sequence.
+l.275 \State
+             \textbf{Output}
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+./03-preliminaries.tex:276: Undefined control sequence.
+l.276 \State
+             Return all recorded metrics for use in tables, plots, and analysis
+The control sequence at the end of the top line
+of your error message was never \def'ed. If you have
+misspelled it (e.g., `\hobx'), type `I' and the correct
+spelling (e.g., `I\hbox'). Otherwise just continue,
+and I'll forget about whatever was undefined.
+
+
+./03-preliminaries.tex:278: LaTeX Error: \begin{document} ended by \end{algorithmic}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.278 \end{algorithmic}
+                       
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+./03-preliminaries.tex:279: LaTeX Error: \begin{document} ended by \end{algorithm}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.279 \end{algorithm}
+                     
+Your command was ignored.
+Type  I <command> <return>  to replace it with another command,
+or  <return>  to continue without it.
+
+
+LaTeX Warning: Reference `alg:benchmark' on page 13 undefined on input line 281.
+
+)
+Overfull \hbox (1.21065pt too wide) in paragraph at lines 281--96
+\T1/ptm/m/n/12 Algorithm [] pro-vides em-pir-i-cal val-i-da-tion of dy-namism prop-er-ties. The mea-sured met-rics $\OML/cmm/m/it/12 ^^Z[]\OT1/cmr/m/n/12 (\OML/cmm/m/it/12 L; n\OT1/cmr/m/n/12 )$
+ []
+
+
+
+[13
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+] (./05-evaluation.tex)
+
 [14
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+] (./06-discussion.tex)
+
+[15
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+] (./07-conclusion.tex)
+
+[16
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+Non-PDF special ignored!
+<special> color push  Black
+Non-PDF special ignored!
+<special> color pop
+]
+
+[17
 Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
@@ -750,7 +2843,7 @@ Non-PDF special ignored!
 <special> color pop
 ] (./main.bbl)
 
-[15
+[18
 Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
@@ -781,7 +2874,7 @@ Non-PDF special ignored!
 <special> color pop
 ] (./appendices.tex)
 
-[16
+[19
 Non-PDF special ignored!
 <special> color push  Black
 Non-PDF special ignored!
@@ -800,22 +2893,22 @@ L3 programming layer <2025-01-18>
 LaTeX Warning: There were undefined references.
 
 
-LaTeX Warning: There were multiply-defined labels.
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
  ) 
 Here is how much of TeX's memory you used:
- 4913 strings out of 473190
- 75253 string characters out of 5715800
- 471852 words of memory out of 5000000
- 28017 multiletter control sequences out of 15000+600000
- 603854 words of font info for 89 fonts, out of 8000000 for 9000
+ 4917 strings out of 473190
+ 75397 string characters out of 5715800
+ 474616 words of memory out of 5000000
+ 28026 multiletter control sequences out of 15000+600000
+ 610148 words of font info for 92 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 64i,12n,68p,1432b,381s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (16 pages, 166265 bytes).
+ 64i,12n,68p,1432b,437s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/local/texlive/2025/texmf-dist/fonts/type1/public/ascmac/ascgrp.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss12.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on main.pdf (19 pages, 209545 bytes).
 PDF statistics:
- 127 PDF objects out of 1000 (max. 8388607)
- 80 compressed objects within 1 object stream
+ 152 PDF objects out of 1000 (max. 8388607)
+ 96 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 

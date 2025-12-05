@@ -4,12 +4,12 @@ use std::sync::OnceLock;
 
 use vc_pqc::{
     loquat::{
-        field_utils::F, keygen::keygen_with_params, loquat_setup, loquat_sign, LoquatKeyPair,
-        LoquatPublicParams, LoquatSignature,
+        LoquatKeyPair, LoquatPublicParams, LoquatSignature, field_utils::F,
+        keygen::keygen_with_params, loquat_setup, loquat_sign,
     },
     snarks::{
-        aurora_prove_with_options, aurora_verify, build_loquat_r1cs, AuroraParams,
-        AuroraProverOptions, R1csInstance, R1csWitness,
+        AuroraParams, AuroraProverOptions, R1csInstance, R1csWitness, aurora_prove_with_options,
+        aurora_verify, build_loquat_r1cs,
     },
 };
 
@@ -111,4 +111,3 @@ fn tampered_witness_fails_aurora_verification() {
         "Aggregated proof with inconsistent witness must be rejected"
     );
 }
-

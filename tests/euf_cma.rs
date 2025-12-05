@@ -4,9 +4,10 @@ use std::collections::{HashMap, HashSet};
 
 use sha2::{Digest, Sha256};
 use vc_pqc::loquat::{
+    LoquatKeyPair, LoquatPublicParams, LoquatSignature,
     field_utils::{F, F2},
     keygen::keygen_with_params,
-    loquat_setup, loquat_sign, loquat_verify, LoquatKeyPair, LoquatPublicParams, LoquatSignature,
+    loquat_setup, loquat_sign, loquat_verify,
 };
 
 /// Tracks forged messages and enforces the signing-query budget.
@@ -19,11 +20,7 @@ struct SigningOracle<'a> {
 }
 
 impl<'a> SigningOracle<'a> {
-    fn new(
-        keypair: &'a LoquatKeyPair,
-        params: &'a LoquatPublicParams,
-        max_queries: usize,
-    ) -> Self {
+    fn new(keypair: &'a LoquatKeyPair, params: &'a LoquatPublicParams, max_queries: usize) -> Self {
         Self {
             keypair,
             params,
@@ -267,4 +264,3 @@ fn euf_cma_adversaries_fail_to_forge() {
     assert_no_forgery::<SumcheckSwapAdversary>(8);
     assert_no_forgery::<TranscriptSpliceAdversary>(8);
 }
-

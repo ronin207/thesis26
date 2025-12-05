@@ -49,7 +49,7 @@ pub mod tests;
 pub use errors::{LoquatError, LoquatResult};
 pub use setup::LoquatPublicParams;
 #[cfg(feature = "std")]
-pub use setup::loquat_setup;
+pub use setup::{loquat_setup, loquat_setup_tiny};
 
 #[cfg(feature = "std")]
 pub use benchmark::{BenchmarkConfig, HashType, LoquatBenchmark, PerformanceMetrics};

@@ -2,6 +2,7 @@ use super::encoding;
 use super::errors::{LoquatError, LoquatResult};
 use super::field_utils::{self, F, F2, field2_to_bytes, u128_to_field};
 use super::hasher::{GriffinHasher, LoquatHasher};
+use super::merkle::MerkleConfig;
 use super::setup::LoquatPublicParams;
 use super::sign::LoquatSignature;
 use super::sumcheck::verify_sumcheck_proof;
@@ -256,11 +257,12 @@ fn verify_ldt_proof(
         }
 
         let leaf_bytes = field2_to_bytes(&opening.final_eval).to_vec();
-        if !super::merkle::MerkleTree::verify_auth_path(
+        if !super::merkle::MerkleTree::verify_auth_path_with_config(
             ldt_proof.commitments.last().unwrap().as_ref(),
             &leaf_bytes,
             fold_index,
             &opening.auth_path,
+            merkle_config,
         ) {
             loquat_debug!("✗ Query {}: final Merkle authentication failed", query_idx);
             return Ok(false);
@@ -278,6 +280,7 @@ fn verify_ldt_proof(
     params: &LoquatPublicParams,
     transcript: &mut Transcript,
 ) -> LoquatResult<bool> {
+    let merkle_config = MerkleConfig::tree_cap(1usize << params.eta);
     loquat_debug!("--- Algorithm 7 · Phase III: Low-Degree Test ---");
     let ldt_proof = &signature.ldt_proof;
 
@@ -307,9 +310,17 @@ fn verify_ldt_proof(
         return Ok(false);
     }
 
+    if signature.c_auth_paths.len() != params.kappa
+        || signature.s_auth_paths.len() != params.kappa
+        || signature.h_auth_paths.len() != params.kappa
+    {
+        loquat_debug!("✗ Missing auth paths for c'/s/h");
+        return Ok(false);
+    }
+
     for (layer_idx, layer) in signature.fri_codewords.iter().enumerate() {
         let leaves = encoding::serialize_field2_leaves(layer);
-        let tree = super::merkle::MerkleTree::new(&leaves);
+        let tree = super::merkle::MerkleTree::new_with_config(&leaves, merkle_config);
         let root = tree.root().ok_or_else(|| LoquatError::MerkleError {
             operation: "verify_fri_root".to_string(),
             details: "empty layer".to_string(),
@@ -409,14 +420,97 @@ fn verify_ldt_proof(
             loquat_debug!("✗ Query {} final evaluation mismatch", query_idx);
             return Ok(false);
         }
-        let leaf_bytes = field2_to_bytes(&opening.final_eval).to_vec();
-        if !super::merkle::MerkleTree::verify_auth_path(
+        let final_layer = signature.fri_codewords.last().unwrap();
+        let leaf_start = (fold_index / merkle_config.leaf_arity()) * merkle_config.leaf_arity();
+        let leaf_end = (leaf_start + merkle_config.leaf_arity()).min(final_layer.len());
+        let leaf_bytes = field_utils::serialize_field2_slice(&final_layer[leaf_start..leaf_end]);
+        if !super::merkle::MerkleTree::verify_auth_path_with_config(
             ldt_proof.commitments.last().unwrap().as_ref(),
             &leaf_bytes,
-            fold_index,
+            fold_index / merkle_config.leaf_arity(),
             &opening.auth_path,
+            merkle_config,
         ) {
             loquat_debug!("✗ Query {} final authentication failure", query_idx);
+            return Ok(false);
+        }
+
+        // Tree-cap auth paths for c', s, h
+        let chunk_index = opening.position / merkle_config.leaf_arity();
+
+        // c'(u) leaf
+        let c_chunk_start = chunk_index * merkle_config.leaf_arity();
+        let c_chunk_end = (c_chunk_start + merkle_config.leaf_arity()).min(
+            signature
+                .c_prime_evals
+                .get(0)
+                .map(|row| row.len())
+                .unwrap_or(0),
+        );
+        if c_chunk_start >= c_chunk_end {
+            loquat_debug!("✗ Query {}: c' chunk range invalid", query_idx);
+            return Ok(false);
+        }
+        let mut c_leaf = Vec::new();
+        for col in c_chunk_start..c_chunk_end {
+            for row in &signature.c_prime_evals {
+                c_leaf.extend_from_slice(&field_utils::field2_to_bytes(&row[col]));
+            }
+        }
+        if !super::merkle::MerkleTree::verify_auth_path_with_config(
+            &signature.root_c,
+            &c_leaf,
+            chunk_index,
+            &signature.c_auth_paths[query_idx],
+            merkle_config,
+        ) {
+            loquat_debug!("✗ Query {}: c' auth path failed", query_idx);
+            return Ok(false);
+        }
+
+        // s(u) leaf
+        let s_chunk_start = chunk_index * merkle_config.leaf_arity();
+        let s_chunk_end =
+            (s_chunk_start + merkle_config.leaf_arity()).min(signature.s_evals.len());
+        if s_chunk_start >= s_chunk_end {
+            loquat_debug!("✗ Query {}: s chunk range invalid", query_idx);
+            return Ok(false);
+        }
+        let mut s_leaf = Vec::new();
+        for idx in s_chunk_start..s_chunk_end {
+            s_leaf.extend_from_slice(&field_utils::field2_to_bytes(&signature.s_evals[idx]));
+        }
+        if !super::merkle::MerkleTree::verify_auth_path_with_config(
+            &signature.root_s,
+            &s_leaf,
+            chunk_index,
+            &signature.s_auth_paths[query_idx],
+            merkle_config,
+        ) {
+            loquat_debug!("✗ Query {}: s auth path failed", query_idx);
+            return Ok(false);
+        }
+
+        // h(u) leaf
+        let h_chunk_start = chunk_index * merkle_config.leaf_arity();
+        let h_chunk_end =
+            (h_chunk_start + merkle_config.leaf_arity()).min(signature.h_evals.len());
+        if h_chunk_start >= h_chunk_end {
+            loquat_debug!("✗ Query {}: h chunk range invalid", query_idx);
+            return Ok(false);
+        }
+        let mut h_leaf = Vec::new();
+        for idx in h_chunk_start..h_chunk_end {
+            h_leaf.extend_from_slice(&field_utils::field2_to_bytes(&signature.h_evals[idx]));
+        }
+        if !super::merkle::MerkleTree::verify_auth_path_with_config(
+            &signature.root_h,
+            &h_leaf,
+            chunk_index,
+            &signature.h_auth_paths[query_idx],
+            merkle_config,
+        ) {
+            loquat_debug!("✗ Query {}: h auth path failed", query_idx);
             return Ok(false);
         }
     }

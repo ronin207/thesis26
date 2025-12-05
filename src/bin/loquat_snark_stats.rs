@@ -2,12 +2,13 @@ use std::{env, time::Duration, time::Instant};
 
 use bincode::serialize;
 use serde::{Deserialize, Serialize};
+use tracing_subscriber::{EnvFilter, fmt};
 use vc_pqc::snarks::{
-    aurora_prove_with_options, aurora_verify, build_loquat_r1cs, AuroraParams, AuroraProverOptions,
+    AuroraParams, AuroraProverOptions, aurora_prove_with_options, aurora_verify, build_loquat_r1cs,
 };
 use vc_pqc::{
-    keygen_with_params, loquat_setup, loquat_sign, loquat_verify, LoquatSignature,
-    LoquatSignatureArtifact, LoquatSigningTranscript,
+    LoquatSignature, LoquatSignatureArtifact, LoquatSigningTranscript, keygen_with_params,
+    loquat_setup, loquat_setup_tiny, loquat_sign, loquat_verify,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +29,38 @@ fn serialized_full_transcript_len(signature: &LoquatSignature) -> bincode::Resul
     Ok(serialize(&view)?.len())
 }
 
+fn serialize_artifact(signature: &LoquatSignature) -> bincode::Result<Vec<u8>> {
+    serialize(&signature.artifact())
+}
+
+fn serialize_full_transcript(signature: &LoquatSignature) -> bincode::Result<Vec<u8>> {
+    let view = FullTranscriptView {
+        artifact: signature.artifact(),
+        transcript: signature.transcript.clone(),
+    };
+    serialize(&view)
+}
+
+/// Simple run-length encoding for quick, dependency-free compression.
+fn rle_compress(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::with_capacity(data.len());
+    let mut i = 0;
+    while i < data.len() {
+        let byte = data[i];
+        let mut run_len = 1usize;
+        while i + run_len < data.len() && data[i + run_len] == byte && run_len < 255 {
+            run_len += 1;
+        }
+        out.push(run_len as u8);
+        out.push(byte);
+        i += run_len;
+    }
+    out
+}
+
 fn format_duration(duration: Duration) -> String {
     if duration.as_secs() == 0 {
         format!("{:.2} ms", duration.as_secs_f64() * 1_000.0)
@@ -40,7 +73,11 @@ struct RunConfig {
     security: usize,
     message_len: usize,
     run_aurora: bool,
+    build_r1cs_only: bool,
     aurora_queries: Option<usize>,
+    tiny: bool,
+    compress: bool,
+    aurora_stats_only: bool,
 }
 
 fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
@@ -57,9 +94,20 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
         .unwrap_or(32);
     let mut run_aurora = true;
     let mut aurora_queries = None;
+    let mut build_r1cs_only = false;
+    let mut tiny = false;
+    let mut compress = false;
+    let mut aurora_stats_only = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--skip-aurora" | "--no-aurora" => run_aurora = false,
+            "--tiny" | "--test-params" => tiny = true,
+            "--compress" => compress = true,
+            "--aurora-stats-only" => aurora_stats_only = true,
+            "--r1cs-only" => {
+                build_r1cs_only = true;
+                run_aurora = false;
+            }
             "--queries" => {
                 if let Some(next) = args.next() {
                     if let Ok(q) = next.parse() {
@@ -86,6 +134,10 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
         message_len,
         run_aurora,
         aurora_queries,
+        build_r1cs_only,
+        tiny,
+        compress,
+        aurora_stats_only,
     })
 }
 
@@ -93,7 +145,15 @@ fn synthetic_message(len: usize) -> Vec<u8> {
     (0..len).map(|i| ((i * 131) & 0xff) as u8).collect()
 }
 
+fn init_tracing() {
+    let default_directives = "info,vc_pqc=debug";
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directives));
+    let _ = fmt().with_env_filter(filter).try_init();
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    init_tracing();
     let config = parse_args()?;
     let message = synthetic_message(config.message_len);
 
@@ -103,7 +163,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.security, config.message_len
     );
 
-    let params = loquat_setup(config.security)?;
+    let tiny_env = std::env::var("LOQUAT_TINY")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    let params = if config.tiny || tiny_env {
+        println!("(tiny debug parameters enabled)");
+        loquat_setup_tiny()?
+    } else {
+        loquat_setup(config.security)?
+    };
     let keypair = keygen_with_params(&params)?;
 
     let sign_start = Instant::now();
@@ -126,9 +194,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  verify time:          {}", format_duration(verify_time));
     println!("  artifact size (B):    {:>10}", artifact_bytes);
     println!("  transcript size (B):  {:>10}", transcript_bytes);
+    if config.compress {
+        let artifact_bytes = serialize_artifact(&signature)?;
+        let artifact_compressed = rle_compress(&artifact_bytes);
+        let transcript_bytes = serialize_full_transcript(&signature)?;
+        let transcript_compressed = rle_compress(&transcript_bytes);
+        println!(
+            "  artifact (RLE):       {:>10} (raw {})",
+            artifact_compressed.len().min(artifact_bytes.len()),
+            artifact_bytes.len()
+        );
+        println!(
+            "  transcript (RLE):     {:>10} (raw {})",
+            transcript_compressed.len().min(transcript_bytes.len()),
+            transcript_bytes.len()
+        );
+    }
 
-    if !config.run_aurora {
-        println!("\nAurora proving skipped (--skip-aurora).");
+    let need_r1cs = config.run_aurora || config.build_r1cs_only;
+    if !need_r1cs || config.aurora_stats_only {
+        println!(
+            "\nAurora skipped ({}).",
+            if !need_r1cs {
+                "--skip-aurora"
+            } else {
+                "--aurora-stats-only"
+            }
+        );
         return Ok(());
     }
 
@@ -138,6 +230,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n--- R1CS stats ---");
     println!("  variables:            {}", instance.num_variables);
     println!("  constraints:          {}", instance.constraints.len());
+
+    if !config.run_aurora {
+        println!("\nAurora skipped (--r1cs-only).");
+        return Ok(());
+    }
 
     let aurora_params = AuroraParams {
         constraint_query_count: query_count,

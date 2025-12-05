@@ -92,7 +92,7 @@ pub use loquat::{
     LoquatSigningTranscript, Transcript, loquat_verify,
 };
 #[cfg(feature = "std")]
-pub use loquat::{loquat_setup, loquat_sign};
+pub use loquat::{loquat_setup, loquat_setup_tiny, loquat_sign};
 
 // Re-export Griffin hash module
 pub use loquat::griffin::{

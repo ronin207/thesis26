@@ -86,6 +86,24 @@ pub fn legendre_prf_secure(input: F) -> F {
     }
 }
 
+/// Compute the canonical square root of a field element.
+/// For p = 2^127 - 1, p ≡ 3 (mod 4), so sqrt(a) = a^((p+1)/4) = a^(2^125).
+/// Returns Some(sqrt) if a is a quadratic residue, None otherwise.
+pub fn sqrt_canonical(a: F) -> Option<F> {
+    if a.is_zero() {
+        return Some(F::zero());
+    }
+    // For p = 2^127 - 1, the exponent (p+1)/4 = 2^125
+    let sqrt_exponent: u128 = 1u128 << 125;
+    let candidate = a.pow(sqrt_exponent);
+    // Verify: candidate² = a
+    if candidate * candidate == a {
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
 /// Convert bytes to a field element.
 pub fn bytes_to_field_element(bytes: &[u8]) -> F {
     let mut arr = [0u8; 16];
