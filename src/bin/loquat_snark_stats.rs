@@ -2,7 +2,6 @@ use std::{env, time::Duration, time::Instant};
 
 use bincode::serialize;
 use serde::{Deserialize, Serialize};
-use tracing_subscriber::{EnvFilter, fmt};
 use vc_pqc::snarks::{
     AuroraParams, AuroraProverOptions, aurora_prove_with_options, aurora_verify, build_loquat_r1cs,
 };
@@ -73,11 +72,12 @@ struct RunConfig {
     security: usize,
     message_len: usize,
     run_aurora: bool,
-    build_r1cs_only: bool,
     aurora_queries: Option<usize>,
     tiny: bool,
     compress: bool,
     aurora_stats_only: bool,
+    kappa: Option<usize>,
+    paper_row: bool,
 }
 
 fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
@@ -94,19 +94,28 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
         .unwrap_or(32);
     let mut run_aurora = true;
     let mut aurora_queries = None;
-    let mut build_r1cs_only = false;
     let mut tiny = false;
     let mut compress = false;
     let mut aurora_stats_only = false;
+    let mut kappa = None;
+    let mut paper_row = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--skip-aurora" | "--no-aurora" => run_aurora = false,
             "--tiny" | "--test-params" => tiny = true,
             "--compress" => compress = true,
             "--aurora-stats-only" => aurora_stats_only = true,
-            "--r1cs-only" => {
-                build_r1cs_only = true;
-                run_aurora = false;
+            "--paper-row" => paper_row = true,
+            "--kappa" => {
+                if let Some(next) = args.next() {
+                    if let Ok(value) = next.parse::<usize>() {
+                        kappa = Some(value);
+                    } else {
+                        eprintln!("Ignoring invalid --kappa value '{next}'");
+                    }
+                } else {
+                    eprintln!("Missing value for --kappa, ignoring");
+                }
             }
             "--queries" => {
                 if let Some(next) = args.next() {
@@ -126,6 +135,15 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
                     }
                 }
             }
+            _ if arg.starts_with("--kappa=") => {
+                if let Some(val) = arg.split_once('=').map(|(_, v)| v) {
+                    if let Ok(value) = val.parse::<usize>() {
+                        kappa = Some(value);
+                    } else {
+                        eprintln!("Ignoring invalid --kappa value '{val}'");
+                    }
+                }
+            }
             other => eprintln!("Unrecognised argument '{other}', ignoring"),
         }
     }
@@ -134,10 +152,11 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
         message_len,
         run_aurora,
         aurora_queries,
-        build_r1cs_only,
         tiny,
         compress,
         aurora_stats_only,
+        kappa,
+        paper_row,
     })
 }
 
@@ -145,29 +164,32 @@ fn synthetic_message(len: usize) -> Vec<u8> {
     (0..len).map(|i| ((i * 131) & 0xff) as u8).collect()
 }
 
-fn init_tracing() {
-    let default_directives = "info,vc_pqc=debug";
-    let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directives));
-    let _ = fmt().with_env_filter(filter).try_init();
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_tracing();
     let config = parse_args()?;
     let message = synthetic_message(config.message_len);
 
-    println!("=== Loquat SNARK Stats ===\n");
-    println!(
-        "security level: {}-bit   message bytes: {}",
-        config.security, config.message_len
-    );
+    if !config.paper_row {
+        println!("=== Loquat SNARK Stats ===\n");
+        println!(
+            "security level: {}-bit   message bytes: {}",
+            config.security, config.message_len
+        );
+    }
 
     let tiny_env = std::env::var("LOQUAT_TINY")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    let params = if config.tiny || tiny_env {
-        println!("(tiny debug parameters enabled)");
+    let effective_security = if config.tiny || tiny_env {
+        if !config.paper_row {
+            println!("(tiny debug parameters enabled)");
+        }
+        80
+    } else {
+        config.security
+    };
+    let params = if let Some(kappa) = config.kappa {
+        vc_pqc::loquat::setup::loquat_setup_with_kappa(effective_security, kappa)?
+    } else if config.tiny || tiny_env {
         loquat_setup_tiny()?
     } else {
         loquat_setup(config.security)?
@@ -189,53 +211,94 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let artifact_bytes = serialized_artifact_len(&signature)?;
     let transcript_bytes = serialized_full_transcript_len(&signature)?;
 
-    println!("\n--- Loquat signature ---");
-    println!("  sign time:            {}", format_duration(sign_time));
-    println!("  verify time:          {}", format_duration(verify_time));
-    println!("  artifact size (B):    {:>10}", artifact_bytes);
-    println!("  transcript size (B):  {:>10}", transcript_bytes);
-    if config.compress {
-        let artifact_bytes = serialize_artifact(&signature)?;
-        let artifact_compressed = rle_compress(&artifact_bytes);
-        let transcript_bytes = serialize_full_transcript(&signature)?;
-        let transcript_compressed = rle_compress(&transcript_bytes);
-        println!(
-            "  artifact (RLE):       {:>10} (raw {})",
-            artifact_compressed.len().min(artifact_bytes.len()),
-            artifact_bytes.len()
-        );
-        println!(
-            "  transcript (RLE):     {:>10} (raw {})",
-            transcript_compressed.len().min(transcript_bytes.len()),
-            transcript_bytes.len()
-        );
+    if !config.paper_row {
+        println!("\n--- Loquat signature ---");
+        println!("  sign time:            {}", format_duration(sign_time));
+        println!("  verify time:          {}", format_duration(verify_time));
+        println!("  artifact size (B):    {:>10}", artifact_bytes);
+        println!("  transcript size (B):  {:>10}", transcript_bytes);
+        if config.compress {
+            let artifact_bytes = serialize_artifact(&signature)?;
+            let artifact_compressed = rle_compress(&artifact_bytes);
+            let transcript_bytes = serialize_full_transcript(&signature)?;
+            let transcript_compressed = rle_compress(&transcript_bytes);
+            println!(
+                "  artifact (RLE):       {:>10} (raw {})",
+                artifact_compressed.len().min(artifact_bytes.len()),
+                artifact_bytes.len()
+            );
+            println!(
+                "  transcript (RLE):     {:>10} (raw {})",
+                transcript_compressed.len().min(transcript_bytes.len()),
+                transcript_bytes.len()
+            );
+        }
     }
 
-    let need_r1cs = config.run_aurora || config.build_r1cs_only;
-    if !need_r1cs || config.aurora_stats_only {
+    let sign_ms = sign_time.as_secs_f64() * 1000.0;
+    let verify_ms = verify_time.as_secs_f64() * 1000.0;
+
+    let print_paper_row = |r1cs_vars: Option<usize>,
+                           r1cs_constraints: Option<usize>,
+                           aurora_query_count: Option<usize>,
+                           aurora_prove_s: Option<f64>,
+                           aurora_verify_s: Option<f64>,
+                           aurora_proof_bytes: Option<usize>,
+                           aurora_ok: Option<bool>| {
+        // LaTeX-friendly row with stable column ordering.
+        // Columns:
+        //   λ, |M|, κ, t_sign(ms), t_verify(ms), |σ_art|(B), |σ_full|(B),
+        //   #vars, #constraints, q, t_aurora_prove(s), t_aurora_verify(s), |π|(B), ok
+        let dash = "-";
+        let fmt_usize = |v: Option<usize>| v.map(|x| x.to_string()).unwrap_or_else(|| dash.into());
+        let fmt_f64_3 = |v: Option<f64>| v.map(|x| format!("{x:.3}")).unwrap_or_else(|| dash.into());
+        let fmt_bool = |v: Option<bool>| {
+            v.map(|b| if b { "1".to_string() } else { "0".to_string() })
+                .unwrap_or_else(|| dash.into())
+        };
         println!(
-            "\nAurora skipped ({}).",
-            if !need_r1cs {
-                "--skip-aurora"
-            } else {
-                "--aurora-stats-only"
-            }
+            "{} & {} & {} & {:.2} & {:.2} & {} & {} & {} & {} & {} & {} & {} & {} & {} \\\\",
+            effective_security,
+            config.message_len,
+            params.kappa,
+            sign_ms,
+            verify_ms,
+            artifact_bytes,
+            transcript_bytes,
+            fmt_usize(r1cs_vars),
+            fmt_usize(r1cs_constraints),
+            fmt_usize(aurora_query_count),
+            fmt_f64_3(aurora_prove_s),
+            fmt_f64_3(aurora_verify_s),
+            fmt_usize(aurora_proof_bytes),
+            fmt_bool(aurora_ok),
         );
+    };
+
+    if !config.run_aurora || config.aurora_stats_only {
+        if config.paper_row {
+            print_paper_row(None, None, None, None, None, None, None);
+        } else {
+            println!(
+                "\nAurora skipped ({}).",
+                if !config.run_aurora {
+                    "--skip-aurora"
+                } else {
+                    "--aurora-stats-only"
+                }
+            );
+        }
         return Ok(());
     }
 
     let query_count = config.aurora_queries.unwrap_or(4);
     let (instance, witness) =
         build_loquat_r1cs(&message, &signature, &keypair.public_key, &params)?;
-    println!("\n--- R1CS stats ---");
-    println!("  variables:            {}", instance.num_variables);
-    println!("  constraints:          {}", instance.constraints.len());
-
-    if !config.run_aurora {
-        println!("\nAurora skipped (--r1cs-only).");
-        return Ok(());
+    if !config.paper_row {
+        println!("\n--- R1CS stats ---");
+        println!("  variables:            {}", instance.num_variables);
+        println!("  constraints:          {}", instance.constraints.len());
     }
-
     let aurora_params = AuroraParams {
         constraint_query_count: query_count,
         witness_query_count: query_count,
@@ -251,24 +314,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let verify_result = aurora_verify(&instance, &proof, &aurora_params, None)?;
     let aurora_verify_time = aurora_verify_start.elapsed();
 
-    println!("\n--- Aurora proof ---");
-    println!(
-        "  prove time:           {}",
-        format_duration(aurora_prove_time)
-    );
-    println!(
-        "  verify time:          {}",
-        format_duration(aurora_verify_time)
-    );
-    println!("  proof size (B):       {:>10}", proof_bytes);
-    println!(
-        "  verification result:  {}",
-        if verify_result.is_some() {
-            "success"
-        } else {
-            "failure"
-        }
-    );
+    if config.paper_row {
+        print_paper_row(
+            Some(instance.num_variables),
+            Some(instance.constraints.len()),
+            Some(query_count),
+            Some(aurora_prove_time.as_secs_f64()),
+            Some(aurora_verify_time.as_secs_f64()),
+            Some(proof_bytes),
+            Some(verify_result.is_some()),
+        );
+    } else {
+        println!("\n--- Aurora proof ---");
+        println!(
+            "  prove time:           {}",
+            format_duration(aurora_prove_time)
+        );
+        println!(
+            "  verify time:          {}",
+            format_duration(aurora_verify_time)
+        );
+        println!("  proof size (B):       {:>10}", proof_bytes);
+        println!(
+            "  verification result:  {}",
+            if verify_result.is_some() {
+                "success"
+            } else {
+                "failure"
+            }
+        );
+    }
 
     Ok(())
 }
