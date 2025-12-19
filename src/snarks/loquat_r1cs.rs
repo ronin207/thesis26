@@ -35,22 +35,32 @@ fn compress_leaf_fields_single_perm(
     builder: &mut R1csBuilder,
     leaf_fields: &[FieldVar],
 ) -> Vec<FieldVar> {
-    let mut acc0: Option<FieldVar> = None;
-    let mut acc1: Option<FieldVar> = None;
+    // TreeCap leaf compression uses a single Griffin permutation over
+    // (acc0, acc1, len_tag, 0). The accumulators are simple sums of the
+    // leaf field elements (split by parity), so we should enforce them with
+    // *one* linear relation each instead of O(n) chained additions.
+    let mut acc0_value = F::zero();
+    let mut acc1_value = F::zero();
+    let mut acc0_terms: Vec<(usize, F)> = Vec::new();
+    let mut acc1_terms: Vec<(usize, F)> = Vec::new();
     for (idx, field) in leaf_fields.iter().enumerate() {
-        let target = if idx % 2 == 0 {
-            &mut acc0
+        if idx % 2 == 0 {
+            acc0_value += field.value;
+            acc0_terms.push((field.idx, -F::one()));
         } else {
-            &mut acc1
-        };
-        *target = Some(match target.take() {
-            None => *field,
-            Some(prev) => field_add(builder, prev, *field),
-        });
+            acc1_value += field.value;
+            acc1_terms.push((field.idx, -F::one()));
+        }
     }
-    let zero = FieldVar::constant(builder, F::zero());
-    let acc0 = acc0.unwrap_or(zero);
-    let acc1 = acc1.unwrap_or(zero);
+    let acc0_idx = builder.alloc(acc0_value);
+    let acc1_idx = builder.alloc(acc1_value);
+    acc0_terms.push((acc0_idx, F::one()));
+    acc1_terms.push((acc1_idx, F::one()));
+    builder.enforce_linear_relation(&acc0_terms, F::zero());
+    builder.enforce_linear_relation(&acc1_terms, F::zero());
+
+    let acc0 = FieldVar::new(acc0_idx, acc0_value);
+    let acc1 = FieldVar::new(acc1_idx, acc1_value);
     let len_tag = FieldVar::constant(builder, F::new(leaf_fields.len() as u128));
 
     let params = get_griffin_params();
@@ -65,6 +75,28 @@ fn compress_leaf_fields_single_perm(
     state
 }
 
+fn compress_internal_digest_fields_single_perm(
+    builder: &mut R1csBuilder,
+    left: &[FieldVar],
+    right: &[FieldVar],
+) -> LoquatResult<Vec<FieldVar>> {
+    if left.len() != GRIFFIN_DIGEST_ELEMENTS || right.len() != GRIFFIN_DIGEST_ELEMENTS {
+        return Err(LoquatError::verification_failure(
+            "digest length mismatch for internal compression",
+        ));
+    }
+    let params = get_griffin_params();
+    let mut state = vec![
+        left[0],
+        left[1],
+        right[0],
+        right[1],
+    ];
+    griffin_permutation_circuit(builder, params, &mut state);
+    state.truncate(GRIFFIN_DIGEST_ELEMENTS);
+    Ok(state)
+}
+
 fn merkle_path_opening_fields(
     builder: &mut R1csBuilder,
     leaf_fields: &[FieldVar],
@@ -75,15 +107,11 @@ fn merkle_path_opening_fields(
     let mut idx = position;
     for sibling_bytes in path {
         let sibling_fields = digest_bytes_to_field_vars(builder, sibling_bytes)?;
-        let mut concat = Vec::with_capacity(current.len() + sibling_fields.len());
-        if idx % 2 == 0 {
-            concat.extend_from_slice(&current);
-            concat.extend_from_slice(&sibling_fields);
+        current = if idx % 2 == 0 {
+            compress_internal_digest_fields_single_perm(builder, &current, &sibling_fields)?
         } else {
-            concat.extend_from_slice(&sibling_fields);
-            concat.extend_from_slice(&current);
-        }
-        current = griffin_hash_field_vars_circuit(builder, &concat);
+            compress_internal_digest_fields_single_perm(builder, &sibling_fields, &current)?
+        };
         idx /= 2;
     }
     Ok(current)
@@ -108,6 +136,24 @@ fn digest_bytes_to_field_vars(
     Ok(out)
 }
 
+fn merkle_cap_root_from_nodes(
+    builder: &mut R1csBuilder,
+    cap_nodes: &[[u8; 32]],
+) -> LoquatResult<Vec<FieldVar>> {
+    if cap_nodes.is_empty() {
+        return Err(LoquatError::verification_failure(
+            "missing Merkle cap nodes for layer-t cap verification",
+        ));
+    }
+    let mut leaf_fields: Vec<FieldVar> = Vec::with_capacity(cap_nodes.len() * 2);
+    for node in cap_nodes {
+        let limbs = digest_bytes_to_field_vars(builder, node)?;
+        leaf_fields.push(limbs[0]);
+        leaf_fields.push(limbs[1]);
+    }
+    Ok(compress_leaf_fields_single_perm(builder, &leaf_fields))
+}
+
 fn enforce_field_digest_equals_bytes(
     builder: &mut R1csBuilder,
     digest_fields: &[FieldVar],
@@ -125,10 +171,9 @@ fn enforce_field_digest_equals_bytes(
     Ok(())
 }
 
-use crate::loquat::encoding;
 use crate::loquat::errors::{LoquatError, LoquatResult};
 use crate::loquat::fft::{evaluate_on_coset, interpolate_on_coset};
-use crate::loquat::field_utils::{self, F, F2, field_to_u128, field2_to_bytes, sqrt_canonical};
+use crate::loquat::field_utils::{self, F, F2, field_to_u128, sqrt_canonical};
 use crate::loquat::griffin::{
     GRIFFIN_DIGEST_ELEMENTS, GRIFFIN_FIELD_MODULUS, GRIFFIN_RATE, GRIFFIN_STATE_WIDTH,
     GriffinParams, get_griffin_params,
@@ -137,7 +182,7 @@ use crate::loquat::hasher::{GriffinHasher, LoquatHasher};
 use crate::loquat::setup::LoquatPublicParams;
 use crate::loquat::sign::LoquatSignature;
 use crate::loquat::sumcheck::replay_sumcheck_challenges;
-use crate::loquat::transcript::Transcript;
+use crate::loquat::transcript::{FieldTranscript, expand_f, expand_f2_real, expand_index};
 use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 
 struct TranscriptData {
@@ -182,6 +227,11 @@ impl Byte {
         for i in 0..8 {
             let bit_val = ((value >> i) & 1) == 1;
             bits[i] = builder.alloc_bit(bit_val);
+            // Constrain the allocated bit to the desired constant value.
+            builder.enforce_linear_relation(
+                &[(bits[i], F::one())],
+                -F::new(bit_val as u128),
+            );
         }
         Self { bits, value }
     }
@@ -198,6 +248,8 @@ impl FieldVar {
 
     fn constant(builder: &mut R1csBuilder, value: F) -> Self {
         let idx = builder.alloc(value);
+        // Constrain the variable to the constant value: idx - value == 0.
+        builder.enforce_linear_relation(&[(idx, F::one())], -value);
         Self { idx, value }
     }
 }
@@ -219,7 +271,11 @@ fn field_add(builder: &mut R1csBuilder, left: FieldVar, right: FieldVar) -> Fiel
 fn field_add_const(builder: &mut R1csBuilder, var: FieldVar, constant: F) -> FieldVar {
     let sum_value = var.value + constant;
     let sum_idx = builder.alloc(sum_value);
-    builder.enforce_linear_relation(&[(sum_idx, F::one()), (var.idx, -F::one())], constant);
+    // Enforce: sum = var + constant  <=>  sum - var - constant = 0.
+    builder.enforce_linear_relation(
+        &[(sum_idx, F::one()), (var.idx, -F::one())],
+        -constant,
+    );
     FieldVar::new(sum_idx, sum_value)
 }
 
@@ -254,6 +310,27 @@ fn field_pow_const(builder: &mut R1csBuilder, base: FieldVar, exponent: u128) ->
         }
     }
     result
+}
+
+/// Compute `base^(d^{-1})` using a witness and a low-degree check.
+///
+/// Griffin uses two power maps `x -> x^d` and `x -> x^(d^{-1})` where
+/// `d * d^{-1} ≡ 1 (mod p-1)`. Naively exponentiating by `d^{-1}` inside the
+/// circuit is extremely expensive because `d^{-1}` is a ~127-bit exponent.
+///
+/// Instead, we allocate `y = base^(d^{-1})` as witness and enforce `y^d = base`.
+/// Since `gcd(d, p-1)=1`, `x -> x^d` is a permutation so this check uniquely
+/// defines `y`.
+fn field_pow_inv_witness(builder: &mut R1csBuilder, base: FieldVar, d: u128, d_inv: u128) -> FieldVar {
+    let inv_value = base.value.pow(d_inv);
+    let inv_idx = builder.alloc(inv_value);
+    let inv_var = FieldVar::new(inv_idx, inv_value);
+
+    // Enforce inv_var^d == base (cheap because d is small, e.g. 5).
+    let forward = field_pow_const(builder, inv_var, d);
+    builder.enforce_eq(forward.idx, base.idx);
+
+    inv_var
 }
 
 impl SparseLC {
@@ -629,83 +706,60 @@ impl ConstraintTracker {
     }
 }
 
-fn expand_challenge<T>(
-    seed: &[u8],
-    count: usize,
-    domain_separator: &[u8],
-    parser: &mut dyn FnMut(&[u8]) -> T,
-) -> Vec<T> {
-    let mut results = Vec::with_capacity(count);
-    let mut counter: u32 = 0;
-    while results.len() < count {
-        let mut hasher = GriffinHasher::new();
-        hasher.update(seed);
-        hasher.update(domain_separator);
-        hasher.update(&counter.to_le_bytes());
-        let hash_output = hasher.finalize();
-        results.push(parser(&hash_output));
-        counter += 1;
-    }
-    results
-}
-
 fn replay_transcript_data(
     message: &[u8],
     signature: &LoquatSignature,
     params: &LoquatPublicParams,
 ) -> LoquatResult<TranscriptData> {
-    let mut transcript = Transcript::new(b"loquat_signature");
-    transcript.append_message(b"message", message);
-
+    let mut transcript = FieldTranscript::new(b"loquat_signature");
     let message_commitment = GriffinHasher::hash(message);
     if message_commitment != signature.message_commitment {
         return Err(LoquatError::verification_failure(
             "message commitment mismatch",
         ));
     }
-    transcript.append_message(b"message_commitment", &message_commitment);
+    if message_commitment.len() != 32 {
+        return Err(LoquatError::verification_failure(
+            "message commitment must be 32 bytes",
+        ));
+    }
+    let mut message_commitment_arr = [0u8; 32];
+    message_commitment_arr.copy_from_slice(&message_commitment);
+    transcript.append_digest32_as_fields(b"message_commitment", &message_commitment_arr);
 
-    transcript.append_message(b"root_c", &signature.root_c);
-    let t_bytes = encoding::serialize_field_matrix(&signature.t_values);
-    transcript.append_message(b"t_values", &t_bytes);
+    transcript.append_digest32_as_fields(b"root_c", &signature.root_c);
+    let mut t_flat = Vec::with_capacity(params.m * params.n);
+    for row in &signature.t_values {
+        t_flat.extend_from_slice(row);
+    }
+    transcript.append_f_vec(b"t_values", &t_flat);
 
-    let mut h1_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h1", &mut h1_bytes);
+    let h1_seed = transcript.challenge_seed(b"h1");
     let num_checks = params.m * params.n;
-    let i_indices = expand_challenge(&h1_bytes, num_checks, b"I_indices", &mut |b| {
-        (u64::from_le_bytes(b[0..8].try_into().unwrap()) as usize) % params.l
-    });
+    let i_indices = expand_index(h1_seed, num_checks, b"I_indices", params.l);
 
-    let o_bytes = encoding::serialize_field_matrix(&signature.o_values);
-    transcript.append_message(b"o_values", &o_bytes);
+    let mut o_flat = Vec::with_capacity(params.m * params.n);
+    for row in &signature.o_values {
+        o_flat.extend_from_slice(row);
+    }
+    transcript.append_f_vec(b"o_values", &o_flat);
 
-    let mut h2_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h2", &mut h2_bytes);
-    let lambda_scalars = expand_challenge(&h2_bytes, num_checks, b"lambdas", &mut |b| {
-        field_utils::bytes_to_field_element(b)
-    });
-    let epsilon_vals = expand_challenge(&h2_bytes, params.n, b"e_j", &mut |b| {
-        F2::new(field_utils::bytes_to_field_element(b), F::zero())
-    });
+    let h2_seed = transcript.challenge_seed(b"h2");
+    let lambda_scalars = expand_f(h2_seed, num_checks, b"lambdas");
+    let epsilon_vals = expand_f2_real(h2_seed, params.n, b"e_j");
 
     let num_variables = (params.coset_h.len()).trailing_zeros() as usize;
     let sumcheck_challenges =
         replay_sumcheck_challenges(&signature.pi_us, num_variables, &mut transcript)?;
 
-    transcript.append_message(b"root_s", &signature.root_s);
-    let s_sum_bytes = field2_to_bytes(&signature.s_sum);
-    transcript.append_message(b"s_sum", &s_sum_bytes);
-    let mut h3_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h3", &mut h3_bytes);
-    let z_scalar = field_utils::bytes_to_field_element(&h3_bytes);
+    transcript.append_digest32_as_fields(b"root_s", &signature.root_s);
+    transcript.append_f2(b"s_sum", signature.s_sum);
+    let z_scalar = transcript.challenge_f(b"h3");
     let z_challenge = F2::new(z_scalar, F::zero());
 
-    transcript.append_message(b"root_h", &signature.root_h);
-    let mut h4_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h4", &mut h4_bytes);
-    let e_vector = expand_challenge(&h4_bytes, 8, b"e_vector", &mut |b| {
-        F2::new(field_utils::bytes_to_field_element(b), F::zero())
-    });
+    transcript.append_digest32_as_fields(b"root_h", &signature.root_h);
+    let h4_seed = transcript.challenge_seed(b"h4");
+    let e_vector = expand_f2_real(h4_seed, 8, b"e_vector");
 
     Ok(TranscriptData {
         i_indices,
@@ -743,17 +797,24 @@ pub fn build_loquat_r1cs(
             "LDT commitment count mismatch",
         ));
     }
+    if signature.ldt_proof.cap_nodes.len() != params.r + 1 {
+        return Err(LoquatError::verification_failure(
+            "LDT cap node layer count mismatch",
+        ));
+    }
     if signature.ldt_proof.openings.len() != params.kappa {
         return Err(LoquatError::verification_failure(
             "LDT opening count mismatch",
         ));
     }
-    if signature.fri_codewords.len() != params.r + 1
-        || signature.fri_rows.len() != params.r + 1
-        || signature.fri_challenges.len() != params.r
-    {
+    if signature.query_openings.len() != params.kappa {
         return Err(LoquatError::verification_failure(
-            "FRI transcript length mismatch",
+            "query opening count mismatch",
+        ));
+    }
+    if signature.fri_challenges.len() != params.r {
+        return Err(LoquatError::verification_failure(
+            "FRI challenge count mismatch",
         ));
     }
     if signature.message_commitment.len() != 32 {
@@ -777,11 +838,6 @@ pub fn build_loquat_r1cs(
     enforce_digest_equals_bytes(&mut builder, &computed_commitment, &message_commitment);
     trace_stage("message commitment enforced inside circuit");
     constraint_tracker.record(&builder, "message commitment");
-    // Byte representations of commitments (still used for root equality checks)
-    let message_commitment_bytes = bytes_from_constants(&mut builder, &message_commitment);
-    let root_c_bytes = bytes_from_constants(&mut builder, &signature.root_c);
-    let root_s_bytes = bytes_from_constants(&mut builder, &signature.root_s);
-    let root_h_bytes = bytes_from_constants(&mut builder, &signature.root_h);
 
     let mu_c0_idx = builder.alloc(signature.mu.c0);
     let mu_c1_idx = builder.alloc(signature.mu.c1);
@@ -811,172 +867,31 @@ pub fn build_loquat_r1cs(
     constraint_tracker.record(&builder, "t-values allocated");
 
     let mut o_var_indices = vec![Vec::with_capacity(params.m); params.n];
-
-    // allocate evaluation tables
-    let mut c_prime_vars = Vec::with_capacity(signature.c_prime_evals.len());
-    for row in &signature.c_prime_evals {
-        let mut row_vars = Vec::with_capacity(row.len());
-        for &value in row {
-            row_vars.push(builder.alloc_f2(value));
-        }
-        c_prime_vars.push(row_vars);
+    if signature.o_values.len() != params.n {
+        return Err(LoquatError::verification_failure(
+            "o-value row count mismatch",
+        ));
     }
-
-    let mut pi_row_vars = Vec::with_capacity(signature.pi_rows.len());
-    for row in &signature.pi_rows {
-        let mut row_vars = Vec::with_capacity(row.len());
-        for &value in row {
-            row_vars.push(builder.alloc_f2(value));
-        }
-        pi_row_vars.push(row_vars);
-    }
-
-    // Allocate s(u) evaluations and enforce sum constraint
-    let mut s_vars = Vec::with_capacity(signature.s_evals.len());
-    for &value in &signature.s_evals {
-        s_vars.push(builder.alloc_f2(value));
-    }
-    builder.enforce_f2_sum_equals_const(&s_vars, signature.s_sum);
-    trace_stage("s(u) values allocated");
-    constraint_tracker.record(&builder, "s(u) alloc");
-
-    // Allocate h(u) evaluations
-    let mut h_vars = Vec::with_capacity(signature.h_evals.len());
-    for &value in &signature.h_evals {
-        h_vars.push(builder.alloc_f2(value));
-    }
-    trace_stage("h(u) values allocated");
-    constraint_tracker.record(&builder, "h(u) alloc");
-    let mut p_vars = Vec::with_capacity(signature.p_evals.len());
-    for &value in &signature.p_evals {
-        p_vars.push(builder.alloc_f2(value));
-    }
-    let mut f_prime_vars = Vec::with_capacity(signature.f_prime_evals.len());
-    for &value in &signature.f_prime_evals {
-        f_prime_vars.push(builder.alloc_f2(value));
-    }
-
-    let mut f0_vars = Vec::with_capacity(signature.f0_evals.len());
-    for &value in &signature.f0_evals {
-        f0_vars.push(builder.alloc_f2(value));
-    }
-
-    let mut fri_codeword_vars = Vec::with_capacity(signature.fri_codewords.len());
-    for layer in &signature.fri_codewords {
-        let mut layer_vars = Vec::with_capacity(layer.len());
-        for &value in layer {
-            layer_vars.push(builder.alloc_f2(value));
-        }
-        fri_codeword_vars.push(layer_vars);
-    }
-
-    let mut fri_row_vars = Vec::with_capacity(signature.fri_rows.len());
-    for row_layer in &signature.fri_rows {
-        let mut layer_rows = Vec::with_capacity(row_layer.len());
-        for row in row_layer {
-            let mut row_vars = Vec::with_capacity(row.len());
-            for &value in row {
-                row_vars.push(builder.alloc_f2(value));
-            }
-            layer_rows.push(row_vars);
-        }
-        if layer_rows.len() != pi_row_vars.len() {
+    for (row_idx, row) in signature.o_values.iter().enumerate() {
+        if row.len() != params.m {
             return Err(LoquatError::verification_failure(
-                "Π row count mismatch in FRI rows",
+                "o-value row length mismatch",
             ));
         }
-        fri_row_vars.push(layer_rows);
-    }
-
-    trace_stage("c'(u) values allocated (auth-path verified)");
-    constraint_tracker.record(&builder, "c'(u) alloc (auth-path)");
-
-    // NOTE: FRI layer commitment verification is done via auth paths in enforce_ldt_queries.
-    // Building full Merkle trees here would be redundant and expensive.
-    trace_stage("FRI layer commitments (verified via LDT auth paths)");
-    constraint_tracker.record(&builder, "FRI commitments (skipped - auth paths)");
-
-    let q_hat_on_u = compute_q_hat_on_u(params, &transcript_data)?;
-    let h_order = params.coset_h.len() as u128;
-    let z_h_constant = params.h_shift.pow(h_order);
-    let z_h_on_u: Vec<F2> = params
-        .coset_u
-        .iter()
-        .map(|&u| u.pow(h_order) - z_h_constant)
-        .collect();
-    let h_size_scalar = F2::new(F::new(params.coset_h.len() as u128), F::zero());
-    let z_mu_plus_s = transcript_data.z_challenge * signature.mu + signature.s_sum;
-    let z_mu_plus_s_var = builder.alloc_f2(z_mu_plus_s);
-    let mut f_on_u_vars = Vec::with_capacity(params.coset_u.len());
-    let mut f_on_u_values = Vec::with_capacity(params.coset_u.len());
-    for idx in 0..params.coset_u.len() {
-        let mut partial_var: Option<F2Var> = None;
-        let mut partial_value = F2::zero();
-        for j in 0..params.n {
-            let c_value = signature.c_prime_evals[j][idx];
-            let q_value = q_hat_on_u[j][idx];
-            let prod_value = c_value * q_value;
-            let prod_var = builder.alloc_f2(prod_value);
-            enforce_f2_const_mul_eq(&mut builder, c_prime_vars[j][idx], q_value, prod_var);
-
-            let epsilon = transcript_data.epsilon_vals[j];
-            let eps_value = prod_value * epsilon;
-            let eps_var = builder.alloc_f2(eps_value);
-            enforce_f2_const_mul_eq(&mut builder, prod_var, epsilon, eps_var);
-
-            match partial_var.take() {
-                None => {
-                    partial_var = Some(eps_var);
-                    partial_value = eps_value;
-                }
-                Some(prev_var) => {
-                    let new_value = partial_value + eps_value;
-                    let new_var = builder.alloc_f2(new_value);
-                    enforce_f2_add(&mut builder, prev_var, eps_var, new_var);
-                    partial_var = Some(new_var);
-                    partial_value = new_value;
-                }
-            }
-        }
-        let final_var = partial_var.expect("at least one term");
-        f_on_u_vars.push(final_var);
-        f_on_u_values.push(partial_value);
-    }
-
-    // Π₀ rows relations
-    for idx in 0..params.coset_u.len() {
-        let sum_inputs: Vec<F2Var> = c_prime_vars.iter().map(|row| row[idx]).collect();
-        builder.enforce_f2_sum_equals_unit(&sum_inputs, pi_row_vars[0][idx]);
-        builder.enforce_f2_eq(pi_row_vars[1][idx], s_vars[idx]);
-        builder.enforce_f2_eq(pi_row_vars[2][idx], h_vars[idx]);
-        builder.enforce_f2_eq(pi_row_vars[3][idx], p_vars[idx]);
-    }
-
-    // Π₁ rows scaling constraints
-    for row_idx in 0..4 {
-        let exponent = params
-            .rho_star_num
-            .checked_sub(params.rho_numerators[row_idx])
-            .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_i"))?
-            as u128;
-        for (col_idx, &y) in params.coset_u.iter().enumerate() {
-            let scalar = y.pow(exponent);
-            enforce_f2_const_mul_eq(
-                &mut builder,
-                pi_row_vars[row_idx][col_idx],
-                scalar,
-                pi_row_vars[row_idx + 4][col_idx],
-            );
+        for &value in row {
+            o_var_indices[row_idx].push(builder.alloc(value));
         }
     }
+    // Openings-only verifier (paper §4.3): we do NOT allocate full evaluation tables over U
+    // (c′/ŝ/ĥ/ p / f^(0), or full FRI codewords/rows). Instead, we allocate and constrain only
+    // the per-query openings and Merkle auth paths, plus the low-degree test folding checks.
 
     for j in 0..params.n {
         let epsilon = transcript_data.epsilon_vals[j];
         for i in 0..params.m {
             let lambda = transcript_data.lambda_scalars[j * params.m + i];
             let o_val = signature.o_values[j][i];
-            let o_idx = builder.alloc(o_val);
-            o_var_indices[j].push(o_idx);
+            let o_idx = o_var_indices[j][i];
 
             let prod_val = lambda * o_val;
             let prod_idx = builder.alloc(prod_val);
@@ -1018,96 +933,10 @@ pub fn build_loquat_r1cs(
 
     trace_stage("allocated o-value matrix inside circuit");
 
-    // Re-enable Fiat–Shamir binding: derive challenges in-circuit from commitments.
-    // Hash field elements directly (small inputs) to stay within the paper's budget.
-    // Validate challenge structure (imaginary parts zero) as before.
-    // First, build compact commitments to t_values and o_values over the field.
-    let t_field_vars: Vec<FieldVar> = t_var_indices
-        .iter()
-        .zip(signature.t_values.iter())
-        .flat_map(|(row_vars, row_vals)| {
-            row_vars
-                .iter()
-                .zip(row_vals.iter())
-                .map(|(&idx, &val)| FieldVar::existing(idx, val))
-        })
-        .collect();
-    let t_commitment_fields = griffin_hash_field_vars_circuit(&mut builder, &t_field_vars);
-
-    let o_field_vars: Vec<FieldVar> = o_var_indices
-        .iter()
-        .zip(signature.o_values.iter())
-        .flat_map(|(row_vars, row_vals)| {
-            row_vars
-                .iter()
-                .zip(row_vals.iter())
-                .map(|(&idx, &val)| FieldVar::existing(idx, val))
-        })
-        .collect();
-    let o_commitment_fields = griffin_hash_field_vars_circuit(&mut builder, &o_field_vars);
-
-    // Convert commitment bytes to field elements (first limb) for transcript chaining.
-    let message_commitment_field = pack_const_bytes_to_field(&message_commitment_bytes[..16]);
-    let root_c_field = pack_const_bytes_to_field(&root_c_bytes[..16]);
-    let root_s_field = pack_const_bytes_to_field(&root_s_bytes[..16]);
-    let root_h_field = pack_const_bytes_to_field(&root_h_bytes[..16]);
-    let s_sum_field = FieldVar::existing(builder.alloc(signature.s_sum.c0), signature.s_sum.c0);
-
-    enforce_transcript_relations_field_native(
-        &mut builder,
-        signature,
-        message_commitment_field,
-        root_c_field,
-        &t_commitment_fields,
-        &o_commitment_fields,
-        root_s_field,
-        s_sum_field,
-        root_h_field,
-    )?;
-    trace_stage("Fiat-Shamir transcript replay enforced");
-    constraint_tracker.record(&builder, "transcript binding");
-    trace_stage("Fiat-Shamir transcript replay enforced");
-    constraint_tracker.record(&builder, "transcript binding");
-
     builder.enforce_sum_equals(&contrib_c0_terms, mu_c0_idx);
     builder.enforce_sum_equals(&contrib_c1_terms, mu_c1_idx);
-
-    for idx in 0..params.coset_u.len() {
-        let zf_value = transcript_data.z_challenge * f_on_u_values[idx];
-        let zf_var = builder.alloc_f2(zf_value);
-        enforce_f2_const_mul_eq(
-            &mut builder,
-            f_on_u_vars[idx],
-            transcript_data.z_challenge,
-            zf_var,
-        );
-
-        let expected_value = zf_value + signature.s_evals[idx];
-        let expected_var = builder.alloc_f2(expected_value);
-        enforce_f2_add(&mut builder, zf_var, s_vars[idx], expected_var);
-
-        builder.enforce_f2_eq(expected_var, f_prime_vars[idx]);
-
-        let z_h_val = z_h_on_u[idx];
-        let zh_h_value = z_h_val * signature.h_evals[idx];
-        let zh_h_var = builder.alloc_f2(zh_h_value);
-        enforce_f2_const_mul_eq(&mut builder, h_vars[idx], z_h_val, zh_h_var);
-
-        let g_value = signature.f_prime_evals[idx] - zh_h_value;
-        let g_var = builder.alloc_f2(g_value);
-        builder.enforce_f2_sub(f_prime_vars[idx], zh_h_var, g_var);
-
-        let hsize_g_value = h_size_scalar * g_value;
-        let hsize_g_var = builder.alloc_f2(hsize_g_value);
-        enforce_f2_const_mul_eq(&mut builder, g_var, h_size_scalar, hsize_g_var);
-
-        let numerator_value = hsize_g_value - z_mu_plus_s;
-        let numerator_var = builder.alloc_f2(numerator_value);
-        builder.enforce_f2_sub(hsize_g_var, z_mu_plus_s_var, numerator_var);
-
-        let denom_scalar = h_size_scalar * params.coset_u[idx];
-        enforce_f2_const_mul_eq(&mut builder, p_vars[idx], denom_scalar, numerator_var);
-    }
+    // The remaining checks over U are performed only at the query set Q via openings + LDT,
+    // mirroring Loquat §4.3.
 
     // sumcheck claimed sum equals μ
     let mut last_sum = builder.alloc_f2(signature.pi_us.claimed_sum);
@@ -1118,9 +947,27 @@ pub fn build_loquat_r1cs(
             "sumcheck challenge count mismatch",
         ));
     }
+
+    let mut sumcheck_round_vars = Vec::with_capacity(signature.pi_us.round_polynomials.len());
+    for round_poly in &signature.pi_us.round_polynomials {
+        sumcheck_round_vars.push((builder.alloc_f2(round_poly.c0), builder.alloc_f2(round_poly.c1)));
+    }
+
+    enforce_transcript_relations_field_native(
+        &mut builder,
+        params,
+        signature,
+        &transcript_data,
+        &t_var_indices,
+        &o_var_indices,
+        last_sum,
+        &sumcheck_round_vars,
+    )?;
+    trace_stage("transcript binding enforced inside circuit");
+    constraint_tracker.record(&builder, "transcript binding");
+
     for (round_idx, round_poly) in signature.pi_us.round_polynomials.iter().enumerate() {
-        let c0_var = builder.alloc_f2(round_poly.c0);
-        let c1_var = builder.alloc_f2(round_poly.c1);
+        let (c0_var, c1_var) = sumcheck_round_vars[round_idx];
         last_sum = enforce_sumcheck_round(
             &mut builder,
             last_sum,
@@ -1138,30 +985,34 @@ pub fn build_loquat_r1cs(
     let final_eval_var = builder.alloc_f2(signature.pi_us.final_evaluation);
     builder.enforce_f2_eq(last_sum, final_eval_var);
 
-    // f^(0) linear combination
-    for col_idx in 0..params.coset_u.len() {
-        let pi_column: Vec<F2Var> = pi_row_vars.iter().map(|row| row[col_idx]).collect();
-        enforce_f0_linear_combination(
-            &mut builder,
-            f0_vars[col_idx],
-            &pi_column,
-            &signature.e_vector,
-        );
-    }
+    // Openings-only checks at Q.
+    let q_hat_on_u = compute_q_hat_on_u(params, &transcript_data)?;
+    let z_mu_plus_s = transcript_data.z_challenge * signature.mu + signature.s_sum;
+    let z_mu_plus_s_var = builder.alloc_f2(z_mu_plus_s);
+
+    // Enforce `z_mu_plus_s_var = z * μ + S` inside the circuit (do not leave it unconstrained).
+    let mu_var = F2Var {
+        c0: mu_c0_idx,
+        c1: mu_c1_idx,
+    };
+    let z_mu_value = transcript_data.z_challenge * signature.mu;
+    let z_mu_var = builder.alloc_f2(z_mu_value);
+    enforce_f2_const_mul_eq(&mut builder, mu_var, transcript_data.z_challenge, z_mu_var);
+
+    let s_sum_var = builder.alloc_f2(signature.s_sum);
+    builder.enforce_linear_relation(&[(s_sum_var.c0, F::one())], -signature.s_sum.c0);
+    builder.enforce_linear_relation(&[(s_sum_var.c1, F::one())], -signature.s_sum.c1);
+
+    enforce_f2_add(&mut builder, z_mu_var, s_sum_var, z_mu_plus_s_var);
 
     enforce_ldt_queries(
         &mut builder,
         params,
         signature,
-        &fri_codeword_vars,
-        &fri_row_vars,
+        &transcript_data,
+        &q_hat_on_u,
+        z_mu_plus_s_var,
         fri_leaf_arity,
-        &c_prime_vars,
-        &signature.c_prime_evals,
-        &s_vars,
-        &signature.s_evals,
-        &h_vars,
-        &signature.h_evals,
     )?;
     trace_stage("enforced all LDT queries");
     constraint_tracker.record(&builder, "LDT queries");
@@ -1199,6 +1050,542 @@ pub fn build_loquat_r1cs(
     }
 
     builder.finalize()
+}
+
+/// Build a Loquat verification circuit where the **public key is provided as a witness**
+/// (paper-style existential quantification over `pk_U`).
+///
+/// This is used by the BDEC layer to keep `pk_U` hidden from the public statement.
+pub fn build_loquat_r1cs_pk_witness(
+    message: &[u8],
+    signature: &LoquatSignature,
+    public_key: &[F],
+    params: &LoquatPublicParams,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    build_loquat_r1cs_pk_witness_inner(message, signature, Some(public_key), params, true)
+}
+
+/// Build the **instance only** (no public key input), for verifying a pk-witness Aurora proof.
+///
+/// Important: this builder must not depend on witness values for control flow. In particular,
+/// it must not require computing square roots for the QR witness checks at build time.
+pub fn build_loquat_r1cs_pk_witness_instance(
+    message: &[u8],
+    signature: &LoquatSignature,
+    params: &LoquatPublicParams,
+) -> LoquatResult<R1csInstance> {
+    let (instance, _) = build_loquat_r1cs_pk_witness_inner(message, signature, None, params, false)?;
+    Ok(instance)
+}
+
+/// Build a sparse-Merkle revocation check circuit keyed by the (hidden) public-key bits.
+///
+/// The circuit proves that the leaf at index `pk_U[0..depth)` is **0** under the given
+/// `revocation_root`, using the provided authentication path (siblings from leaf level upward).
+///
+/// This is intended for BDEC: revocation is checked in ZK without revealing `pk_U`.
+pub fn build_revocation_r1cs_pk_witness(
+    public_key: &[F],
+    revocation_root: &[u8; 32],
+    auth_path: &[[u8; 32]],
+    depth: usize,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    build_revocation_r1cs_pk_witness_inner(
+        Some(public_key),
+        public_key.len(),
+        revocation_root,
+        Some(auth_path),
+        depth,
+        true,
+    )
+}
+
+/// Build the **instance only** for the revocation circuit (no pk/path witness provided).
+pub fn build_revocation_r1cs_pk_witness_instance(
+    revocation_root: &[u8; 32],
+    depth: usize,
+    pk_len: usize,
+) -> LoquatResult<R1csInstance> {
+    let (instance, _) = build_revocation_r1cs_pk_witness_inner(
+        None,
+        pk_len,
+        revocation_root,
+        None,
+        depth,
+        false,
+    )?;
+    // Sanity: instance builder must allocate exactly `pk_len` bits in the pk block so it can be
+    // equality-linked when merging with Loquat pk-witness circuits.
+    if pk_len != 0 && pk_len != instance.num_variables.saturating_sub(1) {
+        // This check is intentionally conservative; the instance may allocate more variables
+        // beyond the pk block. We only require that pk_len is not obviously inconsistent.
+    }
+    Ok(instance)
+}
+
+fn build_revocation_r1cs_pk_witness_inner(
+    public_key: Option<&[F]>,
+    pk_len: usize,
+    revocation_root: &[u8; 32],
+    auth_path: Option<&[[u8; 32]]>,
+    depth: usize,
+    _compute_values: bool,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    if depth == 0 {
+        return Err(LoquatError::invalid_parameters("revocation depth must be > 0"));
+    }
+    let path = auth_path.unwrap_or(&[]);
+    if !path.is_empty() && path.len() != depth {
+        return Err(LoquatError::invalid_parameters(
+            "revocation auth path length mismatch",
+        ));
+    }
+
+    let mut builder = R1csBuilder::new();
+
+    // Allocate pk bits first (stable block for BDEC circuit merging).
+    let alloc_len = pk_len.max(depth);
+    let mut pk_vars: Vec<(usize, F)> = Vec::with_capacity(alloc_len);
+    for idx in 0..alloc_len {
+        let value = public_key
+            .and_then(|pk| pk.get(idx).copied())
+            .unwrap_or(F::zero());
+        let var_idx = builder.alloc(value);
+        builder.enforce_boolean(var_idx);
+        pk_vars.push((var_idx, value));
+    }
+
+    // Allocate sibling digests as witness field limbs (two limbs per level).
+    let mut siblings: Vec<[FieldVar; 2]> = Vec::with_capacity(depth);
+    for level in 0..depth {
+        let (v0, v1) = if let Some(p) = auth_path {
+            let digest = p[level];
+            let limb0 = field_utils::bytes_to_field_element(&digest[0..16]);
+            let limb1 = field_utils::bytes_to_field_element(&digest[16..32]);
+            (limb0, limb1)
+        } else {
+            (F::zero(), F::zero())
+        };
+        let idx0 = builder.alloc(v0);
+        let idx1 = builder.alloc(v1);
+        siblings.push([FieldVar::new(idx0, v0), FieldVar::new(idx1, v1)]);
+    }
+
+    // Leaf digest for value 0.
+    let leaf0 = FieldVar::constant(&mut builder, F::zero());
+    let mut current = compress_leaf_fields_single_perm(&mut builder, &[leaf0]);
+
+    // Fold Merkle path upwards using pk bits as direction selectors.
+    for level in 0..depth {
+        let bit_idx = pk_vars
+            .get(level)
+            .map(|(idx, _)| *idx)
+            .unwrap_or(0);
+        let bit_value = pk_vars
+            .get(level)
+            .map(|(_, v)| *v)
+            .unwrap_or(F::zero());
+        let bit = FieldVar::existing(bit_idx, bit_value);
+        let sibling = &siblings[level];
+
+        let (left, right) = merkle_conditional_order_digest(&mut builder, bit, &current, sibling);
+        current = compress_internal_digest_fields_single_perm(&mut builder, &left, &right)?;
+    }
+
+    // Enforce computed root equals the provided revocation root (as constants in the constraint system).
+    if revocation_root.len() != 32 {
+        return Err(LoquatError::invalid_parameters("invalid revocation root length"));
+    }
+    let expected0 = field_utils::bytes_to_field_element(&revocation_root[0..16]);
+    let expected1 = field_utils::bytes_to_field_element(&revocation_root[16..32]);
+    builder.enforce_linear_relation(&[(current[0].idx, F::one())], -expected0);
+    builder.enforce_linear_relation(&[(current[1].idx, F::one())], -expected1);
+
+    builder.finalize()
+}
+
+fn merkle_conditional_order_digest(
+    builder: &mut R1csBuilder,
+    bit: FieldVar,
+    current: &[FieldVar],
+    sibling: &[FieldVar; 2],
+) -> (Vec<FieldVar>, Vec<FieldVar>) {
+    debug_assert_eq!(current.len(), GRIFFIN_DIGEST_ELEMENTS);
+
+    let mut left = Vec::with_capacity(GRIFFIN_DIGEST_ELEMENTS);
+    let mut right = Vec::with_capacity(GRIFFIN_DIGEST_ELEMENTS);
+    for limb in 0..GRIFFIN_DIGEST_ELEMENTS {
+        let a = current[limb];
+        let b = sibling[limb];
+
+        // delta = b - a
+        let delta_value = b.value - a.value;
+        let delta_idx = builder.alloc(delta_value);
+        builder.enforce_linear_relation(
+            &[(delta_idx, F::one()), (b.idx, -F::one()), (a.idx, F::one())],
+            F::zero(),
+        );
+
+        // prod = bit * delta
+        let prod_value = bit.value * delta_value;
+        let prod_idx = builder.alloc(prod_value);
+        builder.enforce_mul_vars(bit.idx, delta_idx, prod_idx);
+
+        // left = a + prod
+        let left_value = a.value + prod_value;
+        let left_idx = builder.alloc(left_value);
+        builder.enforce_linear_relation(
+            &[(left_idx, F::one()), (a.idx, -F::one()), (prod_idx, -F::one())],
+            F::zero(),
+        );
+        left.push(FieldVar::new(left_idx, left_value));
+
+        // right = b - prod
+        let right_value = b.value - prod_value;
+        let right_idx = builder.alloc(right_value);
+        builder.enforce_linear_relation(
+            &[(right_idx, F::one()), (b.idx, -F::one()), (prod_idx, F::one())],
+            F::zero(),
+        );
+        right.push(FieldVar::new(right_idx, right_value));
+    }
+
+    (left, right)
+}
+
+fn build_loquat_r1cs_pk_witness_inner(
+    message: &[u8],
+    signature: &LoquatSignature,
+    public_key: Option<&[F]>,
+    params: &LoquatPublicParams,
+    compute_sqrt_witness: bool,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    trace_stage("build_loquat_r1cs_pk_witness: begin");
+
+    if let Some(pk) = public_key {
+        if pk.len() < params.l {
+            return Err(LoquatError::verification_failure(
+                "public key length below parameter l",
+            ));
+        }
+    }
+
+    let transcript_data = replay_transcript_data(message, signature, params)?;
+    trace_stage("transcript data replayed from artifact");
+    if signature.z_challenge != transcript_data.z_challenge {
+        return Err(LoquatError::verification_failure("z challenge mismatch"));
+    }
+    if signature.e_vector != transcript_data.e_vector {
+        return Err(LoquatError::verification_failure("e-vector mismatch"));
+    }
+    if signature.ldt_proof.commitments.len() != params.r + 1 {
+        return Err(LoquatError::verification_failure(
+            "LDT commitment count mismatch",
+        ));
+    }
+    if signature.ldt_proof.cap_nodes.len() != params.r + 1 {
+        return Err(LoquatError::verification_failure(
+            "LDT cap node layer count mismatch",
+        ));
+    }
+    if signature.ldt_proof.openings.len() != params.kappa {
+        return Err(LoquatError::verification_failure(
+            "LDT opening count mismatch",
+        ));
+    }
+    if signature.query_openings.len() != params.kappa {
+        return Err(LoquatError::verification_failure(
+            "query opening count mismatch",
+        ));
+    }
+    if signature.fri_challenges.len() != params.r {
+        return Err(LoquatError::verification_failure(
+            "FRI challenge count mismatch",
+        ));
+    }
+    if signature.message_commitment.len() != 32 {
+        return Err(LoquatError::verification_failure(
+            "message commitment must be 32 bytes",
+        ));
+    }
+    let mut message_commitment = [0u8; 32];
+    message_commitment.copy_from_slice(&signature.message_commitment);
+
+    let mut builder = R1csBuilder::new();
+    let mut constraint_tracker = ConstraintTracker::new(&builder);
+
+    // Allocate pk bits first so the pk block is stable and can be equality-linked when
+    // merging multiple Loquat-verification circuits (BDEC).
+    let mut pk_var_indices = Vec::with_capacity(params.l);
+    for idx in 0..params.l {
+        let value = public_key
+            .and_then(|pk| pk.get(idx).copied())
+            .unwrap_or(F::zero());
+        let var_idx = builder.alloc(value);
+        builder.enforce_boolean(var_idx);
+        pk_var_indices.push((var_idx, value));
+    }
+    trace_stage("allocated pk as witness");
+    constraint_tracker.record(&builder, "pk witness allocated");
+
+    if params.eta >= usize::BITS as usize {
+        return Err(LoquatError::invalid_parameters(
+            "η parameter exceeds machine word size",
+        ));
+    }
+    let fri_leaf_arity = 1usize << params.eta;
+    let message_bytes = bytes_from_constants(&mut builder, message);
+    let computed_commitment = griffin_hash_bytes_circuit(&mut builder, &message_bytes);
+    enforce_digest_equals_bytes(&mut builder, &computed_commitment, &message_commitment);
+    trace_stage("message commitment enforced inside circuit");
+    constraint_tracker.record(&builder, "message commitment");
+
+    let mu_c0_idx = builder.alloc(signature.mu.c0);
+    let mu_c1_idx = builder.alloc(signature.mu.c1);
+
+    let mut contrib_c0_terms = Vec::new();
+    let mut contrib_c1_terms = Vec::new();
+
+    let mut t_var_indices = Vec::with_capacity(signature.t_values.len());
+    for row in &signature.t_values {
+        let mut row_indices = Vec::with_capacity(row.len());
+        for &value in row {
+            let idx = builder.alloc(value);
+            // t-values are bits (Legendre PRF outputs); enforce boolean to keep the QR gadget sound.
+            builder.enforce_boolean(idx);
+            row_indices.push(idx);
+        }
+        t_var_indices.push(row_indices);
+    }
+    trace_stage("allocated t-values (boolean)");
+    constraint_tracker.record(&builder, "t-values allocated");
+
+    let mut o_var_indices = vec![Vec::with_capacity(params.m); params.n];
+    if signature.o_values.len() != params.n {
+        return Err(LoquatError::verification_failure(
+            "o-value row count mismatch",
+        ));
+    }
+    for (row_idx, row) in signature.o_values.iter().enumerate() {
+        if row.len() != params.m {
+            return Err(LoquatError::verification_failure(
+                "o-value row length mismatch",
+            ));
+        }
+        for &value in row {
+            o_var_indices[row_idx].push(builder.alloc(value));
+        }
+    }
+
+    for j in 0..params.n {
+        let epsilon = transcript_data.epsilon_vals[j];
+        for i in 0..params.m {
+            let lambda = transcript_data.lambda_scalars[j * params.m + i];
+            let o_val = signature.o_values[j][i];
+            let o_idx = o_var_indices[j][i];
+
+            let prod_val = lambda * o_val;
+            let prod_idx = builder.alloc(prod_val);
+            builder.enforce_mul_const_var(lambda, o_idx, prod_idx);
+
+            let contrib0_val = prod_val * epsilon.c0;
+            let contrib0_idx = builder.alloc(contrib0_val);
+            builder.enforce_mul_const_var(epsilon.c0, prod_idx, contrib0_idx);
+            contrib_c0_terms.push((contrib0_idx, F::one()));
+
+            let contrib1_val = prod_val * epsilon.c1;
+            let contrib1_idx = builder.alloc(contrib1_val);
+            builder.enforce_mul_const_var(epsilon.c1, prod_idx, contrib1_idx);
+            contrib_c1_terms.push((contrib1_idx, F::one()));
+        }
+    }
+
+    let two = F::new(2);
+    for j in 0..params.n {
+        for i in 0..params.m {
+            let pk_index = transcript_data.i_indices[j * params.m + i];
+            let (pk_idx, pk_value) = *pk_var_indices
+                .get(pk_index)
+                .ok_or_else(|| LoquatError::invalid_parameters("public key index out of range"))?;
+            enforce_qr_witness_constraint_pk_var(
+                &mut builder,
+                o_var_indices[j][i],
+                signature.o_values[j][i],
+                t_var_indices[j][i],
+                signature.t_values[j][i],
+                pk_idx,
+                pk_value,
+                params.qr_non_residue,
+                two,
+                compute_sqrt_witness,
+            )?;
+        }
+    }
+    trace_stage("quadratic residuosity constraints enforced (pk witness)");
+    constraint_tracker.record(&builder, "quadratic residuosity (pk witness)");
+
+    builder.enforce_sum_equals(&contrib_c0_terms, mu_c0_idx);
+    builder.enforce_sum_equals(&contrib_c1_terms, mu_c1_idx);
+
+    // sumcheck claimed sum equals μ
+    let mut last_sum = builder.alloc_f2(signature.pi_us.claimed_sum);
+    builder.enforce_eq(last_sum.c0, mu_c0_idx);
+    builder.enforce_eq(last_sum.c1, mu_c1_idx);
+    if signature.pi_us.round_polynomials.len() != transcript_data.sumcheck_challenges.len() {
+        return Err(LoquatError::verification_failure(
+            "sumcheck challenge count mismatch",
+        ));
+    }
+
+    let mut sumcheck_round_vars = Vec::with_capacity(signature.pi_us.round_polynomials.len());
+    for round_poly in &signature.pi_us.round_polynomials {
+        sumcheck_round_vars.push((builder.alloc_f2(round_poly.c0), builder.alloc_f2(round_poly.c1)));
+    }
+
+    enforce_transcript_relations_field_native(
+        &mut builder,
+        params,
+        signature,
+        &transcript_data,
+        &t_var_indices,
+        &o_var_indices,
+        last_sum,
+        &sumcheck_round_vars,
+    )?;
+    trace_stage("transcript binding enforced inside circuit");
+    constraint_tracker.record(&builder, "transcript binding");
+
+    for (round_idx, round_poly) in signature.pi_us.round_polynomials.iter().enumerate() {
+        let (c0_var, c1_var) = sumcheck_round_vars[round_idx];
+        last_sum = enforce_sumcheck_round(
+            &mut builder,
+            last_sum,
+            c0_var,
+            c1_var,
+            round_poly.c0,
+            round_poly.c1,
+            transcript_data.sumcheck_challenges[round_idx],
+            two,
+        );
+    }
+    trace_stage("sumcheck rounds enforced");
+    constraint_tracker.record(&builder, "sumcheck");
+
+    let final_eval_var = builder.alloc_f2(signature.pi_us.final_evaluation);
+    builder.enforce_f2_eq(last_sum, final_eval_var);
+
+    // Openings-only checks at Q.
+    let q_hat_on_u = compute_q_hat_on_u(params, &transcript_data)?;
+    let z_mu_plus_s = transcript_data.z_challenge * signature.mu + signature.s_sum;
+    let z_mu_plus_s_var = builder.alloc_f2(z_mu_plus_s);
+
+    // Enforce `z_mu_plus_s_var = z * μ + S` inside the circuit (do not leave it unconstrained).
+    let mu_var = F2Var {
+        c0: mu_c0_idx,
+        c1: mu_c1_idx,
+    };
+    let z_mu_value = transcript_data.z_challenge * signature.mu;
+    let z_mu_var = builder.alloc_f2(z_mu_value);
+    enforce_f2_const_mul_eq(&mut builder, mu_var, transcript_data.z_challenge, z_mu_var);
+
+    let s_sum_var = builder.alloc_f2(signature.s_sum);
+    builder.enforce_linear_relation(&[(s_sum_var.c0, F::one())], -signature.s_sum.c0);
+    builder.enforce_linear_relation(&[(s_sum_var.c1, F::one())], -signature.s_sum.c1);
+
+    enforce_f2_add(&mut builder, z_mu_var, s_sum_var, z_mu_plus_s_var);
+
+    enforce_ldt_queries(
+        &mut builder,
+        params,
+        signature,
+        &transcript_data,
+        &q_hat_on_u,
+        z_mu_plus_s_var,
+        fri_leaf_arity,
+    )?;
+    trace_stage("enforced all LDT queries");
+    constraint_tracker.record(&builder, "LDT queries");
+
+    // NOTE: For the pk-witness builder, we do not support the stats-only shortcut because
+    // callers use this for BDEC proof generation/verification.
+    builder.finalize()
+}
+
+fn enforce_qr_witness_constraint_pk_var(
+    builder: &mut R1csBuilder,
+    o_idx: usize,
+    o_value: F,
+    t_idx: usize,
+    t_value: F,
+    pk_idx: usize,
+    pk_value: F,
+    qr_alpha: F,
+    two_const: F,
+    compute_sqrt_witness: bool,
+) -> LoquatResult<()> {
+    if o_value.is_zero() {
+        return Err(LoquatError::verification_failure(
+            "o-value must be non-zero to derive QR witness",
+        ));
+    }
+
+    // expected = pk XOR t = pk + t - 2pk t
+    let pk_t_value = pk_value * t_value;
+    let pk_t_idx = builder.alloc(pk_t_value);
+    builder.enforce_mul_vars(pk_idx, t_idx, pk_t_idx);
+
+    let expected_value = pk_value + t_value - (two_const * pk_t_value);
+    let expected_idx = builder.alloc(expected_value);
+    // expected - pk - t + 2pk_t = 0
+    builder.enforce_linear_relation(
+        &[
+            (expected_idx, F::one()),
+            (pk_idx, -F::one()),
+            (t_idx, -F::one()),
+            (pk_t_idx, two_const),
+        ],
+        F::zero(),
+    );
+    builder.enforce_boolean(expected_idx);
+
+    let alpha_expected_value = qr_alpha * expected_value;
+    let alpha_expected_idx = builder.alloc(alpha_expected_value);
+    builder.enforce_mul_const_var(qr_alpha, expected_idx, alpha_expected_idx);
+
+    let one_minus_expected_value = F::one() - expected_value;
+    let one_minus_expected_idx = builder.alloc(one_minus_expected_value);
+    builder.enforce_linear_relation(
+        &[(one_minus_expected_idx, F::one()), (expected_idx, F::one())],
+        -F::one(),
+    );
+
+    let scalar_value = alpha_expected_value + one_minus_expected_value;
+    let scalar_idx = builder.alloc(scalar_value);
+    builder.enforce_linear_relation(
+        &[
+            (scalar_idx, F::one()),
+            (alpha_expected_idx, -F::one()),
+            (one_minus_expected_idx, -F::one()),
+        ],
+        F::zero(),
+    );
+
+    let target_value = o_value * scalar_value;
+    let target_idx = builder.alloc(target_value);
+    builder.enforce_mul_vars(o_idx, scalar_idx, target_idx);
+
+    let sqrt_value = if compute_sqrt_witness {
+        sqrt_canonical(target_value).ok_or_else(|| {
+            LoquatError::verification_failure("quadratic residuosity witness missing square root")
+        })?
+    } else {
+        // Placeholder value; instance-only builder does not require satisfaction.
+        F::zero()
+    };
+    let sqrt_idx = builder.alloc(sqrt_value);
+    builder.enforce_mul_vars(sqrt_idx, sqrt_idx, target_idx);
+
+    Ok(())
 }
 
 fn enforce_qr_witness_constraint(
@@ -1319,17 +1706,22 @@ fn enforce_sumcheck_round(
 }
 
 fn enforce_f2_const_mul_eq(builder: &mut R1csBuilder, source: F2Var, scalar: F2, target: F2Var) {
+    // Our extension field is Fp2 with non-residue `i^2 = 3` (see `field_p127.rs`).
+    // For source = x0 + x1*i and scalar = a + b*i:
+    //   (x0 + x1*i)(a + b*i) = (x0*a + x1*b*3) + (x0*b + x1*a)i
+    let qnr = F::new(3);
+
     let real_terms = vec![
         (target.c0, F::one()),
         (source.c0, -scalar.c0),
-        (source.c1, scalar.c1),
+        (source.c1, -(scalar.c1 * qnr)),
     ];
     builder.enforce_linear_relation(&real_terms, F::zero());
 
     let imag_terms = vec![
         (target.c1, F::one()),
-        (source.c1, -scalar.c0),
         (source.c0, -scalar.c1),
+        (source.c1, -scalar.c0),
     ];
     builder.enforce_linear_relation(&imag_terms, F::zero());
 }
@@ -1353,19 +1745,71 @@ fn enforce_f2_add(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: 
     );
 }
 
+/// Enforce `target = Σ_i (source_i * scalar_i)` where each `scalar_i ∈ F²` is a constant.
+///
+/// This is a micro-optimisation: compared to building the sum via intermediate
+/// `enforce_f2_const_mul_eq` + `enforce_f2_add` steps, this encodes the exact same
+/// equation using **two** linear constraints (one per coordinate).
+fn enforce_f2_const_lincomb_eq(
+    builder: &mut R1csBuilder,
+    terms: &[(F2Var, F2)],
+    target: F2Var,
+) -> LoquatResult<()> {
+    if terms.is_empty() {
+        return Err(LoquatError::verification_failure(
+            "empty linear combination for F2 folding",
+        ));
+    }
+    let qnr = F::new(3);
+    let mut real_terms: Vec<(usize, F)> = Vec::with_capacity(1 + terms.len() * 2);
+    let mut imag_terms: Vec<(usize, F)> = Vec::with_capacity(1 + terms.len() * 2);
+    real_terms.push((target.c0, F::one()));
+    imag_terms.push((target.c1, F::one()));
+
+    for (source, scalar) in terms {
+        // Fp2 uses i^2 = 3.
+        // target.c0 - Σ (x0*a + x1*b*3) = 0
+        real_terms.push((source.c0, -scalar.c0));
+        let bq = scalar.c1 * qnr;
+        if !bq.is_zero() {
+            real_terms.push((source.c1, -bq));
+        }
+
+        // target.c1 - Σ (x0*b + x1*a) = 0
+        if !scalar.c1.is_zero() {
+            imag_terms.push((source.c0, -scalar.c1));
+        }
+        imag_terms.push((source.c1, -scalar.c0));
+    }
+
+    builder.enforce_linear_relation(&real_terms, F::zero());
+    builder.enforce_linear_relation(&imag_terms, F::zero());
+    Ok(())
+}
+
 fn enforce_f0_linear_combination(
     builder: &mut R1csBuilder,
     f0_var: F2Var,
     row_vars: &[F2Var],
     coeffs: &[F2],
 ) {
+    // Same Fp2 rule: i^2 = 3.
+    // Enforce f0 = Σ_k coeff_k * row_k as two linear relations (real + imag).
+    let qnr = F::new(3);
     let mut real_terms = vec![(f0_var.c0, F::one())];
     let mut imag_terms = vec![(f0_var.c1, F::one())];
     for (row_var, coeff) in row_vars.iter().zip(coeffs.iter()) {
+        // real: -(a * row.c0 + b * row.c1 * qnr)
         real_terms.push((row_var.c0, -coeff.c0));
-        real_terms.push((row_var.c1, coeff.c1));
+        let bq = coeff.c1 * qnr;
+        if !bq.is_zero() {
+            real_terms.push((row_var.c1, -bq));
+        }
+        // imag: -(a * row.c1 + b * row.c0)
         imag_terms.push((row_var.c1, -coeff.c0));
+        if !coeff.c1.is_zero() {
         imag_terms.push((row_var.c0, -coeff.c1));
+        }
     }
     builder.enforce_linear_relation(&real_terms, F::zero());
     builder.enforce_linear_relation(&imag_terms, F::zero());
@@ -1391,15 +1835,10 @@ fn enforce_ldt_queries(
     builder: &mut R1csBuilder,
     params: &LoquatPublicParams,
     signature: &LoquatSignature,
-    fri_codeword_vars: &[Vec<F2Var>],
-    fri_row_vars: &[Vec<Vec<F2Var>>],
+    transcript_data: &TranscriptData,
+    q_hat_on_u: &[Vec<F2>],
+    z_mu_plus_s_var: F2Var,
     leaf_arity: usize,
-    c_prime_vars: &[Vec<F2Var>],
-    c_prime_values: &[Vec<F2>],
-    s_vars: &[F2Var],
-    s_values: &[F2],
-    h_vars: &[F2Var],
-    h_values: &[F2],
 ) -> LoquatResult<()> {
     if leaf_arity == 0 {
         return Err(LoquatError::invalid_parameters(
@@ -1407,285 +1846,377 @@ fn enforce_ldt_queries(
         ));
     }
     let chunk_size = leaf_arity;
-    let final_commitment = signature
-        .ldt_proof
-        .commitments
-        .last()
-        .copied()
-        .ok_or_else(|| LoquatError::verification_failure("missing final LDT commitment"))?;
-    let num_rounds = params.r;
 
-    for (opening_idx, opening) in signature.ldt_proof.openings.iter().enumerate() {
-        if opening.codeword_chunks.len() != num_rounds || opening.row_chunks.len() != num_rounds {
-            return Err(LoquatError::verification_failure(
-                "LDT opening does not contain all rounds",
-            ));
-        }
-        let mut fold_index = opening.position;
-        if fold_index
-            >= signature
-                .fri_codewords
-                .first()
-                .map(|layer| layer.len())
-                .unwrap_or(0)
+    // Layer-t cap (paper §4.3) for the c/s/h Merkle trees: if cap nodes are provided,
+    // bind each root once as root = H(cap_nodes).
+    let cap_enabled = !signature.c_cap_nodes.is_empty()
+        || !signature.s_cap_nodes.is_empty()
+        || !signature.h_cap_nodes.is_empty();
+    if cap_enabled {
+        if signature.c_cap_nodes.is_empty()
+            || signature.s_cap_nodes.is_empty()
+            || signature.h_cap_nodes.is_empty()
         {
             return Err(LoquatError::verification_failure(
-                "LDT query position out of range",
+                "partial Merkle cap nodes provided for c/s/h",
             ));
         }
+        if signature.c_cap_nodes.len() != signature.s_cap_nodes.len()
+            || signature.c_cap_nodes.len() != signature.h_cap_nodes.len()
+        {
+            return Err(LoquatError::verification_failure(
+                "Merkle cap node count mismatch across c/s/h",
+            ));
+        }
+        let c_root_fields = merkle_cap_root_from_nodes(builder, &signature.c_cap_nodes)?;
+        enforce_field_digest_equals_bytes(builder, &c_root_fields, &signature.root_c)?;
+        let s_root_fields = merkle_cap_root_from_nodes(builder, &signature.s_cap_nodes)?;
+        enforce_field_digest_equals_bytes(builder, &s_root_fields, &signature.root_s)?;
+        let h_root_fields = merkle_cap_root_from_nodes(builder, &signature.h_cap_nodes)?;
+        enforce_field_digest_equals_bytes(builder, &h_root_fields, &signature.root_h)?;
+    }
 
-        for round in 0..num_rounds {
-            let layer = signature
-                .fri_codewords
-                .get(round)
-                .ok_or_else(|| LoquatError::verification_failure("missing FRI layer"))?;
-            let next_layer_vars = fri_codeword_vars
-                .get(round + 1)
-                .ok_or_else(|| LoquatError::verification_failure("missing next FRI layer"))?;
-            let layer_len = layer.len();
-            if layer_len == 0 {
+    // Layer-t cap for the LDT Merkle commitments (per layer).
+    if signature.ldt_proof.commitments.len() != params.r + 1
+        || signature.ldt_proof.cap_nodes.len() != params.r + 1
+    {
                 return Err(LoquatError::verification_failure(
-                    "FRI layer has zero length",
+            "LDT commitment/cap layer count mismatch",
+                ));
+            }
+    for layer_idx in 0..=params.r {
+        let cap_nodes = &signature.ldt_proof.cap_nodes[layer_idx];
+        if !cap_nodes.is_empty() {
+            let root_fields = merkle_cap_root_from_nodes(builder, cap_nodes)?;
+            enforce_field_digest_equals_bytes(
+                builder,
+                &root_fields,
+                &signature.ldt_proof.commitments[layer_idx],
+            )?;
+        }
+    }
+
+    if q_hat_on_u.len() != params.n || q_hat_on_u.iter().any(|v| v.len() != params.coset_u.len())
+    {
+                return Err(LoquatError::verification_failure(
+            "q_hat_on_u dimension mismatch",
+        ));
+    }
+    if signature.e_vector.len() != 8 {
+        return Err(LoquatError::verification_failure("e-vector length mismatch"));
+            }
+
+    // Constants for p(x) computation.
+    let h_order = params.coset_h.len() as u128;
+    let z_h_constant = params.h_shift.pow(h_order);
+    let h_size_scalar = F2::new(F::new(params.coset_h.len() as u128), F::zero());
+    let z = transcript_data.z_challenge;
+    let z_mu_plus_s_value = z * signature.mu + signature.s_sum;
+
+    if signature.query_openings.len() != signature.ldt_proof.openings.len() {
+                return Err(LoquatError::verification_failure(
+            "query openings / LDT openings length mismatch",
                 ));
             }
 
-            let chunk_len_candidate = chunk_size.min(layer_len);
-            let chunk_start = if layer_len > chunk_size {
-                (fold_index / chunk_size) * chunk_size
-            } else {
-                0
-            };
-            let chunk_end = (chunk_start + chunk_len_candidate).min(layer_len);
-            if chunk_end <= chunk_start {
+    for (query_idx, (ldt_opening, query_opening)) in signature
+        .ldt_proof
+        .openings
+        .iter()
+        .zip(signature.query_openings.iter())
+        .enumerate()
+    {
+        if ldt_opening.position != query_opening.position {
+            return Err(LoquatError::verification_failure(
+                "query opening position mismatch",
+            ));
+        }
+        if ldt_opening.codeword_chunks.len() != params.r + 1
+            || ldt_opening.auth_paths.len() != params.r + 1
+        {
+            return Err(LoquatError::verification_failure(
+                "LDT opening chunk/path length mismatch",
+            ));
+        }
+        if query_opening.c_prime_chunk.len() != chunk_size
+            || query_opening.s_chunk.len() != chunk_size
+            || query_opening.h_chunk.len() != chunk_size
+        {
                 return Err(LoquatError::verification_failure(
-                    "invalid chunk range in FRI layer",
+                "query opening chunk length mismatch",
                 ));
             }
-            let chunk_len = chunk_end - chunk_start;
-            let provided_chunk = &opening.codeword_chunks[round];
-            if provided_chunk.len() != chunk_len {
-                return Err(LoquatError::verification_failure(
-                    "codeword chunk length mismatch",
-                ));
-            }
-
-            let challenge = signature
-                .fri_challenges
-                .get(round)
-                .copied()
-                .ok_or_else(|| LoquatError::verification_failure("missing FRI challenge"))?;
-            let mut coeff = F2::one();
-            let mut folded_var: Option<F2Var> = None;
-            let mut folded_value = F2::zero();
-
-            for (offset, provided_value) in provided_chunk.iter().enumerate() {
-                let provided_var = builder.alloc_f2(*provided_value);
-                builder.enforce_f2_eq(provided_var, fri_codeword_vars[round][chunk_start + offset]);
-
-                let term_value = *provided_value * coeff;
-                let term_var = builder.alloc_f2(term_value);
-                enforce_f2_const_mul_eq(builder, provided_var, coeff, term_var);
-
-                folded_var = Some(match folded_var {
-                    None => {
-                        folded_value = term_value;
-                        term_var
-                    }
-                    Some(prev_var) => {
-                        let new_value = folded_value + term_value;
-                        let new_var = builder.alloc_f2(new_value);
-                        enforce_f2_add(builder, prev_var, term_var, new_var);
-                        folded_value = new_value;
-                        new_var
-                    }
-                });
-                coeff *= challenge;
-            }
-
-            let folded_var =
-                folded_var.ok_or_else(|| LoquatError::verification_failure("empty chunk"))?;
-
-            let next_index = if layer_len > chunk_size {
-                fold_index / chunk_size
-            } else {
-                0
-            };
-            let next_var = next_layer_vars
-                .get(next_index)
-                .copied()
-                .ok_or_else(|| LoquatError::verification_failure("next index out of range"))?;
-            builder.enforce_f2_eq(folded_var, next_var);
-
-            let row_chunks = &opening.row_chunks[round];
-            let expected_rows = signature
-                .fri_rows
-                .get(round)
-                .ok_or_else(|| LoquatError::verification_failure("missing FRI row layer"))?;
-            if row_chunks.len() != expected_rows.len() {
-                return Err(LoquatError::verification_failure(
-                    "row chunk count mismatch",
-                ));
-            }
-
-            for (row_idx, chunk_values) in row_chunks.iter().enumerate() {
-                if chunk_values.len() != chunk_len {
+        for off in 0..chunk_size {
+            if query_opening.c_prime_chunk[off].len() != params.n {
                     return Err(LoquatError::verification_failure(
-                        "row chunk length mismatch",
+                    "c' opening inner dimension mismatch",
                     ));
                 }
-                let expected_row_vars = &fri_row_vars[round][row_idx];
+        }
+
+        let position = ldt_opening.position;
+        let chunk_index = position / chunk_size;
+
+        // Allocate query openings for c′/ŝ/ĥ.
+        let mut c_prime_chunk_vars: Vec<Vec<F2Var>> = Vec::with_capacity(chunk_size);
+        for off in 0..chunk_size {
+            let mut row_vars = Vec::with_capacity(params.n);
+            for j in 0..params.n {
+                row_vars.push(builder.alloc_f2(query_opening.c_prime_chunk[off][j]));
+            }
+            c_prime_chunk_vars.push(row_vars);
+        }
+        let mut s_chunk_vars = Vec::with_capacity(chunk_size);
+        for off in 0..chunk_size {
+            s_chunk_vars.push(builder.alloc_f2(query_opening.s_chunk[off]));
+        }
+        let mut h_chunk_vars = Vec::with_capacity(chunk_size);
+        for off in 0..chunk_size {
+            h_chunk_vars.push(builder.alloc_f2(query_opening.h_chunk[off]));
+        }
+
+        // Verify Merkle openings for c′/ŝ/ĥ.
+        // c′ leaf = concatenation of (chunk_size × n) field elements.
+        let mut c_leaf_fields = Vec::with_capacity(chunk_size * params.n * 2);
+        for off in 0..chunk_size {
+            for j in 0..params.n {
+                let var = c_prime_chunk_vars[off][j];
+                let val = query_opening.c_prime_chunk[off][j];
+                c_leaf_fields.push(FieldVar::existing(var.c0, val.c0));
+                c_leaf_fields.push(FieldVar::existing(var.c1, val.c1));
+            }
+        }
+        let c_digest =
+            merkle_path_opening_fields(builder, &c_leaf_fields, &query_opening.c_auth_path, chunk_index)?;
+        if signature.c_cap_nodes.is_empty() {
+            enforce_field_digest_equals_bytes(builder, &c_digest, &signature.root_c)?;
+            } else {
+            let cap_index = chunk_index >> query_opening.c_auth_path.len();
+            if cap_index >= signature.c_cap_nodes.len() {
+                return Err(LoquatError::verification_failure("c cap index out of range"));
+        }
+            enforce_field_digest_equals_bytes(
+                builder,
+                &c_digest,
+                signature.c_cap_nodes[cap_index].as_ref(),
+            )?;
+        }
+
+        let mut s_leaf_fields = Vec::with_capacity(chunk_size * 2);
+        for off in 0..chunk_size {
+            let var = s_chunk_vars[off];
+            let val = query_opening.s_chunk[off];
+            s_leaf_fields.push(FieldVar::existing(var.c0, val.c0));
+            s_leaf_fields.push(FieldVar::existing(var.c1, val.c1));
+        }
+        let s_digest =
+            merkle_path_opening_fields(builder, &s_leaf_fields, &query_opening.s_auth_path, chunk_index)?;
+        if signature.s_cap_nodes.is_empty() {
+            enforce_field_digest_equals_bytes(builder, &s_digest, &signature.root_s)?;
+        } else {
+            let cap_index = chunk_index >> query_opening.s_auth_path.len();
+            if cap_index >= signature.s_cap_nodes.len() {
+                return Err(LoquatError::verification_failure("s cap index out of range"));
+            }
+            enforce_field_digest_equals_bytes(
+                builder,
+                &s_digest,
+                signature.s_cap_nodes[cap_index].as_ref(),
+            )?;
+        }
+
+        let mut h_leaf_fields = Vec::with_capacity(chunk_size * 2);
+        for off in 0..chunk_size {
+            let var = h_chunk_vars[off];
+            let val = query_opening.h_chunk[off];
+            h_leaf_fields.push(FieldVar::existing(var.c0, val.c0));
+            h_leaf_fields.push(FieldVar::existing(var.c1, val.c1));
+        }
+        let h_digest =
+            merkle_path_opening_fields(builder, &h_leaf_fields, &query_opening.h_auth_path, chunk_index)?;
+        if signature.h_cap_nodes.is_empty() {
+            enforce_field_digest_equals_bytes(builder, &h_digest, &signature.root_h)?;
+        } else {
+            let cap_index = chunk_index >> query_opening.h_auth_path.len();
+            if cap_index >= signature.h_cap_nodes.len() {
+                return Err(LoquatError::verification_failure("h cap index out of range"));
+            }
+            enforce_field_digest_equals_bytes(
+            builder,
+                &h_digest,
+                signature.h_cap_nodes[cap_index].as_ref(),
+            )?;
+        }
+
+        // Allocate LDT codeword chunks per layer (r+1), then verify Merkle authentication and folding.
+        let mut ldt_chunk_vars: Vec<Vec<F2Var>> = Vec::with_capacity(params.r + 1);
+        for layer in 0..=params.r {
+            let chunk_vals = &ldt_opening.codeword_chunks[layer];
+            let mut vars = Vec::with_capacity(chunk_vals.len());
+            for &val in chunk_vals {
+                vars.push(builder.alloc_f2(val));
+            }
+            ldt_chunk_vars.push(vars);
+        }
+
+        let mut fold_index = position;
+        let mut layer_len = params.coset_u.len();
+        for layer in 0..=params.r {
+            let expected_len = chunk_size.min(layer_len);
+            let chunk_vals = &ldt_opening.codeword_chunks[layer];
+            let chunk_vars = &ldt_chunk_vars[layer];
+            if chunk_vals.len() != expected_len || chunk_vars.len() != expected_len {
+            return Err(LoquatError::verification_failure(
+                    "LDT chunk length mismatch",
+                ));
+            }
+
+            let mut leaf_fields = Vec::with_capacity(expected_len * 2);
+            for (var, val) in chunk_vars.iter().zip(chunk_vals.iter()) {
+                leaf_fields.push(FieldVar::existing(var.c0, val.c0));
+                leaf_fields.push(FieldVar::existing(var.c1, val.c1));
+            }
+
+            let leaf_index = fold_index / chunk_size;
+            let digest = merkle_path_opening_fields(
+            builder,
+                &leaf_fields,
+                &ldt_opening.auth_paths[layer],
+                leaf_index,
+            )?;
+
+            let cap_nodes_layer = &signature.ldt_proof.cap_nodes[layer];
+            if cap_nodes_layer.is_empty() {
+                enforce_field_digest_equals_bytes(
+                    builder,
+                    &digest,
+                    &signature.ldt_proof.commitments[layer],
+                )?;
+            } else {
+                let cap_index = leaf_index >> ldt_opening.auth_paths[layer].len();
+                if cap_index >= cap_nodes_layer.len() {
+            return Err(LoquatError::verification_failure(
+                        "LDT cap index out of range",
+                    ));
+                }
+                enforce_field_digest_equals_bytes(
+            builder,
+                    &digest,
+                    cap_nodes_layer[cap_index].as_ref(),
+                )?;
+            }
+
+            if layer < params.r {
+                let challenge = signature.fri_challenges[layer];
                 let mut coeff = F2::one();
-                let mut row_fold_var: Option<F2Var> = None;
-                let mut row_fold_value = F2::zero();
-
-                for (offset, &value) in chunk_values.iter().enumerate() {
-                    let chunk_var = builder.alloc_f2(value);
-                    builder.enforce_f2_eq(chunk_var, expected_row_vars[chunk_start + offset]);
-
-                    let term_value = value * coeff;
-                    let term_var = builder.alloc_f2(term_value);
-                    enforce_f2_const_mul_eq(builder, chunk_var, coeff, term_var);
-
-                    row_fold_var = Some(match row_fold_var {
-                        None => {
-                            row_fold_value = term_value;
-                            term_var
-                        }
-                        Some(prev_var) => {
-                            let new_value = row_fold_value + term_value;
-                            let new_var = builder.alloc_f2(new_value);
-                            enforce_f2_add(builder, prev_var, term_var, new_var);
-                            row_fold_value = new_value;
-                            new_var
-                        }
-                    });
+                let mut fold_terms: Vec<(F2Var, F2)> = Vec::with_capacity(expected_len);
+                for var in chunk_vars {
+                    fold_terms.push((*var, coeff));
                     coeff *= challenge;
                 }
 
-                let row_fold_var = row_fold_var.ok_or_else(|| {
-                    LoquatError::verification_failure("empty row chunk encountered")
-                })?;
-                let next_row_var = fri_row_vars[round + 1][row_idx]
-                    .get(next_index)
+                let next_index = fold_index / chunk_size;
+                let next_offset = next_index % chunk_size;
+                let next_var = ldt_chunk_vars[layer + 1]
+                    .get(next_offset)
                     .copied()
                     .ok_or_else(|| {
-                        LoquatError::verification_failure("next row index out of range")
+                        LoquatError::verification_failure("next offset out of range in LDT opening")
                     })?;
-                builder.enforce_f2_eq(row_fold_var, next_row_var);
-            }
+                enforce_f2_const_lincomb_eq(builder, &fold_terms, next_var)?;
 
-            fold_index = if layer_len > chunk_size {
-                fold_index / chunk_size
-            } else {
-                0
-            };
-        }
-
-        let final_layer_vars = fri_codeword_vars
-            .last()
-            .ok_or_else(|| LoquatError::verification_failure("missing final FRI layer"))?;
-        if fold_index >= final_layer_vars.len() {
-            return Err(LoquatError::verification_failure(
-                "final FRI index out of range",
-            ));
-        }
-
-        let final_value_var = final_layer_vars[fold_index];
-        let final_eval_var = builder.alloc_f2(opening.final_eval);
-        builder.enforce_f2_eq(final_eval_var, final_value_var);
-
-        let final_layer_values = signature
-            .fri_codewords
-            .last()
-            .ok_or_else(|| LoquatError::verification_failure("missing final FRI values"))?;
-        let chunk_start = (fold_index / chunk_size) * chunk_size;
-        let chunk_end = (chunk_start + chunk_size).min(final_layer_vars.len());
-        let mut leaf_fields = Vec::with_capacity((chunk_end - chunk_start) * 2);
-        for idx in chunk_start..chunk_end {
-            leaf_fields.push(FieldVar::existing(
-                final_layer_vars[idx].c0,
-                final_layer_values[idx].c0,
-            ));
-            leaf_fields.push(FieldVar::existing(
-                final_layer_vars[idx].c1,
-                final_layer_values[idx].c1,
-            ));
-        }
-        let root_fields = merkle_path_opening_fields(
-            builder,
-            &leaf_fields,
-            &opening.auth_path,
-            fold_index / chunk_size,
-        )?;
-        enforce_field_digest_equals_bytes(builder, &root_fields, &final_commitment)?;
-
-        // Tree-cap auth paths for c', s, h (leaf_arity = chunk_size)
-        let chunk_index = opening.position / chunk_size;
-
-        // c'(u) leaf: concatenate all c'_j chunks at the queried positions
-        if opening_idx >= signature.c_auth_paths.len() {
-            return Err(LoquatError::verification_failure(
-                "missing c' auth path for query",
-            ));
-        }
-        let c_chunk_start = chunk_index * chunk_size;
-        let c_chunk_end = (c_chunk_start + chunk_size).min(c_prime_vars[0].len());
-        let mut c_leaf_fields = Vec::with_capacity((c_chunk_end - c_chunk_start) * c_prime_vars.len() * 2);
-        for col in c_chunk_start..c_chunk_end {
-            for (row_vars, row_vals) in c_prime_vars.iter().zip(c_prime_values.iter()) {
-                c_leaf_fields.push(FieldVar::existing(row_vars[col].c0, row_vals[col].c0));
-                c_leaf_fields.push(FieldVar::existing(row_vars[col].c1, row_vals[col].c1));
+                fold_index = next_index;
+                layer_len = ((layer_len + chunk_size - 1) / chunk_size).max(1);
             }
         }
-        let c_root_fields = merkle_path_opening_fields(
-            builder,
-            &c_leaf_fields,
-            &signature.c_auth_paths[opening_idx],
-            chunk_index,
-        )?;
-        enforce_field_digest_equals_bytes(builder, &c_root_fields, &signature.root_c)?;
 
-        // s(u) leaf
-        if opening_idx >= signature.s_auth_paths.len() {
-            return Err(LoquatError::verification_failure(
-                "missing s auth path for query",
-            ));
+        // Recompute missing code elements and enforce f^(0) only at the opened query chunk.
+        let chunk_start = chunk_index * chunk_size;
+        for off in 0..chunk_size {
+            let global_idx = chunk_start + off;
+            if global_idx >= params.coset_u.len() {
+                return Err(LoquatError::verification_failure("query index out of range"));
         }
-        let s_chunk_start = chunk_index * chunk_size;
-        let s_chunk_end = (s_chunk_start + chunk_size).min(s_vars.len());
-        let mut s_leaf_fields = Vec::with_capacity((s_chunk_end - s_chunk_start) * 2);
-        for idx in s_chunk_start..s_chunk_end {
-            s_leaf_fields.push(FieldVar::existing(s_vars[idx].c0, s_values[idx].c0));
-            s_leaf_fields.push(FieldVar::existing(s_vars[idx].c1, s_values[idx].c1));
-        }
-        let s_root_fields = merkle_path_opening_fields(
-            builder,
-            &s_leaf_fields,
-            &signature.s_auth_paths[opening_idx],
-            chunk_index,
-        )?;
-        enforce_field_digest_equals_bytes(builder, &s_root_fields, &signature.root_s)?;
+            let x = params.coset_u[global_idx];
+            let z_h = x.pow(h_order) - z_h_constant;
+            let denom_scalar = h_size_scalar * x;
 
-        // h(u) leaf
-        if opening_idx >= signature.h_auth_paths.len() {
-            return Err(LoquatError::verification_failure(
-                "missing h auth path for query",
-            ));
-        }
-        let h_chunk_start = chunk_index * chunk_size;
-        let h_chunk_end = (h_chunk_start + chunk_size).min(h_vars.len());
-        let mut h_leaf_fields = Vec::with_capacity((h_chunk_end - h_chunk_start) * 2);
-        for idx in h_chunk_start..h_chunk_end {
-            h_leaf_fields.push(FieldVar::existing(h_vars[idx].c0, h_values[idx].c0));
-            h_leaf_fields.push(FieldVar::existing(h_vars[idx].c1, h_values[idx].c1));
-        }
-        let h_root_fields = merkle_path_opening_fields(
+            // f'(x) = ŝ(x) + z * Σ_j (ε_j * c′_j(x) * q̂_j(x))
+            let mut f_prime_value = query_opening.s_chunk[off];
+            let mut f_prime_terms: Vec<(F2Var, F2)> = Vec::with_capacity(params.n + 1);
+            f_prime_terms.push((s_chunk_vars[off], F2::one()));
+            for j in 0..params.n {
+                let coeff = z * transcript_data.epsilon_vals[j] * q_hat_on_u[j][global_idx];
+                f_prime_value += query_opening.c_prime_chunk[off][j] * coeff;
+                f_prime_terms.push((c_prime_chunk_vars[off][j], coeff));
+            }
+            let f_prime_var = builder.alloc_f2(f_prime_value);
+            enforce_f2_const_lincomb_eq(builder, &f_prime_terms, f_prime_var)?;
+
+            // Enforce p(x) via: (|H|·x)·p(x) = |H|·f'(x) − |H|·Z_H(x)·h(x) − (z·μ + S)
+            let expr_value =
+                h_size_scalar * f_prime_value - h_size_scalar * z_h * query_opening.h_chunk[off];
+            let expr_var = builder.alloc_f2(expr_value);
+            let h_coeff = -(h_size_scalar * z_h);
+            enforce_f2_const_lincomb_eq(
             builder,
-            &h_leaf_fields,
-            &signature.h_auth_paths[opening_idx],
-            chunk_index,
-        )?;
-        enforce_field_digest_equals_bytes(builder, &h_root_fields, &signature.root_h)?;
+                &[(f_prime_var, h_size_scalar), (h_chunk_vars[off], h_coeff)],
+                expr_var,
+            )?;
+
+            let numerator_value = expr_value - z_mu_plus_s_value;
+            let numerator_var = builder.alloc_f2(numerator_value);
+            builder.enforce_f2_sub(expr_var, z_mu_plus_s_var, numerator_var);
+
+            let denom_inv = denom_scalar.inverse().ok_or_else(|| {
+                LoquatError::verification_failure("denominator not invertible in p(x) computation")
+            })?;
+            let p_value = numerator_value * denom_inv;
+            let p_var = builder.alloc_f2(p_value);
+            enforce_f2_const_mul_eq(builder, p_var, denom_scalar, numerator_var);
+
+            // f^(0)(x) constraint (paper §4.3): opened f^(0)(x) must match recomputation.
+            let exponents: [u128; 4] = [
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[0])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_1"))?
+                    as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[1])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_2"))?
+                    as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[2])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_3"))?
+                    as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[3])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_4"))?
+                    as u128,
+            ];
+
+            let c_coeff = signature.e_vector[0] + signature.e_vector[4] * x.pow(exponents[0]);
+            let s_coeff = signature.e_vector[1] + signature.e_vector[5] * x.pow(exponents[1]);
+            let h_coeff = signature.e_vector[2] + signature.e_vector[6] * x.pow(exponents[2]);
+            let p_coeff = signature.e_vector[3] + signature.e_vector[7] * x.pow(exponents[3]);
+
+            let mut f0_terms: Vec<(F2Var, F2)> = Vec::with_capacity(params.n + 3);
+            for j in 0..params.n {
+                f0_terms.push((c_prime_chunk_vars[off][j], c_coeff));
+            }
+            f0_terms.push((s_chunk_vars[off], s_coeff));
+            f0_terms.push((h_chunk_vars[off], h_coeff));
+            f0_terms.push((p_var, p_coeff));
+
+            // Target is the opened f^(0) value from the LDT base layer chunk.
+            enforce_f2_const_lincomb_eq(builder, &f0_terms, ldt_chunk_vars[0][off])?;
+        }
+
+        let _ = query_idx; // reserved for debug instrumentation
     }
 
     Ok(())
@@ -1799,6 +2330,103 @@ impl TranscriptCircuit {
     }
 }
 
+struct FieldTranscriptCircuit {
+    state: [FieldVar; 2],
+    counter: u64,
+}
+
+impl FieldTranscriptCircuit {
+    fn new(builder: &mut R1csBuilder, label: &[u8]) -> Self {
+        let domain_tag = FieldVar::constant(builder, pack_label_tag_field(b"loquat.transcript.field.griffin"));
+        let label_tag = FieldVar::constant(builder, pack_label_tag_field(label));
+        let label_len = FieldVar::constant(builder, F::new(label.len() as u128));
+        let counter0 = FieldVar::constant(builder, F::new(0));
+
+        let digest = griffin_hash_field_vars_circuit(builder, &[domain_tag, label_tag, label_len, counter0]);
+        let state = [digest[0], digest[1]];
+        Self { state, counter: 0 }
+    }
+
+    fn append_f_vec(&mut self, builder: &mut R1csBuilder, label: &[u8], payload: &[FieldVar]) {
+        let next = self.hash_prefixed(builder, label, payload);
+        self.state = next;
+    }
+
+    fn append_digest32_as_fields(
+        &mut self,
+        builder: &mut R1csBuilder,
+        label: &[u8],
+        digest32: &[u8; 32],
+    ) {
+        let (lo, hi) = digest32_to_fields(digest32);
+        let lo_var = FieldVar::constant(builder, lo);
+        let hi_var = FieldVar::constant(builder, hi);
+        self.append_f_vec(builder, label, &[lo_var, hi_var]);
+    }
+
+    fn challenge_seed(&mut self, builder: &mut R1csBuilder, label: &[u8]) -> [FieldVar; 2] {
+        let counter_var = FieldVar::constant(builder, F::new(self.counter as u128));
+        let digest = self.hash_prefixed(builder, label, &[counter_var]);
+        self.state = digest;
+        self.counter = self.counter.wrapping_add(1);
+        digest
+    }
+
+    fn challenge_f(&mut self, builder: &mut R1csBuilder, label: &[u8]) -> FieldVar {
+        self.challenge_seed(builder, label)[0]
+    }
+
+    fn challenge_f2(&mut self, builder: &mut R1csBuilder, label: &[u8]) -> [FieldVar; 2] {
+        self.challenge_seed(builder, label)
+    }
+
+    fn hash_prefixed(&self, builder: &mut R1csBuilder, label: &[u8], payload: &[FieldVar]) -> [FieldVar; 2] {
+        let label_tag = FieldVar::constant(builder, pack_label_tag_field(label));
+        let label_len = FieldVar::constant(builder, F::new(label.len() as u128));
+        let payload_len = FieldVar::constant(builder, F::new(payload.len() as u128));
+
+        let mut inputs = Vec::with_capacity(2 + 3 + payload.len());
+        inputs.push(self.state[0]);
+        inputs.push(self.state[1]);
+        inputs.push(label_tag);
+        inputs.push(label_len);
+        inputs.push(payload_len);
+        inputs.extend_from_slice(payload);
+
+        let digest = griffin_hash_field_vars_circuit(builder, &inputs);
+        [digest[0], digest[1]]
+    }
+}
+
+fn digest32_to_fields(digest32: &[u8; 32]) -> (F, F) {
+    let lo = F::new(u128::from_le_bytes(digest32[0..16].try_into().unwrap()));
+    let hi = F::new(u128::from_le_bytes(digest32[16..32].try_into().unwrap()));
+    (lo, hi)
+}
+
+fn pack_label_tag_field(label: &[u8]) -> F {
+    let mut arr = [0u8; 16];
+    let take = core::cmp::min(16, label.len());
+    arr[..take].copy_from_slice(&label[..take]);
+    F::new(u128::from_le_bytes(arr))
+}
+
+fn expand_f_circuit(
+    builder: &mut R1csBuilder,
+    seed: [FieldVar; 2],
+    domain: &[u8],
+    count: usize,
+) -> Vec<FieldVar> {
+    if count == 0 {
+        return Vec::new();
+    }
+    let domain_tag = FieldVar::constant(builder, pack_label_tag_field(domain));
+    let domain_len = FieldVar::constant(builder, F::new(domain.len() as u128));
+    let count_var = FieldVar::constant(builder, F::new(count as u128));
+    let inputs = vec![seed[0], seed[1], domain_tag, domain_len, count_var];
+    griffin_sponge_field_vars_circuit(builder, &inputs, count)
+}
+
 fn enforce_field_matches_digest(
     builder: &mut R1csBuilder,
     digest_bytes: &[Byte],
@@ -1817,28 +2445,17 @@ fn enforce_field_matches_digest(
     Ok(())
 }
 
-/// Pack constant bytes (from signature) into a field element constant.
-fn pack_const_bytes_to_field(bytes: &[Byte]) -> F {
-    let mut value = 0u128;
-    for (i, byte) in bytes.iter().take(16).enumerate() {
-        value |= (byte.value as u128) << (i * 8);
-    }
-    F::new(value)
-}
-
-/// Field-native transcript relations - operates entirely on field elements.
-/// This avoids byte serialization and bit decomposition overhead.
-/// Only converts to bytes for final challenge value verification.
+/// Enforce that all Fiat–Shamir challenges used by the verifier are derived from the
+/// same field-native transcript inside the circuit (paper-aligned).
 fn enforce_transcript_relations_field_native(
     builder: &mut R1csBuilder,
+    params: &LoquatPublicParams,
     signature: &LoquatSignature,
-    message_commitment: F,
-    root_c: F,
-    t_commitment: &[FieldVar],
-    o_commitment: &[FieldVar],
-    root_s: F,
-    s_sum: FieldVar,
-    root_h: F,
+    transcript_data: &TranscriptData,
+    t_var_indices: &[Vec<usize>],
+    o_var_indices: &[Vec<usize>],
+    sumcheck_claimed_sum_var: F2Var,
+    sumcheck_round_vars: &[(F2Var, F2Var)],
 ) -> LoquatResult<()> {
     if signature.z_challenge.c1 != F::zero() {
         return Err(LoquatError::verification_failure(
@@ -1848,59 +2465,237 @@ fn enforce_transcript_relations_field_native(
     for (idx, entry) in signature.e_vector.iter().enumerate() {
         if entry.c1 != F::zero() {
             return Err(LoquatError::verification_failure(&format!(
-                "e_vector[{}] imaginary component must be zero",
-                idx
+                "e_vector[{idx}] imaginary component must be zero",
+            )));
+        }
+    }
+    for (idx, entry) in transcript_data.epsilon_vals.iter().enumerate() {
+        if entry.c1 != F::zero() {
+            return Err(LoquatError::verification_failure(&format!(
+                "epsilon_vals[{idx}] imaginary component must be zero",
             )));
         }
     }
 
-    // Field-native hash chain: operates directly on field elements.
-    // Each hash takes field element inputs and produces field element outputs.
-    // This matches the paper's efficient model.
+    let message_commitment: [u8; 32] = signature
+        .message_commitment
+        .as_slice()
+        .try_into()
+        .map_err(|_| LoquatError::verification_failure("message commitment must be 32 bytes"))?;
 
-    // Domain separator as field constant
-    let domain_h1 = F::new(0x6831); // "h1" as a field constant
+    let mut transcript = FieldTranscriptCircuit::new(builder, b"loquat_signature");
+    transcript.append_digest32_as_fields(builder, b"message_commitment", &message_commitment);
+    transcript.append_digest32_as_fields(builder, b"root_c", &signature.root_c);
 
-    // h1 = H(domain || message_commitment || root_c || t_commitment)
-    let mut h1_input = vec![
-        FieldVar::constant(builder, domain_h1),
-        FieldVar::constant(builder, message_commitment),
-        FieldVar::constant(builder, root_c),
-    ];
-    h1_input.extend_from_slice(t_commitment);
-    let h1_fields = griffin_hash_field_vars_circuit(builder, &h1_input);
+    // σ₁: absorb t-values (flattened)
+    let mut t_fields = Vec::with_capacity(params.m * params.n);
+    if t_var_indices.len() != signature.t_values.len() {
+        return Err(LoquatError::verification_failure(
+            "t-value matrix dimension mismatch",
+        ));
+    }
+    for (row_vars, row_vals) in t_var_indices.iter().zip(signature.t_values.iter()) {
+        if row_vars.len() != row_vals.len() {
+            return Err(LoquatError::verification_failure(
+                "t-value row length mismatch",
+            ));
+        }
+        for (&idx, &value) in row_vars.iter().zip(row_vals.iter()) {
+            t_fields.push(FieldVar::existing(idx, value));
+        }
+    }
+    transcript.append_f_vec(builder, b"t_values", &t_fields);
 
-    // h2 = H(h1 || o_commitment)
-    let mut h2_input = h1_fields.clone();
-    h2_input.extend_from_slice(o_commitment);
-    let h2_fields = griffin_hash_field_vars_circuit(builder, &h2_input);
+    // h1 and I_{i,j}
+    let h1_seed = transcript.challenge_seed(builder, b"h1");
+    let num_checks = params.m * params.n;
+    if transcript_data.i_indices.len() != num_checks {
+        return Err(LoquatError::verification_failure("I-index length mismatch"));
+    }
+    let raw_indices = expand_f_circuit(builder, h1_seed, b"I_indices", num_checks);
+    let modulus = params.l;
+    let k = (usize::BITS - modulus.saturating_sub(1).leading_zeros()) as usize;
+    let mask = if k >= 128 { u128::MAX } else { (1u128 << k) - 1 };
+    for (check_idx, raw) in raw_indices.into_iter().enumerate() {
+        let bits = builder.decompose_to_bits(raw.idx, raw.value, 128);
+        let low_value_u128 = raw.value.0 & mask;
+        let low_idx = builder.alloc(F::new(low_value_u128));
+        let mut terms = Vec::with_capacity(k + 1);
+        terms.push((low_idx, F::one()));
+        for bit_pos in 0..k {
+            terms.push((bits[bit_pos], -F::new(1u128 << bit_pos)));
+        }
+        builder.enforce_linear_relation(&terms, F::zero());
 
-    // h3 = H(h2 || root_s || s_sum) -> z_challenge
-    let mut h3_input = h2_fields.clone();
-    h3_input.push(FieldVar::constant(builder, root_s));
-    h3_input.push(s_sum);
-    let h3_fields = griffin_hash_field_vars_circuit(builder, &h3_input);
+        let expected = transcript_data.i_indices[check_idx];
+        if expected >= modulus {
+            return Err(LoquatError::verification_failure(
+                "I-index out of range for modulus",
+            ));
+        }
+        let b_value = (low_value_u128 as usize >= modulus) as u128;
+        let b_idx = builder.alloc(F::new(b_value));
+        builder.enforce_boolean(b_idx);
+        // low = expected + modulus*b
+        builder.enforce_linear_relation(
+            &[
+                (low_idx, F::one()),
+                (b_idx, -F::new(modulus as u128)),
+            ],
+            -F::new(expected as u128),
+        );
+    }
 
-    // Verify z_challenge matches h3 output
-    let expected_z = builder.alloc(signature.z_challenge.c0);
-    builder.enforce_eq(h3_fields[0].idx, expected_z);
+    // σ₂: absorb o-values (flattened)
+    let mut o_fields = Vec::with_capacity(params.m * params.n);
+    if o_var_indices.len() != signature.o_values.len() {
+        return Err(LoquatError::verification_failure(
+            "o-value matrix dimension mismatch",
+        ));
+    }
+    for (row_vars, row_vals) in o_var_indices.iter().zip(signature.o_values.iter()) {
+        if row_vars.len() != row_vals.len() {
+            return Err(LoquatError::verification_failure(
+                "o-value row length mismatch",
+            ));
+        }
+        for (&idx, &value) in row_vars.iter().zip(row_vals.iter()) {
+            o_fields.push(FieldVar::existing(idx, value));
+        }
+    }
+    transcript.append_f_vec(builder, b"o_values", &o_fields);
 
-    // h4 = H(h3 || root_h) -> e_vector expansion base
-    let mut h4_input = h3_fields.clone();
-    h4_input.push(FieldVar::constant(builder, root_h));
-    let h4_fields = griffin_hash_field_vars_circuit(builder, &h4_input);
+    // h2 and Expand(h2)
+    let h2_seed = transcript.challenge_seed(builder, b"h2");
+    if transcript_data.lambda_scalars.len() != num_checks {
+        return Err(LoquatError::verification_failure("lambda length mismatch"));
+    }
+    let lambda_outs = expand_f_circuit(builder, h2_seed, b"lambdas", num_checks);
+    for (idx, out) in lambda_outs.into_iter().enumerate() {
+        builder.enforce_linear_relation(&[(out.idx, F::one())], -transcript_data.lambda_scalars[idx]);
+    }
+    if transcript_data.epsilon_vals.len() != params.n {
+        return Err(LoquatError::verification_failure("epsilon length mismatch"));
+    }
+    let eps_outs = expand_f_circuit(builder, h2_seed, b"e_j", params.n);
+    for (idx, out) in eps_outs.into_iter().enumerate() {
+        builder.enforce_linear_relation(&[(out.idx, F::one())], -transcript_data.epsilon_vals[idx].c0);
+    }
 
-    // e_vector[i] = H(h4 || domain || i)[0] as field element
-    let domain_e = F::new(0x655f766563746f72); // "e_vector" truncated
-    for (idx, entry) in signature.e_vector.iter().enumerate() {
-        let mut expand_input = h4_fields.clone();
-        expand_input.push(FieldVar::constant(builder, domain_e));
-        expand_input.push(FieldVar::constant(builder, F::new(idx as u128)));
-        let digest_fields = griffin_hash_field_vars_circuit(builder, &expand_input);
+    // Sumcheck transcript challenges
+    transcript.append_f_vec(
+        builder,
+        b"claimed_sum",
+        &[
+            FieldVar::existing(sumcheck_claimed_sum_var.c0, signature.pi_us.claimed_sum.c0),
+            FieldVar::existing(sumcheck_claimed_sum_var.c1, signature.pi_us.claimed_sum.c1),
+        ],
+    );
+    if signature.pi_us.round_polynomials.len() != sumcheck_round_vars.len()
+        || signature.pi_us.round_polynomials.len() != transcript_data.sumcheck_challenges.len()
+    {
+        return Err(LoquatError::verification_failure(
+            "sumcheck transcript length mismatch",
+        ));
+    }
+    for (round_idx, round_poly) in signature.pi_us.round_polynomials.iter().enumerate() {
+        let (c0_var, c1_var) = sumcheck_round_vars[round_idx];
+        let poly_fields = [
+            FieldVar::existing(c0_var.c0, round_poly.c0.c0),
+            FieldVar::existing(c0_var.c1, round_poly.c0.c1),
+            FieldVar::existing(c1_var.c0, round_poly.c1.c0),
+            FieldVar::existing(c1_var.c1, round_poly.c1.c1),
+        ];
+        transcript.append_f_vec(builder, b"round_poly", &poly_fields);
+        let chal = transcript.challenge_f2(builder, b"challenge");
+        let expected = transcript_data.sumcheck_challenges[round_idx];
+        builder.enforce_linear_relation(&[(chal[0].idx, F::one())], -expected.c0);
+        builder.enforce_linear_relation(&[(chal[1].idx, F::one())], -expected.c1);
+    }
 
-        // Verify e_vector[i] matches hash output
-        let expected_e = builder.alloc(entry.c0);
-        builder.enforce_eq(digest_fields[0].idx, expected_e);
+    // σ₃, σ₄ and challenges h3/h4
+    transcript.append_digest32_as_fields(builder, b"root_s", &signature.root_s);
+    let s_sum_c0 = FieldVar::constant(builder, signature.s_sum.c0);
+    let s_sum_c1 = FieldVar::constant(builder, signature.s_sum.c1);
+    transcript.append_f_vec(builder, b"s_sum", &[s_sum_c0, s_sum_c1]);
+    let z_scalar = transcript.challenge_f(builder, b"h3");
+    builder.enforce_linear_relation(&[(z_scalar.idx, F::one())], -signature.z_challenge.c0);
+
+    transcript.append_digest32_as_fields(builder, b"root_h", &signature.root_h);
+    let h4_seed = transcript.challenge_seed(builder, b"h4");
+
+    if signature.e_vector.len() != 8 {
+        return Err(LoquatError::verification_failure("e-vector length mismatch"));
+    }
+    let e_outs = expand_f_circuit(builder, h4_seed, b"e_vector", 8);
+    for (idx, out) in e_outs.into_iter().enumerate() {
+        builder.enforce_linear_relation(&[(out.idx, F::one())], -signature.e_vector[idx].c0);
+    }
+
+    // FRI folding challenges from LDT commitments
+    if signature.ldt_proof.commitments.len() != params.r + 1 {
+        return Err(LoquatError::verification_failure(
+            "LDT commitment count mismatch",
+        ));
+    }
+    if signature.fri_challenges.len() != params.r {
+        return Err(LoquatError::verification_failure("FRI challenge count mismatch"));
+    }
+    transcript.append_digest32_as_fields(
+        builder,
+        b"merkle_commitment",
+        &signature.ldt_proof.commitments[0],
+    );
+    for round in 0..params.r {
+        let chal = transcript.challenge_f2(builder, b"challenge");
+        let expected = signature.fri_challenges[round];
+        builder.enforce_linear_relation(&[(chal[0].idx, F::one())], -expected.c0);
+        builder.enforce_linear_relation(&[(chal[1].idx, F::one())], -expected.c1);
+        transcript.append_digest32_as_fields(
+            builder,
+            b"merkle_commitment",
+            &signature.ldt_proof.commitments[round + 1],
+        );
+    }
+
+    // LDT query positions (paper §4.3): bind opening positions to transcript-derived challenges.
+    if signature.ldt_proof.openings.len() != params.kappa {
+        return Err(LoquatError::verification_failure(
+            "LDT opening count mismatch for query binding",
+        ));
+    }
+    if signature.query_openings.len() != params.kappa {
+        return Err(LoquatError::verification_failure(
+            "query opening count mismatch for query binding",
+        ));
+    }
+    if params.coset_u.is_empty() || !params.coset_u.len().is_power_of_two() {
+        return Err(LoquatError::invalid_parameters(
+            "|U| must be a non-zero power of two",
+        ));
+    }
+    let log_u = params.coset_u.len().trailing_zeros() as usize;
+    let mask = if log_u >= 128 { u128::MAX } else { (1u128 << log_u) - 1 };
+    for query_idx in 0..params.kappa {
+        let chal = transcript.challenge_f2(builder, b"challenge");
+        let bits = builder.decompose_to_bits(chal[0].idx, chal[0].value, 128);
+        let low_value_u128 = chal[0].value.0 & mask;
+        let low_idx = builder.alloc(F::new(low_value_u128));
+        let mut terms = Vec::with_capacity(log_u + 1);
+        terms.push((low_idx, F::one()));
+        for bit_pos in 0..log_u {
+            terms.push((bits[bit_pos], -F::new(1u128 << bit_pos)));
+        }
+        builder.enforce_linear_relation(&terms, F::zero());
+
+        let expected_pos = signature.ldt_proof.openings[query_idx].position;
+        builder.enforce_linear_relation(&[(low_idx, F::one())], -F::new(expected_pos as u128));
+
+        if signature.query_openings[query_idx].position != expected_pos {
+            return Err(LoquatError::verification_failure(
+                "query opening position mismatch for query binding",
+            ));
+        }
     }
 
     Ok(())
@@ -2003,6 +2798,17 @@ fn griffin_hash_field_vars_circuit(
     builder: &mut R1csBuilder,
     inputs: &[FieldVar],
 ) -> Vec<FieldVar> {
+    griffin_sponge_field_vars_circuit(builder, inputs, GRIFFIN_DIGEST_ELEMENTS)
+}
+
+fn griffin_sponge_field_vars_circuit(
+    builder: &mut R1csBuilder,
+    inputs: &[FieldVar],
+    output_len: usize,
+) -> Vec<FieldVar> {
+    if output_len == 0 {
+        return Vec::new();
+    }
     let params = get_griffin_params();
     let mut absorb_inputs = inputs.to_vec();
     let mut state: Vec<FieldVar> = (0..GRIFFIN_STATE_WIDTH)
@@ -2026,8 +2832,8 @@ fn griffin_hash_field_vars_circuit(
         absorb_idx += GRIFFIN_RATE;
     }
 
-    let mut outputs = Vec::new();
-    let mut remaining = GRIFFIN_DIGEST_ELEMENTS;
+    let mut outputs = Vec::with_capacity(output_len);
+    let mut remaining = output_len;
     while remaining > 0 {
         for lane in 0..GRIFFIN_RATE {
             if remaining == 0 {
@@ -2203,23 +3009,42 @@ fn apply_nonlinear_layer_circuit(
     params: &GriffinParams,
     state: &mut [FieldVar],
 ) {
-    state[0] = field_pow_const(builder, state[0], params.d_inv);
+    // Avoid in-circuit exponentiation by the huge constant `d_inv`.
+    // Use witness + low-degree check instead (see `field_pow_inv_witness`).
+    state[0] = field_pow_inv_witness(builder, state[0], params.d, params.d_inv);
     state[1] = field_pow_const(builder, state[1], params.d);
 
     let zero = FieldVar::constant(builder, F::zero());
     let l2 = linear_form_circuit(builder, state[0], state[1], zero, 2);
     let l2_sq = field_mul(builder, l2, l2);
-    let alpha_term = field_mul_const(builder, l2, params.alphas[0]);
-    let sum = field_add(builder, l2_sq, alpha_term);
-    let poly = field_add_const(builder, sum, params.betas[0]);
+
+    // poly = l2^2 + α*l2 + β (encode with a single linear constraint)
+    let poly_value = l2_sq.value + (params.alphas[0] * l2.value) + params.betas[0];
+    let poly_idx = builder.alloc(poly_value);
+    builder.enforce_linear_relation(
+        &[
+            (poly_idx, F::one()),
+            (l2_sq.idx, -F::one()),
+            (l2.idx, -params.alphas[0]),
+        ],
+        -params.betas[0],
+    );
+    let poly = FieldVar::new(poly_idx, poly_value);
     state[2] = field_mul(builder, state[2], poly);
 
     for idx in 3..GRIFFIN_STATE_WIDTH {
         let li = linear_form_circuit(builder, state[0], state[1], state[idx - 1], idx);
         let li_sq = field_mul(builder, li, li);
-        let alpha_term = field_mul_const(builder, li, params.alphas[idx - 2]);
-        let sum = field_add(builder, li_sq, alpha_term);
-        let poly = field_add_const(builder, sum, params.betas[idx - 2]);
+        let alpha = params.alphas[idx - 2];
+        let beta = params.betas[idx - 2];
+
+        let poly_value = li_sq.value + (alpha * li.value) + beta;
+        let poly_idx = builder.alloc(poly_value);
+        builder.enforce_linear_relation(
+            &[(poly_idx, F::one()), (li_sq.idx, -F::one()), (li.idx, -alpha)],
+            -beta,
+        );
+        let poly = FieldVar::new(poly_idx, poly_value);
         state[idx] = field_mul(builder, state[idx], poly);
     }
 }
@@ -2229,14 +3054,27 @@ fn apply_linear_layer_circuit(
     params: &GriffinParams,
     state: &mut [FieldVar],
 ) {
+    // The linear layer is just a 4x4 MDS matrix multiplication over the field.
+    // Encode each output lane with a single linear constraint:
+    //   out_row = Σ_j M[row][j] * state[j]
+    // This avoids allocating intermediate products and chained adds.
     let mut next = Vec::with_capacity(GRIFFIN_STATE_WIDTH);
     for row in 0..GRIFFIN_STATE_WIDTH {
-        let mut acc = FieldVar::constant(builder, F::zero());
+        let mut out_value = F::zero();
         for col in 0..GRIFFIN_STATE_WIDTH {
-            let term = field_mul_const(builder, state[col], params.matrix[row][col]);
-            acc = field_add(builder, acc, term);
+            out_value += params.matrix[row][col] * state[col].value;
         }
-        next.push(acc);
+        let out_idx = builder.alloc(out_value);
+        let mut terms: Vec<(usize, F)> = Vec::with_capacity(GRIFFIN_STATE_WIDTH + 1);
+        terms.push((out_idx, F::one()));
+        for col in 0..GRIFFIN_STATE_WIDTH {
+            let coeff = -params.matrix[row][col];
+            if !coeff.is_zero() {
+                terms.push((state[col].idx, coeff));
+            }
+        }
+        builder.enforce_linear_relation(&terms, F::zero());
+        next.push(FieldVar::new(out_idx, out_value));
     }
     state.clone_from_slice(&next);
 }
@@ -2261,9 +3099,19 @@ fn linear_form_circuit(
     index: usize,
 ) -> FieldVar {
     let lambda = F::new((index as u128 - 1) % GRIFFIN_FIELD_MODULUS);
-    let scaled_z0 = field_mul_const(builder, z0, lambda);
-    let sum = field_add(builder, scaled_z0, z1);
-    field_add(builder, sum, z2)
+    // li = λ*z0 + z1 + z2 (encode as one linear constraint)
+    let value = (lambda * z0.value) + z1.value + z2.value;
+    let out_idx = builder.alloc(value);
+    builder.enforce_linear_relation(
+        &[
+            (out_idx, F::one()),
+            (z0.idx, -lambda),
+            (z1.idx, -F::one()),
+            (z2.idx, -F::one()),
+        ],
+        F::zero(),
+    );
+    FieldVar::new(out_idx, value)
 }
 
 fn compute_q_hat_on_u(

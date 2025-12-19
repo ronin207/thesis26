@@ -113,6 +113,23 @@ impl R1csInstance {
         for (idx, c) in self.constraints.iter().enumerate() {
             let (az, bz, cz) = c.evaluate(&z)?;
             if az * bz != cz {
+                if std::env::var("R1CS_DEBUG_FAIL").is_ok() {
+                    eprintln!("\n[R1CS] first failing constraint #{idx}");
+                    eprintln!("  az={az:?}");
+                    eprintln!("  bz={bz:?}");
+                    eprintln!("  cz={cz:?}");
+
+                    let dump_row = |label: &str, row: &[(usize, F)]| {
+                        eprintln!("  row {label} (len={}):", row.len());
+                        for (var_idx, coeff) in row {
+                            let val = z.get(*var_idx).copied().unwrap_or(F::zero());
+                            eprintln!("    idx={var_idx:<6} coeff={coeff:?} val={val:?}");
+                        }
+                    };
+                    dump_row("a", &c.a);
+                    dump_row("b", &c.b);
+                    dump_row("c", &c.c);
+                }
                 return Err(LoquatError::invalid_parameters(&format!(
                     "constraint {} not satisfied: ({:?})*({:?}) != ({:?})",
                     idx, az, bz, cz

@@ -12,6 +12,8 @@ default = ["std"]
 std = []
 guest = []
 snark_harness = []
+euf_cma_harness = []
+libiop_multicore = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

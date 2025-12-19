@@ -9,7 +9,8 @@ use vc_pqc::{
     },
     snarks::{
         AuroraParams, AuroraProverOptions, R1csInstance, R1csWitness, aurora_prove_with_options,
-        aurora_verify, build_loquat_r1cs,
+        aurora_verify, build_loquat_r1cs, build_loquat_r1cs_pk_witness,
+        build_loquat_r1cs_pk_witness_instance,
     },
 };
 
@@ -109,5 +110,64 @@ fn tampered_witness_fails_aurora_verification() {
     assert!(
         verification.is_none(),
         "Aggregated proof with inconsistent witness must be rejected"
+    );
+}
+
+#[test]
+fn pk_witness_instance_matches_instance_only_digest() {
+    let params = loquat_setup(HARNESS_SECURITY_LEVEL).expect("Loquat setup should succeed");
+    let keypair = keygen_with_params(&params).expect("Key generation should succeed");
+    let message = b"pk-witness instance digest check".to_vec();
+    let signature = loquat_sign(&message, &keypair, &params).expect("Signature generation");
+
+    let (with_pk_instance, _with_pk_witness) = build_loquat_r1cs_pk_witness(
+        &message,
+        &signature,
+        &keypair.public_key,
+        &params,
+    )
+    .expect("pk-witness circuit should build");
+    let instance_only =
+        build_loquat_r1cs_pk_witness_instance(&message, &signature, &params).expect("instance-only build");
+
+    assert_eq!(
+        with_pk_instance.num_variables, instance_only.num_variables,
+        "instance-only builder must match prover instance variable count"
+    );
+    assert_eq!(
+        with_pk_instance.constraints.len(),
+        instance_only.constraints.len(),
+        "instance-only builder must match prover instance constraint count"
+    );
+    assert_eq!(
+        with_pk_instance.digest(),
+        instance_only.digest(),
+        "verifier instance digest must match prover instance digest"
+    );
+}
+
+#[test]
+fn pk_witness_instance_digest_is_independent_of_pk_values() {
+    let params = loquat_setup(HARNESS_SECURITY_LEVEL).expect("Loquat setup should succeed");
+    let keypair = keygen_with_params(&params).expect("Key generation should succeed");
+    let message = b"pk-witness digest independence".to_vec();
+    let signature = loquat_sign(&message, &keypair, &params).expect("Signature generation");
+
+    let (instance_a, _) = build_loquat_r1cs_pk_witness(&message, &signature, &keypair.public_key, &params)
+        .expect("pk-witness circuit build A");
+
+    // Flip one pk bit to ensure a different witness value, then rebuild the instance.
+    // The resulting *instance* must be identical: circuit structure must not depend on pk witness values.
+    let mut pk_b = keypair.public_key.clone();
+    if let Some(bit) = pk_b.get_mut(0) {
+        *bit = if bit.is_zero() { F::one() } else { F::zero() };
+    }
+    let (instance_b, _) = build_loquat_r1cs_pk_witness(&message, &signature, &pk_b, &params)
+        .expect("pk-witness circuit build B");
+
+    assert_eq!(
+        instance_a.digest(),
+        instance_b.digest(),
+        "pk-witness circuit structure must not depend on pk values"
     );
 }

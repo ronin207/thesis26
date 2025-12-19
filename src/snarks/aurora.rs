@@ -5,7 +5,7 @@ use crate::loquat::sumcheck::{
     UnivariateSumcheckProof, generate_sumcheck_proof, replay_sumcheck_challenges,
     verify_sumcheck_proof,
 };
-use crate::loquat::transcript::Transcript;
+use crate::loquat::transcript::{FieldTranscript, expand_index};
 use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 use bincode::Options;
 use serde::{Deserialize, Serialize};
@@ -119,10 +119,10 @@ pub fn aurora_prove_with_options(
     let (residual_tree, residual_root) = build_merkle_from_f2(&residual_evals)?;
     let (witness_tree, witness_root) = build_merkle_from_f(&assignment)?;
 
-    let mut transcript = Transcript::new(TRANSCRIPT_LABEL);
-    transcript.append_message(b"instance", &instance.digest());
-    transcript.append_message(b"witness_root", &witness_root);
-    transcript.append_message(b"residual_root", &residual_root);
+    let mut transcript = FieldTranscript::new(TRANSCRIPT_LABEL);
+    transcript.append_digest32_as_fields(b"instance", &instance.digest());
+    transcript.append_digest32_as_fields(b"witness_root", &witness_root);
+    transcript.append_digest32_as_fields(b"residual_root", &residual_root);
 
     let claimed_sum: F2 = residual_evals.iter().copied().sum();
     let sumcheck_proof =
@@ -191,10 +191,10 @@ pub fn aurora_verify(
         return Ok(None);
     }
 
-    let mut transcript = Transcript::new(TRANSCRIPT_LABEL);
-    transcript.append_message(b"instance", &instance.digest());
-    transcript.append_message(b"witness_root", &proof.witness_root);
-    transcript.append_message(b"residual_root", &proof.residual_root);
+    let mut transcript = FieldTranscript::new(TRANSCRIPT_LABEL);
+    transcript.append_digest32_as_fields(b"instance", &instance.digest());
+    transcript.append_digest32_as_fields(b"witness_root", &proof.witness_root);
+    transcript.append_digest32_as_fields(b"residual_root", &proof.residual_root);
 
     let mut replay_transcript = transcript.clone();
     let challenges = replay_sumcheck_challenges(
@@ -456,7 +456,7 @@ fn evaluate_multilinear(evals: &[F2], challenges: &[F2]) -> LoquatResult<F2> {
 }
 
 fn sample_indices(
-    transcript: &mut Transcript,
+    transcript: &mut FieldTranscript,
     label: &[u8],
     count: usize,
     upper_bound: usize,
@@ -464,25 +464,8 @@ fn sample_indices(
     if count == 0 || upper_bound == 0 {
         return Ok(Vec::new());
     }
-    let mut seed = [0u8; 32];
-    transcript.challenge_bytes(label, &mut seed);
-    let mut indices = Vec::with_capacity(count);
-    let mut counter = 0u64;
-    while indices.len() < count {
-        let mut hasher = Sha256::new();
-        hasher.update(&seed);
-        hasher.update(counter.to_le_bytes());
-        let digest = hasher.finalize();
-        for chunk in digest.chunks_exact(8) {
-            if indices.len() == count {
-                break;
-            }
-            let value = u64::from_le_bytes(chunk.try_into().unwrap());
-            indices.push((value as usize) % upper_bound);
-        }
-        counter = counter.wrapping_add(1);
-    }
-    Ok(indices)
+    let seed = transcript.challenge_seed(label);
+    Ok(expand_index(seed, count, label, upper_bound))
 }
 
 fn ceil_log2(value: usize) -> usize {
