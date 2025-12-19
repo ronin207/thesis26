@@ -81,9 +81,13 @@ pub mod snarks;
 // Re-export commonly used types for convenience
 #[cfg(feature = "std")]
 pub use bdec::{
-    BdecCredential, BdecCredentialProof, BdecPseudonymKey, BdecPublicParams, BdecRevocationList,
-    BdecShownCredential, BdecSystem, bdec_issue_credential, bdec_nym_key, bdec_prigen, bdec_revoke,
-    bdec_setup, bdec_show_credential, bdec_verify_credential, bdec_verify_shown_credential,
+    BdecCredential, BdecCredentialProof, BdecLinkProof, BdecPseudonymKey, BdecPublicParams,
+    BdecRevocationAccumulator, BdecRevocationProof, BdecShownCredentialPaper, BdecSystem,
+    BdecAttributeMerkleProof, BdecAttributeCommitmentType,
+    bdec_issue_credential, bdec_link_pseudonyms, bdec_nym_key, bdec_prigen, bdec_revoke, bdec_setup,
+    bdec_setup_zk, bdec_issue_credential_merkle_attrs, bdec_attribute_merkle_proof,
+    bdec_show_credential_paper, bdec_show_credential_paper_merkle,
+    bdec_verify_credential, bdec_verify_link_proof, bdec_verify_shown_credential_paper,
 };
 #[cfg(feature = "std")]
 pub use loquat::keygen::{LoquatKeyPair, keygen_with_params};
