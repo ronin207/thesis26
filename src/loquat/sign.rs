@@ -11,7 +11,8 @@ use super::hasher::{GriffinHasher, LoquatHasher};
 use super::ldt::LDTOpening;
 use super::ldt::LDTProof;
 use super::sumcheck::UnivariateSumcheckProof;
-use super::transcript::Transcript;
+#[cfg(feature = "std")]
+use super::transcript::{FieldTranscript, expand_f, expand_f2_real, expand_index};
 #[cfg(feature = "std")]
 use super::{
     fft::{evaluate_on_coset, interpolate_on_coset},
@@ -29,27 +30,6 @@ use std::vec::Vec;
 #[cfg(feature = "std")]
 use std::{cmp, string::ToString};
 
-#[cfg(feature = "std")]
-fn expand_challenge<T>(
-    seed: &[u8],
-    count: usize,
-    domain_separator: &[u8],
-    parser: &mut dyn FnMut(&[u8]) -> T,
-) -> Vec<T> {
-    let mut results = Vec::with_capacity(count);
-    let mut counter: u32 = 0;
-    while results.len() < count {
-        let mut hasher = GriffinHasher::new();
-        hasher.update(seed);
-        hasher.update(domain_separator);
-        hasher.update(&counter.to_le_bytes());
-        let hash_output = hasher.finalize();
-        results.push(parser(&hash_output));
-        counter += 1;
-    }
-    results
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoquatSignature {
     /// The root of the Merkle tree of LDT commitments.
@@ -58,36 +38,22 @@ pub struct LoquatSignature {
     pub root_s: [u8; 32],
     /// Merkle root for h evaluations.
     pub root_h: [u8; 32],
-    /// Merkle auth paths for s(u) at queried positions (tree-cap arity = 2^eta).
-    pub s_auth_paths: Vec<Vec<Vec<u8>>>,
-    /// Merkle auth paths for h(u) at queried positions (tree-cap arity = 2^eta).
-    pub h_auth_paths: Vec<Vec<Vec<u8>>>,
-    /// Merkle auth paths for c'(u) at queried positions (tree-cap arity = 2^eta).
-    pub c_auth_paths: Vec<Vec<Vec<u8>>>,
+    /// Tree-cap layer nodes (paper §4.3) for the c' Merkle commitment.
+    /// When non-empty, Merkle proofs are truncated to this layer and the root is
+    /// computed by hashing these nodes together.
+    pub c_cap_nodes: Vec<[u8; 32]>,
+    /// Tree-cap layer nodes (paper §4.3) for the ŝ Merkle commitment.
+    pub s_cap_nodes: Vec<[u8; 32]>,
+    /// Tree-cap layer nodes (paper §4.3) for the ĥ Merkle commitment.
+    pub h_cap_nodes: Vec<[u8; 32]>,
+    /// Openings for c′/ŝ/ĥ at the LDT query positions (paper §4.3).
+    pub query_openings: Vec<LoquatQueryOpening>,
     /// The values of the t polynomial at the query points.
     pub t_values: Vec<Vec<F>>,
     /// The values of the o polynomial at the query points.
     pub o_values: Vec<Vec<F>>,
-    /// Masked evaluations ĉ'_j over U for each j.
-    pub c_prime_evals: Vec<Vec<F2>>,
-    /// Evaluations of ŝ over U.
-    pub s_evals: Vec<F2>,
-    /// Evaluations of ĥ over U.
-    pub h_evals: Vec<F2>,
-    /// Evaluations of f′ over U.
-    pub f_prime_evals: Vec<F2>,
-    /// Evaluations of p̂ over U.
-    pub p_evals: Vec<F2>,
-    /// Stacked matrix rows Π (Π0 followed by Π1).
-    pub pi_rows: Vec<Vec<F2>>,
-    /// Evaluations of f^{(0)} over U.
-    pub f0_evals: Vec<F2>,
     /// FRI folding challenges h_{5+i}.
     pub fri_challenges: Vec<F2>,
-    /// FRI layer codewords f^{(i)} evaluations.
-    pub fri_codewords: Vec<Vec<F2>>,
-    /// FRI layer row evaluations Π^{(i)}.
-    pub fri_rows: Vec<Vec<Vec<F2>>>,
     /// Challenge vector e used in Algorithm 5.
     pub e_vector: Vec<F2>,
     /// Sum Σ_{a∈H} ŝ(a).
@@ -116,21 +82,13 @@ impl LoquatSignature {
             root_c: artifact.root_c,
             root_s: artifact.root_s,
             root_h: artifact.root_h,
-            s_auth_paths: artifact.s_auth_paths,
-            h_auth_paths: artifact.h_auth_paths,
-            c_auth_paths: artifact.c_auth_paths,
+            c_cap_nodes: artifact.c_cap_nodes,
+            s_cap_nodes: artifact.s_cap_nodes,
+            h_cap_nodes: artifact.h_cap_nodes,
+            query_openings: artifact.query_openings,
             t_values: artifact.t_values,
             o_values: artifact.o_values,
-            c_prime_evals: artifact.c_prime_evals,
-            s_evals: artifact.s_evals,
-            h_evals: artifact.h_evals,
-            f_prime_evals: artifact.f_prime_evals,
-            p_evals: artifact.p_evals,
-            pi_rows: artifact.pi_rows,
-            f0_evals: artifact.f0_evals,
             fri_challenges: artifact.fri_challenges,
-            fri_codewords: artifact.fri_codewords,
-            fri_rows: artifact.fri_rows,
             e_vector: artifact.e_vector,
             s_sum: artifact.s_sum,
             mu: artifact.mu,
@@ -157,18 +115,18 @@ pub fn flatten_signature_for_hash(signature: &LoquatSignature) -> Vec<u8> {
     bytes.extend_from_slice(&signature.root_c);
     bytes.extend_from_slice(&signature.root_s);
     bytes.extend_from_slice(&signature.root_h);
+    for node in &signature.c_cap_nodes {
+        bytes.extend_from_slice(node);
+    }
+    for node in &signature.s_cap_nodes {
+        bytes.extend_from_slice(node);
+    }
+    for node in &signature.h_cap_nodes {
+        bytes.extend_from_slice(node);
+    }
     flatten_field_matrix(&signature.t_values, &mut bytes);
     flatten_field_matrix(&signature.o_values, &mut bytes);
-    flatten_field2_matrix(&signature.c_prime_evals, &mut bytes);
-    flatten_field2_vector(&signature.s_evals, &mut bytes);
-    flatten_field2_vector(&signature.h_evals, &mut bytes);
-    flatten_field2_vector(&signature.f_prime_evals, &mut bytes);
-    flatten_field2_vector(&signature.p_evals, &mut bytes);
-    flatten_field2_matrix(&signature.pi_rows, &mut bytes);
-    flatten_field2_vector(&signature.f0_evals, &mut bytes);
     flatten_field2_vector(&signature.fri_challenges, &mut bytes);
-    flatten_nested_field2(&signature.fri_codewords, &mut bytes);
-    flatten_two_nested_field2(&signature.fri_rows, &mut bytes);
     flatten_field2_vector(&signature.e_vector, &mut bytes);
     bytes.extend_from_slice(&field_utils::field2_to_bytes(&signature.s_sum));
     bytes.extend_from_slice(&field_utils::field2_to_bytes(&signature.mu));
@@ -184,11 +142,33 @@ pub fn flatten_signature_for_hash(signature: &LoquatSignature) -> Vec<u8> {
     for opening in &signature.ldt_proof.openings {
         bytes.extend_from_slice(&(opening.position as u64).to_le_bytes());
         flatten_nested_field2(&opening.codeword_chunks, &mut bytes);
-        bytes.extend_from_slice(&field_utils::field2_to_bytes(&opening.final_eval));
-        flatten_two_nested_field2(&opening.row_chunks, &mut bytes);
-        flatten_byte_paths(&opening.auth_path, &mut bytes);
+        for path in &opening.auth_paths {
+            flatten_byte_paths(path, &mut bytes);
+        }
+    }
+    for opening in &signature.query_openings {
+        bytes.extend_from_slice(&(opening.position as u64).to_le_bytes());
+        for col in &opening.c_prime_chunk {
+            flatten_field2_vector(col, &mut bytes);
+        }
+        flatten_field2_vector(&opening.s_chunk, &mut bytes);
+        flatten_field2_vector(&opening.h_chunk, &mut bytes);
+        flatten_byte_paths(&opening.c_auth_path, &mut bytes);
+        flatten_byte_paths(&opening.s_auth_path, &mut bytes);
+        flatten_byte_paths(&opening.h_auth_path, &mut bytes);
     }
     bytes
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoquatQueryOpening {
+    pub position: usize,
+    pub c_prime_chunk: Vec<Vec<F2>>,
+    pub s_chunk: Vec<F2>,
+    pub h_chunk: Vec<F2>,
+    pub c_auth_path: Vec<Vec<u8>>,
+    pub s_auth_path: Vec<Vec<u8>>,
+    pub h_auth_path: Vec<Vec<u8>>,
 }
 
 #[cfg(feature = "std")]
@@ -240,21 +220,13 @@ pub struct LoquatSignatureArtifact {
     pub root_c: [u8; 32],
     pub root_s: [u8; 32],
     pub root_h: [u8; 32],
-    pub c_auth_paths: Vec<Vec<Vec<u8>>>,
-    pub s_auth_paths: Vec<Vec<Vec<u8>>>,
-    pub h_auth_paths: Vec<Vec<Vec<u8>>>,
+    pub c_cap_nodes: Vec<[u8; 32]>,
+    pub s_cap_nodes: Vec<[u8; 32]>,
+    pub h_cap_nodes: Vec<[u8; 32]>,
+    pub query_openings: Vec<LoquatQueryOpening>,
     pub t_values: Vec<Vec<F>>,
     pub o_values: Vec<Vec<F>>,
-    pub c_prime_evals: Vec<Vec<F2>>,
-    pub s_evals: Vec<F2>,
-    pub h_evals: Vec<F2>,
-    pub f_prime_evals: Vec<F2>,
-    pub p_evals: Vec<F2>,
-    pub pi_rows: Vec<Vec<F2>>,
-    pub f0_evals: Vec<F2>,
     pub fri_challenges: Vec<F2>,
-    pub fri_codewords: Vec<Vec<F2>>,
-    pub fri_rows: Vec<Vec<Vec<F2>>>,
     pub e_vector: Vec<F2>,
     pub s_sum: F2,
     pub mu: F2,
@@ -278,21 +250,13 @@ impl From<&LoquatSignature> for LoquatSignatureArtifact {
             root_c: sig.root_c,
             root_s: sig.root_s,
             root_h: sig.root_h,
-            c_auth_paths: sig.c_auth_paths.clone(),
-            s_auth_paths: sig.s_auth_paths.clone(),
-            h_auth_paths: sig.h_auth_paths.clone(),
+            c_cap_nodes: sig.c_cap_nodes.clone(),
+            s_cap_nodes: sig.s_cap_nodes.clone(),
+            h_cap_nodes: sig.h_cap_nodes.clone(),
+            query_openings: sig.query_openings.clone(),
             t_values: sig.t_values.clone(),
             o_values: sig.o_values.clone(),
-            c_prime_evals: sig.c_prime_evals.clone(),
-            s_evals: sig.s_evals.clone(),
-            h_evals: sig.h_evals.clone(),
-            f_prime_evals: sig.f_prime_evals.clone(),
-            p_evals: sig.p_evals.clone(),
-            pi_rows: sig.pi_rows.clone(),
-            f0_evals: sig.f0_evals.clone(),
             fri_challenges: sig.fri_challenges.clone(),
-            fri_codewords: sig.fri_codewords.clone(),
-            fri_rows: sig.fri_rows.clone(),
             e_vector: sig.e_vector.clone(),
             s_sum: sig.s_sum,
             mu: sig.mu,
@@ -327,12 +291,13 @@ pub fn loquat_sign(
         params.kappa
     );
 
-    let mut transcript = Transcript::new(b"loquat_signature");
-    transcript.append_message(b"message", message);
+    let mut transcript = FieldTranscript::new(b"loquat_signature");
 
     // Use Griffin hash for message commitment (SNARK-friendly)
     let message_commitment = GriffinHasher::hash(message);
-    transcript.append_message(b"message_commitment", &message_commitment);
+    let mut message_commitment_arr = [0u8; 32];
+    message_commitment_arr.copy_from_slice(&message_commitment);
+    transcript.append_digest32_as_fields(b"message_commitment", &message_commitment_arr);
     loquat_debug!(
         "✓ Message commitment computed: {} bytes",
         message_commitment.len()
@@ -340,7 +305,17 @@ pub fn loquat_sign(
 
     // Use TreeCap to halve Merkle leaf count as in paper §4.3.
     let merkle_leaf_arity = 1usize << params.eta;
-    let merkle_config = MerkleConfig::tree_cap(merkle_leaf_arity);
+    // Layer-t cap (paper §4.3): truncate auth paths at depth t≈log2(κ) and hash
+    // those cap nodes together to form the root.
+    let leaf_count = (params.coset_u.len() / merkle_leaf_arity.max(1)).max(1);
+    let tree_height = if leaf_count.is_power_of_two() {
+        leaf_count.trailing_zeros() as usize
+    } else {
+        0
+    };
+    let cap_height = (usize::BITS - 1 - params.kappa.max(1).leading_zeros()) as usize;
+    let cap_height = cap_height.min(tree_height);
+    let merkle_config = MerkleConfig::tree_cap(merkle_leaf_arity).with_cap_height(cap_height);
 
     loquat_debug!("\n================== ALGORITHM 4: LOQUAT SIGN PART I ==================");
 
@@ -433,7 +408,7 @@ pub fn loquat_sign(
         .unwrap()
         .try_into()
         .expect("root is not 32 bytes");
-    transcript.append_message(b"root_c", &root_c);
+    transcript.append_digest32_as_fields(b"root_c", &root_c);
     loquat_debug!(
         "✓ Merkle tree created with {} leaves for |U| = {}",
         leaves.len(),
@@ -441,22 +416,22 @@ pub fn loquat_sign(
     );
     loquat_debug!("✓ root_c committed to transcript");
 
-    let t_bytes = encoding::serialize_field_matrix(&t_values);
-    transcript.append_message(b"t_values", &t_bytes);
+    let mut t_flat = Vec::with_capacity(params.m * params.n);
+    for row in &t_values {
+        t_flat.extend_from_slice(row);
+    }
+    transcript.append_f_vec(b"t_values", &t_flat);
     loquat_debug!("✓ σ₁ = (root_c, {{T_{{i,j}}}}) added to transcript");
 
     // Phase 2: Compute residuosity symbols
     loquat_debug!("\n--- PHASE 2: Compute residuosity symbols ---");
     loquat_debug!("Following Algorithm 4, Phase 2 specification");
 
-    let mut h1_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h1", &mut h1_bytes);
+    let h1_seed = transcript.challenge_seed(b"h1");
     loquat_debug!("✓ h₁ = H₁(σ₁, M) computed");
 
     let num_checks = params.m * params.n;
-    let i_indices = expand_challenge(&h1_bytes, num_checks, b"I_indices", &mut |b| {
-        (u64::from_le_bytes(b[0..8].try_into().unwrap()) as usize) % params.l
-    });
+    let i_indices = expand_index(h1_seed, num_checks, b"I_indices", params.l);
     loquat_debug!(
         "✓ Expanded h₁ to get I_{{i,j}} indices: {} total",
         i_indices.len()
@@ -473,24 +448,22 @@ pub fn loquat_sign(
         }
         o_values.push(o_j);
     }
-    let o_bytes = encoding::serialize_field_matrix(&o_values);
-    transcript.append_message(b"o_values", &o_bytes);
+    let mut o_flat = Vec::with_capacity(params.m * params.n);
+    for row in &o_values {
+        o_flat.extend_from_slice(row);
+    }
+    transcript.append_f_vec(b"o_values", &o_flat);
     loquat_debug!("✓ σ₂ = {{o_{{i,j}}}} added to transcript");
 
     // Phase 3: Compute witness vector for univariate sumcheck
     loquat_debug!("\n--- PHASE 3: Compute witness vector for univariate sumcheck ---");
     loquat_debug!("Following Algorithm 4, Phase 3 specification");
 
-    let mut h2_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h2", &mut h2_bytes);
+    let h2_seed = transcript.challenge_seed(b"h2");
     loquat_debug!("✓ h₂ = H₂(σ₂, h₁) computed");
 
-    let lambda_scalars = expand_challenge(&h2_bytes, num_checks, b"lambdas", &mut |b| {
-        field_utils::bytes_to_field_element(b)
-    });
-    let epsilon_vals = expand_challenge(&h2_bytes, params.n, b"e_j", &mut |b| {
-        F2::new(field_utils::bytes_to_field_element(b), F::zero())
-    });
+    let lambda_scalars = expand_f(h2_seed, num_checks, b"lambdas");
+    let epsilon_vals = expand_f2_real(h2_seed, params.n, b"e_j");
     loquat_debug!("✓ Expanded h₂ to get λ_{{i,j}} and ε_j values");
 
     loquat_debug!("\n--- Step 3.3: Building witness polynomial data ---");
@@ -598,14 +571,11 @@ pub fn loquat_sign(
                 operation: "s_commitment".to_string(),
                 details: format!("Merkle root has length {} but expected 32", v.len()),
             })?;
-    transcript.append_message(b"root_s", &root_s);
-    let s_sum_bytes = field_utils::field2_to_bytes(&s_sum);
-    transcript.append_message(b"s_sum", &s_sum_bytes);
+    transcript.append_digest32_as_fields(b"root_s", &root_s);
+    transcript.append_f2(b"s_sum", s_sum);
     loquat_debug!("✓ σ₃ = (root_s, S) added to transcript");
 
-    let mut h3_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h3", &mut h3_bytes);
-    let z_scalar = field_utils::bytes_to_field_element(&h3_bytes);
+    let z_scalar = transcript.challenge_f(b"h3");
     let z = F2::new(z_scalar, F::zero());
     loquat_debug!("✓ h₃ = H₃(σ₃, h₂) computed");
 
@@ -648,14 +618,11 @@ pub fn loquat_sign(
                 operation: "h_commitment".to_string(),
                 details: format!("Merkle root has length {} but expected 32", v.len()),
             })?;
-    transcript.append_message(b"root_h", &root_h);
+    transcript.append_digest32_as_fields(b"root_h", &root_h);
     loquat_debug!("✓ σ₄ = (root_h) added to transcript");
 
-    let mut h4_bytes = [0u8; 32];
-    transcript.challenge_bytes(b"h4", &mut h4_bytes);
-    let e_vector = expand_challenge(&h4_bytes, 8, b"e_vector", &mut |b| {
-        F2::new(field_utils::bytes_to_field_element(b), F::zero())
-    });
+    let h4_seed = transcript.challenge_seed(b"h4");
+    let e_vector = expand_f2_real(h4_seed, 8, b"e_vector");
     loquat_debug!("✓ h₄ = H₄(σ₄, h₃) computed");
 
     let h_size_scalar = F2::new(F::new(params.coset_h.len() as u128), F::zero());
@@ -719,24 +686,50 @@ pub fn loquat_sign(
         "✓ LDT codeword length: {} (evaluations of f^(0) over U)",
         ldt_codeword.len()
     );
-    let (ldt_proof, fri_challenges, fri_codewords, fri_rows) = ldt_protocol(
-        &pi_rows,
+    let (ldt_proof, fri_challenges) = ldt_protocol(
         &ldt_codeword,
         params,
         merkle_config,
         &mut transcript,
     )?;
 
-    // Collect auth paths for c', s, h at queried positions (aligned with LDT queries)
+    let c_cap_nodes = merkle_tree.cap_nodes().to_vec();
+    let s_cap_nodes = s_merkle.cap_nodes().to_vec();
+    let h_cap_nodes = h_merkle.cap_nodes().to_vec();
+
+    // Collect openings for c′/ŝ/ĥ aligned with LDT query positions.
     let leaf_arity = merkle_config.leaf_arity();
-    let mut c_auth_paths = Vec::with_capacity(params.kappa);
-    let mut s_auth_paths = Vec::with_capacity(params.kappa);
-    let mut h_auth_paths = Vec::with_capacity(params.kappa);
+    let mut query_openings = Vec::with_capacity(params.kappa);
     for opening in &ldt_proof.openings {
         let chunk_index = opening.position / leaf_arity;
-        c_auth_paths.push(merkle_tree.generate_auth_path(chunk_index));
-        s_auth_paths.push(s_merkle.generate_auth_path(chunk_index));
-        h_auth_paths.push(h_merkle.generate_auth_path(chunk_index));
+        let chunk_start = chunk_index * leaf_arity;
+        let chunk_end = (chunk_start + leaf_arity).min(params.coset_u.len());
+
+        let mut c_prime_chunk = Vec::with_capacity(chunk_end - chunk_start);
+        for col in chunk_start..chunk_end {
+            let mut per_j = Vec::with_capacity(params.n);
+            for j in 0..params.n {
+                per_j.push(c_prime_on_u_per_j[j][col]);
+            }
+            c_prime_chunk.push(per_j);
+        }
+
+        let s_chunk = s_on_u[chunk_start..chunk_end].to_vec();
+        let h_chunk = h_on_u[chunk_start..chunk_end].to_vec();
+
+        let c_auth_path = merkle_tree.generate_auth_path(chunk_index);
+        let s_auth_path = s_merkle.generate_auth_path(chunk_index);
+        let h_auth_path = h_merkle.generate_auth_path(chunk_index);
+
+        query_openings.push(LoquatQueryOpening {
+            position: opening.position,
+            c_prime_chunk,
+            s_chunk,
+            h_chunk,
+            c_auth_path,
+            s_auth_path,
+            h_auth_path,
+        });
     }
 
     loquat_debug!("\n--- FINAL SIGNATURE ASSEMBLY ---");
@@ -745,21 +738,13 @@ pub fn loquat_sign(
         root_c,
         root_s,
         root_h,
-        c_auth_paths,
-        s_auth_paths,
-        h_auth_paths,
+        c_cap_nodes,
+        s_cap_nodes,
+        h_cap_nodes,
+        query_openings,
         t_values,
         o_values,
-        c_prime_evals: c_prime_on_u_per_j,
-        s_evals: s_on_u,
-        h_evals: h_on_u,
-        f_prime_evals: f_prime_on_u,
-        p_evals: p_on_u,
-        pi_rows,
-        f0_evals: f0_on_u,
         fri_challenges,
-        fri_codewords,
-        fri_rows,
         e_vector,
         s_sum,
         mu,
@@ -782,22 +767,20 @@ pub fn loquat_sign(
 
 #[cfg(feature = "std")]
 fn ldt_protocol(
-    pi_rows: &[Vec<F2>],
     codeword: &[F2],
     params: &LoquatPublicParams,
     merkle_config: MerkleConfig,
-    transcript: &mut Transcript,
-) -> LoquatResult<(LDTProof, Vec<F2>, Vec<Vec<F2>>, Vec<Vec<Vec<F2>>>)> {
+    transcript: &mut FieldTranscript,
+) -> LoquatResult<(LDTProof, Vec<F2>)> {
     let chunk_size = 1 << params.eta;
 
     let mut layer_codewords = Vec::with_capacity(params.r + 1);
     layer_codewords.push(codeword.to_vec());
-    let mut layer_rows = Vec::with_capacity(params.r + 1);
-    layer_rows.push(pi_rows.to_vec());
     let mut folding_challenges = Vec::with_capacity(params.r);
 
     let mut merkle_trees = Vec::with_capacity(params.r + 1);
     let mut merkle_commitments = Vec::with_capacity(params.r + 1);
+    let mut cap_nodes = Vec::with_capacity(params.r + 1);
 
     let initial_leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(codeword);
     let initial_merkle_tree = MerkleTree::new_with_config(&initial_leaves, merkle_config);
@@ -817,11 +800,11 @@ fn ldt_protocol(
             })?;
 
     merkle_commitments.push(initial_commitment);
-    transcript.append_message(b"merkle_commitment", &initial_commitment);
+    transcript.append_digest32_as_fields(b"merkle_commitment", &initial_commitment);
+    cap_nodes.push(initial_merkle_tree.cap_nodes().to_vec());
     merkle_trees.push(initial_merkle_tree);
 
     let mut current_codeword = codeword.to_vec();
-    let mut current_rows = pi_rows.to_vec();
 
     for _round in 0..params.r {
         let challenge = transcript_challenge_f2(transcript);
@@ -839,23 +822,6 @@ fn ldt_protocol(
             next_codeword.push(acc);
         }
         layer_codewords.push(next_codeword.clone());
-
-        let mut next_rows = Vec::with_capacity(current_rows.len());
-        for row in current_rows.iter() {
-            let mut folded_row = Vec::with_capacity((row.len() + chunk_size - 1) / chunk_size);
-            for chunk in row.chunks(chunk_size) {
-                let mut coeff = F2::one();
-                let mut acc = F2::zero();
-                for &val in chunk {
-                    acc += val * coeff;
-                    coeff *= challenge;
-                }
-                folded_row.push(acc);
-            }
-            next_rows.push(folded_row);
-        }
-        layer_rows.push(next_rows.clone());
-        current_rows = next_rows;
         current_codeword = next_codeword;
 
         let leaves: Vec<Vec<u8>> = encoding::serialize_field2_leaves(&current_codeword);
@@ -873,7 +839,8 @@ fn ldt_protocol(
                 })?;
 
         merkle_commitments.push(commitment);
-        transcript.append_message(b"merkle_commitment", &commitment);
+        transcript.append_digest32_as_fields(b"merkle_commitment", &commitment);
+        cap_nodes.push(merkle_tree.cap_nodes().to_vec());
         merkle_trees.push(merkle_tree);
     }
 
@@ -883,10 +850,10 @@ fn ldt_protocol(
         let position = challenge.c0.0 as usize % layer_codewords[0].len();
         let mut fold_index = position;
 
-        let mut codeword_chunks = Vec::with_capacity(params.r);
-        let mut row_chunks = Vec::with_capacity(params.r);
+        let mut codeword_chunks = Vec::with_capacity(params.r + 1);
+        let mut auth_paths = Vec::with_capacity(params.r + 1);
 
-        for round in 0..params.r {
+        for round in 0..=params.r {
             let layer_len = layer_codewords[round].len();
             let chunk_len = chunk_size.min(layer_len);
             let chunk_start = if layer_len > chunk_size {
@@ -897,46 +864,34 @@ fn ldt_protocol(
             let chunk_end = (chunk_start + chunk_len).min(layer_len);
             codeword_chunks.push(layer_codewords[round][chunk_start..chunk_end].to_vec());
 
-            let mut rows_for_layer = Vec::with_capacity(layer_rows[round].len());
-            for row in layer_rows[round].iter() {
-                rows_for_layer.push(row[chunk_start..chunk_end].to_vec());
-            }
-            row_chunks.push(rows_for_layer);
-
-            if layer_len > chunk_size {
-                fold_index /= chunk_size;
+            let leaf_index = if layer_len > chunk_size {
+                fold_index / chunk_size
             } else {
-                fold_index = 0;
+                0
+            };
+            auth_paths.push(merkle_trees[round].generate_auth_path(leaf_index));
+
+            if round < params.r {
+                fold_index /= chunk_size;
             }
         }
-
-        let final_eval = layer_codewords.last().unwrap()[fold_index];
-        let auth_path = merkle_trees
-            .last()
-            .unwrap()
-            .generate_auth_path(fold_index / merkle_config.leaf_arity());
 
         openings.push(LDTOpening {
             position,
             codeword_chunks,
-            final_eval,
-            row_chunks,
-            auth_path,
+            auth_paths,
         });
     }
 
     let proof = LDTProof {
         commitments: merkle_commitments,
+        cap_nodes,
         openings,
     };
 
-    Ok((proof, folding_challenges, layer_codewords, layer_rows))
+    Ok((proof, folding_challenges))
 }
 
-pub fn transcript_challenge_f2(transcript: &mut Transcript) -> F2 {
-    let mut buf = [0u8; 32];
-    transcript.challenge_bytes(b"challenge", &mut buf);
-    let c0 = F::new(u128::from_le_bytes(buf[..16].try_into().unwrap()));
-    let c1 = F::new(u128::from_le_bytes(buf[16..].try_into().unwrap()));
-    F2::new(c0, c1)
+pub fn transcript_challenge_f2(transcript: &mut FieldTranscript) -> F2 {
+    transcript.challenge_f2(b"challenge")
 }

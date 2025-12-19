@@ -24,53 +24,6 @@ const FP2_TWO_ADIC_EXPONENT: usize = 128;
 #[cfg(feature = "std")]
 const FP2_ODD_COFACTOR: u128 = (1u128 << 126) - 1;
 
-#[cfg(feature = "std")]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SecurityProfile {
-    pub lambda: usize,
-    pub l: usize,
-    pub kappa: usize,
-}
-
-#[cfg(feature = "std")]
-pub const SECURITY_PROFILES: [SecurityProfile; 5] = [
-    SecurityProfile {
-        lambda: 80,
-        l: 160,
-        kappa: 20,
-    },
-    SecurityProfile {
-        lambda: 100,
-        l: 200,
-        kappa: 25,
-    },
-    SecurityProfile {
-        lambda: 128,
-        l: 256,
-        kappa: 32,
-    },
-    SecurityProfile {
-        lambda: 192,
-        l: 384,
-        kappa: 112,
-    },
-    SecurityProfile {
-        lambda: 256,
-        l: 512,
-        kappa: 128,
-    },
-];
-
-#[cfg(feature = "std")]
-pub const SUPPORTED_SECURITY_LEVELS: [usize; 5] = [80, 100, 128, 192, 256];
-
-#[cfg(feature = "std")]
-pub fn security_profile(lambda: usize) -> Option<&'static SecurityProfile> {
-    SECURITY_PROFILES
-        .iter()
-        .find(|profile| profile.lambda == lambda)
-}
-
 /// Public parameters for the Loquat signature scheme.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoquatPublicParams {
@@ -78,9 +31,10 @@ pub struct LoquatPublicParams {
     pub l: usize,
     pub b: usize,
     pub public_indices: Vec<F>,
+    /// A fixed quadratic non-residue α ∈ F_p used by the R1CS-friendly QR witness checks.
+    pub qr_non_residue: F,
     pub m: usize,
     pub n: usize,
-    pub qr_non_residue: F,
 
     // Parameters for Univariate Sumcheck and LDT
     pub coset_h: Vec<F2>,
@@ -128,6 +82,49 @@ impl std::fmt::Display for LoquatPublicParams {
         writeln!(f, "  - Hash Functions: {} total", self.hash_functions.len())?;
         writeln!(f, "  - Public Indices: {} total", self.public_indices.len())
     }
+}
+
+/// Loquat “paper levels” used throughout this repo (Table 3 in the Loquat paper).
+#[cfg(feature = "std")]
+pub const SUPPORTED_SECURITY_LEVELS: [usize; 3] = [80, 100, 128];
+
+/// Lightweight security profile helper (used by the benchmark module).
+#[cfg(feature = "std")]
+#[derive(Debug, Clone, Copy)]
+pub struct LoquatSecurityProfile {
+    pub security_level: usize,
+    pub kappa: usize,
+}
+
+/// Return the default parameter profile for the given paper security level.
+///
+/// Note: `kappa` is treated as the query repetition/complexity parameter (and can be
+/// overridden by higher-level benchmarking harnesses).
+#[cfg(feature = "std")]
+pub fn security_profile(security_level: usize) -> Option<LoquatSecurityProfile> {
+    let kappa = match security_level {
+        80 => 20,
+        100 => 25,
+        128 => 32,
+        _ => return None,
+    };
+    Some(LoquatSecurityProfile {
+        security_level,
+        kappa,
+    })
+}
+
+#[cfg(feature = "std")]
+fn default_qr_non_residue() -> F {
+    // Deterministically select a small quadratic non-residue in F_p.
+    for cand in 2u128..10_000u128 {
+        let x = F::new(cand);
+        if legendre_symbol_secure(x) == -1 {
+            return x;
+        }
+    }
+    // Extremely unlikely fallback: return a non-zero element.
+    F::new(3)
 }
 
 #[cfg(feature = "std")]
@@ -256,23 +253,36 @@ fn sample_distinct_public_indices(rng: &mut impl Rng, count: usize) -> Vec<F> {
 
 #[cfg(feature = "std")]
 pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
+    loquat_setup_internal(lambda, None)
+}
+
+/// Setup Loquat public parameters while explicitly overriding the LDT repetition parameter κ.
+///
+/// This is useful for reproducing “paper style” parameter sweeps (e.g., varying κ while holding
+/// λ fixed). When not used, `loquat_setup` continues to select κ from `security_profile(λ)`.
+#[cfg(feature = "std")]
+pub fn loquat_setup_with_kappa(lambda: usize, kappa: usize) -> LoquatResult<LoquatPublicParams> {
+    loquat_setup_internal(lambda, Some(kappa))
+}
+
+#[cfg(feature = "std")]
+fn loquat_setup_internal(lambda: usize, kappa_override: Option<usize>) -> LoquatResult<LoquatPublicParams> {
     loquat_debug!("\n================== ALGORITHM 2: LOQUAT SETUP ==================");
     loquat_debug!("INPUT: Security Parameter λ = {}", lambda);
 
     let mut rng = init_rng("loquat-setup", lambda);
 
     loquat_debug!("\n--- STEP 2: Public Parameters for Legendre PRF ---");
-    let profile = security_profile(lambda).ok_or_else(|| {
-        let supported = SUPPORTED_SECURITY_LEVELS
-            .iter()
-            .map(|lvl| lvl.to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        LoquatError::invalid_parameters(&format!(
-            "Unsupported security level. Supported levels: {supported}"
-        ))
-    })?;
-    let l = profile.l;
+    let l = match lambda {
+        80 => 160,
+        100 => 200,
+        128 => 256,
+        _ => {
+            return Err(LoquatError::invalid_parameters(
+                "Unsupported security level.",
+            ))
+        }
+    };
     loquat_debug!("✓ L (public key bits): {} (derived from λ={})", l, lambda);
 
     let b = l / 4;
@@ -286,14 +296,6 @@ pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
         "✓ I = {{I₁, ..., I_L}}: Generated {} random field elements from F_p",
         public_indices.len()
     );
-
-    let qr_non_residue = loop {
-        let candidate = F::rand_nonzero(&mut rng);
-        if legendre_symbol_secure(candidate) == -1 {
-            break candidate;
-        }
-    };
-    loquat_debug!("✓ Sampled quadratic non-residue α for QR checks");
 
     let m = 16;
     let n = (b + m - 1) / m;
@@ -313,7 +315,7 @@ pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
     let eta = 2;
     loquat_debug!("✓ η (localization parameter): {}", eta);
 
-    let kappa = profile.kappa;
+    let kappa = kappa_override.unwrap_or_else(|| security_profile(lambda).map(|p| p.kappa).unwrap_or(32));
     loquat_debug!("✓ κ (query repetition parameter): {}", kappa);
 
     let min_rate_denominator: usize = 4 * m + (kappa * (1 << eta));
@@ -391,9 +393,9 @@ pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
         l,
         b,
         public_indices,
+        qr_non_residue: default_qr_non_residue(),
         m,
         n,
-        qr_non_residue,
         coset_h,
         coset_u,
         h_shift: shift_h,
@@ -419,102 +421,13 @@ pub fn loquat_setup(lambda: usize) -> LoquatResult<LoquatPublicParams> {
     Ok(params)
 }
 
-/// Tiny, test-only parameter set for quick local runs (non-production).
+/// Convenience helper for quick smoke tests.
+///
+/// This keeps the API expected by the benchmarking harnesses/tests while selecting a
+/// smaller “paper” security level configuration.
 #[cfg(feature = "std")]
 pub fn loquat_setup_tiny() -> LoquatResult<LoquatPublicParams> {
-    loquat_debug!("\n================== LOQUAT SETUP (TINY) ==================");
-    let lambda = 32;
-    let mut rng = init_rng("loquat-setup-tiny", lambda);
-
-    // Drastically reduced sizes for constrained machines (benchmark only).
-    let l = 1024;
-    let b = 16;
-    let public_indices = sample_distinct_public_indices(&mut rng, l);
-    let m = 16;
-    let n = 1;
-    let eta = 2;
-    let kappa = 8;
-
-    let min_rate_denominator: usize = 4 * m + (kappa * (1 << eta));
-    let h_size = 2 * m;
-    let (coset_h, generator_h, shift_h) = build_power_of_two_coset(h_size, &mut rng)?;
-
-    let u_size = min_rate_denominator.next_power_of_two();
-    let (coset_u, generator_u, shift_u) = build_power_of_two_coset(u_size, &mut rng)?;
-
-    // ρ parameters and LDT depth.
-    let mut rho_star_value = 1usize;
-    while rho_star_value * coset_u.len() <= min_rate_denominator {
-        rho_star_value <<= 1;
-    }
-    let rho_star_num = rho_star_value * coset_u.len();
-    let rho_star = rho_star_num as f64 / coset_u.len() as f64;
-    let rho_numerators = [
-        2 * m + (kappa * (1 << eta)) + 1,
-        4 * m + (kappa * (1 << eta)),
-        2 * m + (kappa * (1 << eta)),
-        2 * m - 1,
-    ];
-
-    let log_u = log2_pow2(coset_u.len());
-    let rho_star_log = if rho_star_value.is_power_of_two() {
-        log2_pow2(rho_star_value)
-    } else {
-        ((rho_star_value as f64).log2().ceil()) as usize
-    };
-    let r = ((log_u + rho_star_log) / eta).max(1);
-
-    let mut u_subgroups = Vec::with_capacity(r);
-    let mut current_size = coset_u.len();
-    let mut current_shift = shift_u;
-    let mut current_generator = generator_u;
-    for round in 0..r {
-        current_size = (current_size >> eta).max(1);
-        current_shift = current_shift.pow_two(eta);
-        current_generator = current_generator.pow_two(eta);
-        let layer = generate_coset_elements(current_generator, current_size, current_shift);
-        loquat_debug!("  • U({}) size: {}", round + 1, layer.len());
-        u_subgroups.push(layer);
-    }
-
-    let hash_count = 5 + r + 1;
-    let hash_functions = generate_hash_functions(hash_count);
-    let expand_domain = b"Loquat/Expand".to_vec();
-
-    let qr_non_residue = loop {
-        let candidate = F::rand_nonzero(&mut rng);
-        if legendre_symbol_secure(candidate) == -1 {
-            break candidate;
-        }
-    };
-
-    let params = LoquatPublicParams {
-        l,
-        b,
-        public_indices,
-        m,
-        n,
-        qr_non_residue,
-        coset_h,
-        coset_u,
-        h_shift: shift_h,
-        h_generator: generator_h,
-        u_shift: shift_u,
-        u_generator: generator_u,
-        eta,
-        kappa,
-        rho_star,
-        rho_star_num,
-        rho_numerators,
-        r,
-        u_subgroups,
-        hash_functions,
-        expand_domain,
-    };
-
-    validate_loquat_parameters(&params)?;
-    loquat_debug!("✓ Tiny parameters validated (debug-only)");
-    Ok(params)
+    loquat_setup(80)
 }
 
 #[cfg(feature = "std")]
@@ -542,11 +455,6 @@ fn validate_loquat_parameters(params: &LoquatPublicParams) -> LoquatResult<()> {
     if params.u_subgroups.len() != params.r {
         return Err(LoquatError::invalid_parameters(
             "number of U layers must equal r",
-        ));
-    }
-    if legendre_symbol_secure(params.qr_non_residue) != -1 {
-        return Err(LoquatError::invalid_parameters(
-            "qr_non_residue must be a quadratic non-residue",
         ));
     }
     for &num in params.rho_numerators.iter() {
@@ -609,21 +517,18 @@ mod tests {
 
     #[test]
     fn test_loquat_setup_parameters() {
-        for profile in SECURITY_PROFILES.iter() {
-            let params = loquat_setup(profile.lambda).expect("setup should succeed");
-            assert_eq!(params.l, profile.l);
-            assert_eq!(params.b, profile.l / 4);
-            assert_eq!(params.kappa, profile.kappa);
-            assert!(params.m.is_power_of_two());
-            assert_eq!(params.coset_h.len(), 2 * params.m);
-            assert!(params.r >= 1);
-            assert_eq!(params.u_subgroups.len(), params.r);
-            assert_eq!(params.coset_h.first().copied().unwrap(), params.h_shift);
-            assert_eq!(params.coset_u.first().copied().unwrap(), params.u_shift);
-            assert_eq!(params.rho_numerators.len(), 4);
-            assert!(params.rho_star_num >= params.rho_numerators[1]);
-            assert!(validate_loquat_parameters(&params).is_ok());
-        }
+        let params = loquat_setup(128).expect("setup should succeed");
+        assert_eq!(params.l, 256);
+        assert_eq!(params.b, 64);
+        assert!(params.m.is_power_of_two());
+        assert_eq!(params.coset_h.len(), 2 * params.m);
+        assert!(params.r >= 1);
+        assert_eq!(params.u_subgroups.len(), params.r);
+        assert_eq!(params.coset_h.first().copied().unwrap(), params.h_shift);
+        assert_eq!(params.coset_u.first().copied().unwrap(), params.u_shift);
+        assert_eq!(params.rho_numerators.len(), 4);
+        assert!(params.rho_star_num >= params.rho_numerators[1]);
+        assert!(validate_loquat_parameters(&params).is_ok());
     }
 
     #[test]

@@ -1,6 +1,6 @@
-use super::transcript::Transcript;
+use super::transcript::FieldTranscript;
 use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::{F, F2, field2_to_bytes};
+use crate::loquat::field_utils::{F, F2};
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
@@ -14,18 +14,16 @@ pub struct LinearPolynomial {
     pub c1: F2,
 }
 
-fn append_f2_message(transcript: &mut Transcript, label: &'static [u8], value: &F2) {
-    let bytes = field2_to_bytes(value);
-    transcript.append_message(label, &bytes);
+fn append_f2_message(transcript: &mut FieldTranscript, label: &'static [u8], value: &F2) {
+    transcript.append_f2(label, *value);
 }
 
-fn append_linear_polynomial(transcript: &mut Transcript, poly: &LinearPolynomial) {
-    let c0_bytes = field2_to_bytes(&poly.c0);
-    let c1_bytes = field2_to_bytes(&poly.c1);
-    let mut buffer = [0u8; 64];
-    buffer[..32].copy_from_slice(&c0_bytes);
-    buffer[32..].copy_from_slice(&c1_bytes);
-    transcript.append_message(b"round_poly", &buffer);
+fn append_linear_polynomial(transcript: &mut FieldTranscript, poly: &LinearPolynomial) {
+    // Match the old byte transcript semantics: append (c0 || c1) under a single label.
+    transcript.append_f_vec(
+        b"round_poly",
+        &[poly.c0.c0, poly.c0.c1, poly.c1.c0, poly.c1.c1],
+    );
 }
 
 impl LinearPolynomial {
@@ -55,7 +53,7 @@ pub fn generate_sumcheck_proof(
     polynomial_evals: &[F2],
     claimed_sum: F2,
     num_variables: usize,
-    transcript: &mut Transcript,
+    transcript: &mut FieldTranscript,
 ) -> LoquatResult<UnivariateSumcheckProof> {
     loquat_debug!("\n--- SUMCHECK PROOF GENERATION ---");
     loquat_debug!("Polynomial evaluations length: {}", polynomial_evals.len());
@@ -163,7 +161,7 @@ pub fn generate_sumcheck_proof(
 pub fn verify_sumcheck_proof(
     proof: &UnivariateSumcheckProof,
     num_variables: usize,
-    transcript: &mut Transcript,
+    transcript: &mut FieldTranscript,
 ) -> LoquatResult<bool> {
     loquat_debug!("\n--- SUMCHECK VERIFICATION DETAILS ---");
     loquat_debug!("Number of variables: {}", num_variables);
@@ -250,7 +248,7 @@ pub fn verify_sumcheck_proof(
 pub fn replay_sumcheck_challenges(
     proof: &UnivariateSumcheckProof,
     num_variables: usize,
-    transcript: &mut Transcript,
+    transcript: &mut FieldTranscript,
 ) -> LoquatResult<Vec<F2>> {
     if proof.round_polynomials.len() != num_variables {
         return Err(LoquatError::sumcheck_error(
@@ -284,19 +282,14 @@ pub fn replay_sumcheck_challenges(
     Ok(challenges)
 }
 
-fn transcript_challenge(transcript: &mut Transcript) -> F2 {
-    let mut buf = [0u8; 32];
-    transcript.challenge_bytes(b"challenge", &mut buf);
-    // For simplicity, we'll create an F2 element from two F elements derived from the hash.
-    let c0 = F::new(u128::from_le_bytes(buf[..16].try_into().unwrap()));
-    let c1 = F::new(u128::from_le_bytes(buf[16..].try_into().unwrap()));
-    F2::new(c0, c1)
+fn transcript_challenge(transcript: &mut FieldTranscript) -> F2 {
+    transcript.challenge_f2(b"challenge")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loquat::transcript::Transcript;
+    use crate::loquat::transcript::FieldTranscript;
 
     #[test]
     fn test_sumcheck_protocol() {
@@ -309,7 +302,7 @@ mod tests {
         ];
         let claimed_sum = F2::new(F::new(10), F::zero());
 
-        let mut prover_transcript = Transcript::new(b"test_sumcheck");
+        let mut prover_transcript = FieldTranscript::new(b"test_sumcheck");
         let proof = generate_sumcheck_proof(
             &polynomial_evals,
             claimed_sum,
@@ -318,7 +311,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut verifier_transcript = Transcript::new(b"test_sumcheck");
+        let mut verifier_transcript = FieldTranscript::new(b"test_sumcheck");
         let is_valid =
             verify_sumcheck_proof(&proof, num_variables, &mut verifier_transcript).unwrap();
 

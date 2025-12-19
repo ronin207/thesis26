@@ -1,24 +1,30 @@
 use super::encoding;
 use super::errors::{LoquatError, LoquatResult};
-use super::field_utils::{self, F, F2, field2_to_bytes, u128_to_field};
+use super::fft::interpolate_on_coset;
+use super::field_utils::{self, F, F2, u128_to_field};
 use super::hasher::{GriffinHasher, LoquatHasher};
 use super::merkle::MerkleConfig;
 use super::setup::LoquatPublicParams;
 use super::sign::LoquatSignature;
 use super::sumcheck::verify_sumcheck_proof;
-use super::transcript::Transcript;
+use super::transcript::{FieldTranscript, expand_f, expand_f2_real, expand_index};
 #[cfg(not(feature = "std"))]
 use alloc::{string::ToString, vec, vec::Vec};
 #[cfg(feature = "std")]
 use std::string::ToString;
 
 /// Generate transcript challenge - must match the implementation in sign.rs
-fn transcript_challenge_f2(transcript: &mut Transcript) -> F2 {
-    let mut buf = [0u8; 32];
-    transcript.challenge_bytes(b"challenge", &mut buf);
-    let c0 = F::new(u128::from_le_bytes(buf[..16].try_into().unwrap()));
-    let c1 = F::new(u128::from_le_bytes(buf[16..].try_into().unwrap()));
-    F2::new(c0, c1)
+fn transcript_challenge_f2(transcript: &mut FieldTranscript) -> F2 {
+    transcript.challenge_f2(b"challenge")
+}
+
+fn eval_poly(coeffs: &[F2], point: F2) -> F2 {
+    let mut acc = F2::zero();
+    for coeff in coeffs.iter().rev() {
+        acc *= point;
+        acc += *coeff;
+    }
+    acc
 }
 
 /// Holds all challenges derived via the Fiat-Shamir transform.
@@ -33,32 +39,15 @@ pub struct Challenges {
     pub e_j: Vec<F2>,
 }
 
-/// Implements the `Expand` function from the paper using Griffin hash function.
-fn expand_challenge<T>(
-    seed: &[u8],
-    count: usize,
-    domain_separator: &[u8],
-    parser: &mut dyn FnMut(&[u8]) -> T,
-) -> Vec<T> {
-    let mut results = Vec::with_capacity(count);
-    let mut counter: u32 = 0;
-    while results.len() < count {
-        let mut hasher = GriffinHasher::new();
-        hasher.update(seed);
-        hasher.update(domain_separator);
-        hasher.update(&counter.to_le_bytes());
-        let hash_output = hasher.finalize();
-        results.push(parser(&hash_output));
-        counter += 1;
-    }
-    results
-}
+// NOTE: Expand helpers are now provided by `loquat::transcript` as field-native
+// variants (`expand_f`, `expand_f2_real`, `expand_index`) to match the in-circuit
+// Fiat–Shamir implementation.
 
 /* LEGACY LDT VERIFICATION (kept verbatim per user request)
 fn verify_ldt_proof(
     signature: &LoquatSignature,
     params: &LoquatPublicParams,
-    transcript: &mut Transcript,
+    transcript: &mut FieldTranscript,
 ) -> LoquatResult<bool> {
     loquat_debug!("--- ALGORITHM 7: LDT VERIFICATION (Steps 4-6) ---");
     loquat_debug!("Following rules.mdc: 'Verify LDT and Sumcheck Consistency at Query Points'");
@@ -278,244 +267,268 @@ fn verify_ldt_proof(
 fn verify_ldt_proof(
     signature: &LoquatSignature,
     params: &LoquatPublicParams,
-    transcript: &mut Transcript,
+    transcript: &mut FieldTranscript,
+    indices: &[usize],
+    lambdas: &[F],
+    epsilons: &[F2],
 ) -> LoquatResult<bool> {
-    let merkle_config = MerkleConfig::tree_cap(1usize << params.eta);
-    loquat_debug!("--- Algorithm 7 · Phase III: Low-Degree Test ---");
+    let merkle_leaf_arity = 1usize << params.eta;
+    let leaf_count = (params.coset_u.len() / merkle_leaf_arity.max(1)).max(1);
+    let tree_height = if leaf_count.is_power_of_two() {
+        leaf_count.trailing_zeros() as usize
+    } else {
+        0
+    };
+    let cap_height = (usize::BITS - 1 - params.kappa.max(1).leading_zeros()) as usize;
+    let cap_height = cap_height.min(tree_height);
+    let merkle_config = MerkleConfig::tree_cap(merkle_leaf_arity).with_cap_height(cap_height);
     let ldt_proof = &signature.ldt_proof;
 
-    if ldt_proof.commitments.len() != params.r + 1 || ldt_proof.openings.len() != params.kappa {
-        loquat_debug!(
-            "✗ LDT transcript malformed (commitments={}, openings={})",
-            ldt_proof.commitments.len(),
-            ldt_proof.openings.len()
-        );
+    // Basic structure checks.
+    if ldt_proof.commitments.len() != params.r + 1
+        || ldt_proof.cap_nodes.len() != params.r + 1
+        || ldt_proof.openings.len() != params.kappa
+        || signature.query_openings.len() != params.kappa
+    {
+        return Ok(false);
+    }
+    if indices.len() != params.m * params.n || lambdas.len() != params.m * params.n {
+        return Ok(false);
+    }
+    if epsilons.len() != params.n {
         return Ok(false);
     }
 
-    transcript.append_message(b"merkle_commitment", &ldt_proof.commitments[0]);
+    // Re-derive folding challenges from transcript and ensure the signer committed to the same.
+    transcript.append_digest32_as_fields(b"merkle_commitment", &ldt_proof.commitments[0]);
     let mut folding_challenges = Vec::with_capacity(params.r);
     for round in 0..params.r {
         folding_challenges.push(transcript_challenge_f2(transcript));
         if round + 1 < ldt_proof.commitments.len() {
-            transcript.append_message(b"merkle_commitment", &ldt_proof.commitments[round + 1]);
+            transcript.append_digest32_as_fields(
+                b"merkle_commitment",
+                &ldt_proof.commitments[round + 1],
+            );
         }
     }
-
-    if signature.fri_challenges != folding_challenges
-        || signature.fri_codewords.len() != params.r + 1
-        || signature.fri_rows.len() != params.r + 1
-    {
-        loquat_debug!("✗ FRI transcript mismatch");
+    if signature.fri_challenges != folding_challenges {
         return Ok(false);
     }
 
-    if signature.c_auth_paths.len() != params.kappa
-        || signature.s_auth_paths.len() != params.kappa
-        || signature.h_auth_paths.len() != params.kappa
-    {
-        loquat_debug!("✗ Missing auth paths for c'/s/h");
-        return Ok(false);
+    // Precompute q̂_j coefficients (by interpolating q_j over H), so we can evaluate q̂_j(x) at
+    // query points without materializing full vectors over U.
+    let mut q_hat_coeffs_per_j: Vec<Vec<F2>> = Vec::with_capacity(params.n);
+    for j in 0..params.n {
+        let mut q_eval_on_h = Vec::with_capacity(2 * params.m);
+        for i in 0..params.m {
+            let lambda_scalar = lambdas[j * params.m + i];
+            let lambda_f2 = F2::new(lambda_scalar, F::zero());
+            let index = indices[j * params.m + i];
+            let public_i = params.public_indices[index];
+            let public_f2 = F2::new(public_i, F::zero());
+            q_eval_on_h.push(lambda_f2);
+            q_eval_on_h.push(lambda_f2 * public_f2);
+        }
+        q_hat_coeffs_per_j.push(interpolate_on_coset(
+            &q_eval_on_h,
+            params.h_shift,
+            params.h_generator,
+        )?);
     }
 
-    for (layer_idx, layer) in signature.fri_codewords.iter().enumerate() {
-        let leaves = encoding::serialize_field2_leaves(layer);
-        let tree = super::merkle::MerkleTree::new_with_config(&leaves, merkle_config);
-        let root = tree.root().ok_or_else(|| LoquatError::MerkleError {
-            operation: "verify_fri_root".to_string(),
-            details: "empty layer".to_string(),
-        })?;
-        if root.as_slice() != ldt_proof.commitments[layer_idx] {
-            loquat_debug!("✗ Layer {} commitment mismatch", layer_idx);
-            return Ok(false);
-        }
-    }
+    // Constants for p(x) computation.
+    let h_order = params.coset_h.len() as u128;
+    let z_h_constant = params.h_shift.pow(h_order);
+    let h_size_scalar = F2::new(F::new(params.coset_h.len() as u128), F::zero());
+    let z_mu_plus_s = signature.z_challenge * signature.mu + signature.s_sum;
 
-    let chunk_size = 1 << params.eta;
-    for (query_idx, opening) in ldt_proof.openings.iter().enumerate() {
-        #[cfg(not(feature = "std"))]
-        let _ = query_idx;
-        let challenge = transcript_challenge_f2(transcript);
-        let expected_position = challenge.c0.0 as usize % signature.fri_codewords[0].len();
-        if opening.position != expected_position {
-            loquat_debug!("✗ Query {} position mismatch", query_idx);
-            return Ok(false);
-        }
-        if opening.codeword_chunks.len() != params.r || opening.row_chunks.len() != params.r {
-            loquat_debug!("✗ Query {} missing folding chunks", query_idx);
+    let chunk_size = 1usize << params.eta;
+    let leaf_arity = merkle_config.leaf_arity();
+
+    for (query_idx, ldt_opening) in ldt_proof.openings.iter().enumerate() {
+        // Bind query positions to the Fiat–Shamir transcript.
+        let query_challenge = transcript_challenge_f2(transcript);
+        let expected_position = query_challenge.c0.0 as usize % params.coset_u.len();
+        if ldt_opening.position != expected_position {
             return Ok(false);
         }
 
-        let mut fold_index = opening.position;
-        for round in 0..params.r {
-            let layer_len = signature.fri_codewords[round].len();
-            let chunk_len = chunk_size.min(layer_len);
-            let chunk_start = if layer_len > chunk_size {
-                (fold_index / chunk_size) * chunk_size
-            } else {
-                0
-            };
-            let chunk_end = (chunk_start + chunk_len).min(layer_len);
-
-            if opening.codeword_chunks[round]
-                != signature.fri_codewords[round][chunk_start..chunk_end]
-            {
-                loquat_debug!(
-                    "✗ Query {} round {} codeword chunk mismatch",
-                    query_idx,
-                    round
-                );
-                return Ok(false);
-            }
-
-            let mut coeff = F2::one();
-            let mut accumulated = F2::zero();
-            for &entry in &opening.codeword_chunks[round] {
-                accumulated += entry * coeff;
-                coeff *= signature.fri_challenges[round];
-            }
-
-            if accumulated != signature.fri_codewords[round + 1][fold_index / chunk_size] {
-                loquat_debug!("✗ Query {} round {} folding mismatch", query_idx, round);
-                return Ok(false);
-            }
-
-            for (row_idx, chunk) in opening.row_chunks[round].iter().enumerate() {
-                let expected = &signature.fri_rows[round][row_idx][chunk_start..chunk_end];
-                if chunk != expected {
-                    loquat_debug!(
-                        "✗ Query {} Π-row chunk mismatch (round {}, row {})",
-                        query_idx,
-                        round,
-                        row_idx
-                    );
-                    return Ok(false);
-                }
-                let mut coeff = F2::one();
-                let mut folded_row = F2::zero();
-                for &entry in chunk.iter() {
-                    folded_row += entry * coeff;
-                    coeff *= signature.fri_challenges[round];
-                }
-                if folded_row != signature.fri_rows[round + 1][row_idx][fold_index / chunk_size] {
-                    loquat_debug!(
-                        "✗ Query {} Π-row folding mismatch (round {}, row {})",
-                        query_idx,
-                        round,
-                        row_idx
-                    );
-                    return Ok(false);
-                }
-            }
-
-            if layer_len > chunk_size {
-                fold_index /= chunk_size;
-            } else {
-                fold_index = 0;
-            }
-        }
-
-        let final_eval = signature.fri_codewords.last().unwrap()[fold_index];
-        if final_eval != opening.final_eval {
-            loquat_debug!("✗ Query {} final evaluation mismatch", query_idx);
-            return Ok(false);
-        }
-        let final_layer = signature.fri_codewords.last().unwrap();
-        let leaf_start = (fold_index / merkle_config.leaf_arity()) * merkle_config.leaf_arity();
-        let leaf_end = (leaf_start + merkle_config.leaf_arity()).min(final_layer.len());
-        let leaf_bytes = field_utils::serialize_field2_slice(&final_layer[leaf_start..leaf_end]);
-        if !super::merkle::MerkleTree::verify_auth_path_with_config(
-            ldt_proof.commitments.last().unwrap().as_ref(),
-            &leaf_bytes,
-            fold_index / merkle_config.leaf_arity(),
-            &opening.auth_path,
-            merkle_config,
-        ) {
-            loquat_debug!("✗ Query {} final authentication failure", query_idx);
+        let query_opening = &signature.query_openings[query_idx];
+        if query_opening.position != expected_position {
             return Ok(false);
         }
 
-        // Tree-cap auth paths for c', s, h
-        let chunk_index = opening.position / merkle_config.leaf_arity();
-
-        // c'(u) leaf
-        let c_chunk_start = chunk_index * merkle_config.leaf_arity();
-        let c_chunk_end = (c_chunk_start + merkle_config.leaf_arity()).min(
-            signature
-                .c_prime_evals
-                .get(0)
-                .map(|row| row.len())
-                .unwrap_or(0),
-        );
-        if c_chunk_start >= c_chunk_end {
-            loquat_debug!("✗ Query {}: c' chunk range invalid", query_idx);
+        if ldt_opening.codeword_chunks.len() != params.r + 1
+            || ldt_opening.auth_paths.len() != params.r + 1
+        {
             return Ok(false);
         }
+
+        // Verify Merkle openings for c′/ŝ/ĥ (tree-cap + layer-t cap).
+        let chunk_index = expected_position / leaf_arity.max(1);
+        if query_opening.c_prime_chunk.len() != leaf_arity
+            || query_opening.s_chunk.len() != leaf_arity
+            || query_opening.h_chunk.len() != leaf_arity
+        {
+            return Ok(false);
+        }
+        if ldt_opening.codeword_chunks[0].len() != leaf_arity {
+            return Ok(false);
+        }
+
         let mut c_leaf = Vec::new();
-        for col in c_chunk_start..c_chunk_end {
-            for row in &signature.c_prime_evals {
-                c_leaf.extend_from_slice(&field_utils::field2_to_bytes(&row[col]));
-            }
+        for per_point in &query_opening.c_prime_chunk {
+            c_leaf.extend_from_slice(&field_utils::serialize_field2_slice(per_point));
         }
-        if !super::merkle::MerkleTree::verify_auth_path_with_config(
+        let s_leaf = field_utils::serialize_field2_slice(&query_opening.s_chunk);
+        let h_leaf = field_utils::serialize_field2_slice(&query_opening.h_chunk);
+
+        if !super::merkle::MerkleTree::verify_auth_path_with_cap(
             &signature.root_c,
+            &signature.c_cap_nodes,
             &c_leaf,
             chunk_index,
-            &signature.c_auth_paths[query_idx],
+            &query_opening.c_auth_path,
             merkle_config,
         ) {
-            loquat_debug!("✗ Query {}: c' auth path failed", query_idx);
             return Ok(false);
         }
-
-        // s(u) leaf
-        let s_chunk_start = chunk_index * merkle_config.leaf_arity();
-        let s_chunk_end =
-            (s_chunk_start + merkle_config.leaf_arity()).min(signature.s_evals.len());
-        if s_chunk_start >= s_chunk_end {
-            loquat_debug!("✗ Query {}: s chunk range invalid", query_idx);
-            return Ok(false);
-        }
-        let mut s_leaf = Vec::new();
-        for idx in s_chunk_start..s_chunk_end {
-            s_leaf.extend_from_slice(&field_utils::field2_to_bytes(&signature.s_evals[idx]));
-        }
-        if !super::merkle::MerkleTree::verify_auth_path_with_config(
+        if !super::merkle::MerkleTree::verify_auth_path_with_cap(
             &signature.root_s,
+            &signature.s_cap_nodes,
             &s_leaf,
             chunk_index,
-            &signature.s_auth_paths[query_idx],
+            &query_opening.s_auth_path,
             merkle_config,
         ) {
-            loquat_debug!("✗ Query {}: s auth path failed", query_idx);
+            return Ok(false);
+        }
+        if !super::merkle::MerkleTree::verify_auth_path_with_cap(
+            &signature.root_h,
+            &signature.h_cap_nodes,
+            &h_leaf,
+            chunk_index,
+            &query_opening.h_auth_path,
+            merkle_config,
+        ) {
             return Ok(false);
         }
 
-        // h(u) leaf
-        let h_chunk_start = chunk_index * merkle_config.leaf_arity();
-        let h_chunk_end =
-            (h_chunk_start + merkle_config.leaf_arity()).min(signature.h_evals.len());
-        if h_chunk_start >= h_chunk_end {
-            loquat_debug!("✗ Query {}: h chunk range invalid", query_idx);
-            return Ok(false);
+        // Recompute missing code elements and check only at the opened query chunk (paper §4.3).
+        let chunk_start = chunk_index * leaf_arity;
+        for offset in 0..leaf_arity {
+            let global_idx = chunk_start + offset;
+            let x = params.coset_u[global_idx];
+
+            // f(x) = Σ_j ε_j · c′_j(x) · q̂_j(x)
+            let mut f_val = F2::zero();
+            for j in 0..params.n {
+                if query_opening.c_prime_chunk[offset].len() != params.n {
+                    return Ok(false);
+                }
+                let q_hat = eval_poly(&q_hat_coeffs_per_j[j], x);
+                f_val += epsilons[j] * query_opening.c_prime_chunk[offset][j] * q_hat;
+            }
+
+            let f_prime = signature.z_challenge * f_val + query_opening.s_chunk[offset];
+            let z_h = x.pow(h_order) - z_h_constant;
+
+            // p(x) = (|H|·f'(x) − |H|·Z_H(x)·h(x) − (z·μ + S)) / (|H|·x)
+            let numerator =
+                h_size_scalar * f_prime - h_size_scalar * z_h * query_opening.h_chunk[offset] - z_mu_plus_s;
+            let denom = h_size_scalar * x;
+            let denom_inv = denom.inverse().ok_or_else(|| {
+                LoquatError::invalid_parameters("Encountered zero denominator in p(x) computation")
+            })?;
+            let p_val = numerator * denom_inv;
+
+            // c(x) = Σ_j c′_j(x)
+            let mut c_sum = F2::zero();
+            for val in &query_opening.c_prime_chunk[offset] {
+                c_sum += *val;
+            }
+
+            // Interleaved code f^(0)(x).
+            let exponents: [u128; 4] = [
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[0])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_1"))? as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[1])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_2"))? as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[2])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_3"))? as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[3])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_4"))? as u128,
+            ];
+
+            let base = [c_sum, query_opening.s_chunk[offset], query_opening.h_chunk[offset], p_val];
+            let mut f0 = F2::zero();
+            for row_idx in 0..4 {
+                f0 += signature.e_vector[row_idx] * base[row_idx];
+                f0 += signature.e_vector[row_idx + 4] * (base[row_idx] * x.pow(exponents[row_idx]));
+            }
+
+            if f0 != ldt_opening.codeword_chunks[0][offset] {
+                return Ok(false);
+            }
         }
-        let mut h_leaf = Vec::new();
-        for idx in h_chunk_start..h_chunk_end {
-            h_leaf.extend_from_slice(&field_utils::field2_to_bytes(&signature.h_evals[idx]));
-        }
-        if !super::merkle::MerkleTree::verify_auth_path_with_config(
-            &signature.root_h,
-            &h_leaf,
-            chunk_index,
-            &signature.h_auth_paths[query_idx],
-            merkle_config,
-        ) {
-            loquat_debug!("✗ Query {}: h auth path failed", query_idx);
-            return Ok(false);
+
+        // Verify LDT opening (Merkle authentication per layer + folding consistency).
+        let mut fold_index = expected_position;
+        let mut layer_len = params.coset_u.len();
+        for round in 0..=params.r {
+            let expected_chunk_len = chunk_size.min(layer_len);
+            if ldt_opening.codeword_chunks[round].len() != expected_chunk_len {
+                return Ok(false);
+            }
+
+            let leaf_bytes = field_utils::serialize_field2_slice(&ldt_opening.codeword_chunks[round]);
+            let leaf_index = fold_index / chunk_size;
+            if !super::merkle::MerkleTree::verify_auth_path_with_cap(
+                &ldt_proof.commitments[round],
+                &ldt_proof.cap_nodes[round],
+                &leaf_bytes,
+                leaf_index,
+                &ldt_opening.auth_paths[round],
+                merkle_config,
+            ) {
+                return Ok(false);
+            }
+
+            if round < params.r {
+                let challenge = folding_challenges[round];
+                let mut coeff = F2::one();
+                let mut folded = F2::zero();
+                for &entry in &ldt_opening.codeword_chunks[round] {
+                    folded += entry * coeff;
+                    coeff *= challenge;
+                }
+
+                let next_index = fold_index / chunk_size;
+                let next_layer_len = ((layer_len + chunk_size - 1) / chunk_size).max(1);
+                let next_chunk_start = if next_layer_len > chunk_size {
+                    (next_index / chunk_size) * chunk_size
+                } else {
+                    0
+                };
+                let next_offset = next_index - next_chunk_start;
+                if folded != ldt_opening.codeword_chunks[round + 1][next_offset] {
+                    return Ok(false);
+                }
+
+                fold_index = next_index;
+                layer_len = next_layer_len;
+            }
         }
     }
 
-    loquat_debug!("✓ κ = {} LDT queries validated", params.kappa);
     Ok(true)
 }
 
@@ -524,7 +537,7 @@ struct Algorithm7Verifier<'a> {
     signature: &'a LoquatSignature,
     public_key: &'a [F],
     params: &'a LoquatPublicParams,
-    transcript: Transcript,
+    transcript: FieldTranscript,
 }
 
 impl<'a> Algorithm7Verifier<'a> {
@@ -534,8 +547,7 @@ impl<'a> Algorithm7Verifier<'a> {
         public_key: &'a [F],
         params: &'a LoquatPublicParams,
     ) -> Self {
-        let mut transcript = Transcript::new(b"loquat_signature");
-        transcript.append_message(b"message", message);
+        let transcript = FieldTranscript::new(b"loquat_signature");
         Self {
             message,
             signature,
@@ -548,8 +560,15 @@ impl<'a> Algorithm7Verifier<'a> {
     fn verify_message_commitment(&mut self) -> LoquatResult<()> {
         // Use Griffin hash for message commitment (SNARK-friendly)
         let commitment = GriffinHasher::hash(self.message);
+        if commitment.len() != 32 {
+            return Err(LoquatError::verification_failure(
+                "message commitment must be 32 bytes",
+            ));
+        }
+        let mut commitment_arr = [0u8; 32];
+        commitment_arr.copy_from_slice(&commitment);
         self.transcript
-            .append_message(b"message_commitment", &commitment);
+            .append_digest32_as_fields(b"message_commitment", &commitment_arr);
         if commitment != self.signature.message_commitment {
             loquat_debug!("✗ Message commitment mismatch");
             return Err(LoquatError::verification_failure(
@@ -562,32 +581,30 @@ impl<'a> Algorithm7Verifier<'a> {
 
     fn absorb_sigma1(&mut self) -> LoquatResult<Vec<usize>> {
         self.transcript
-            .append_message(b"root_c", &self.signature.root_c);
-        let t_bytes = encoding::serialize_field_matrix(&self.signature.t_values);
-        self.transcript.append_message(b"t_values", &t_bytes);
+            .append_digest32_as_fields(b"root_c", &self.signature.root_c);
+        let mut t_flat = Vec::with_capacity(self.params.m * self.params.n);
+        for row in &self.signature.t_values {
+            t_flat.extend_from_slice(row);
+        }
+        self.transcript.append_f_vec(b"t_values", &t_flat);
 
-        let mut h1 = [0u8; 32];
-        self.transcript.challenge_bytes(b"h1", &mut h1);
+        let h1_seed = self.transcript.challenge_seed(b"h1");
         let num_checks = self.params.m * self.params.n;
-        let indices = expand_challenge(&h1, num_checks, b"I_indices", &mut |slice| {
-            (u64::from_le_bytes(slice[..8].try_into().unwrap()) as usize) % self.params.l
-        });
+        let indices = expand_index(h1_seed, num_checks, b"I_indices", self.params.l);
         Ok(indices)
     }
 
     fn absorb_sigma2(&mut self) -> LoquatResult<(Vec<F>, Vec<F2>)> {
-        let o_bytes = encoding::serialize_field_matrix(&self.signature.o_values);
-        self.transcript.append_message(b"o_values", &o_bytes);
+        let mut o_flat = Vec::with_capacity(self.params.m * self.params.n);
+        for row in &self.signature.o_values {
+            o_flat.extend_from_slice(row);
+        }
+        self.transcript.append_f_vec(b"o_values", &o_flat);
 
-        let mut h2 = [0u8; 32];
-        self.transcript.challenge_bytes(b"h2", &mut h2);
+        let h2_seed = self.transcript.challenge_seed(b"h2");
         let num_checks = self.params.m * self.params.n;
-        let lambdas: Vec<F> = expand_challenge(&h2, num_checks, b"lambdas", &mut |slice| {
-            field_utils::bytes_to_field_element(slice)
-        });
-        let epsilons: Vec<F2> = expand_challenge(&h2, self.params.n, b"e_j", &mut |slice| {
-            F2::new(field_utils::bytes_to_field_element(slice), F::zero())
-        });
+        let lambdas: Vec<F> = expand_f(h2_seed, num_checks, b"lambdas");
+        let epsilons: Vec<F2> = expand_f2_real(h2_seed, self.params.n, b"e_j");
         Ok((lambdas, epsilons))
     }
 
@@ -635,83 +652,6 @@ impl<'a> Algorithm7Verifier<'a> {
         Ok(())
     }
 
-    fn verify_pi_rows(&self) -> LoquatResult<()> {
-        if self.signature.pi_rows.len() != 8 {
-            loquat_debug!("✗ Π row stack length mismatch");
-            return Err(LoquatError::verification_failure(
-                "Π row stack length mismatch",
-            ));
-        }
-        let n_u = self.params.coset_u.len();
-        if self.signature.c_prime_evals.len() != self.params.n
-            || self.signature.s_evals.len() != n_u
-            || self.signature.h_evals.len() != n_u
-            || self.signature.f_prime_evals.len() != n_u
-            || self.signature.p_evals.len() != n_u
-            || self.signature.f0_evals.len() != n_u
-            || self.signature.pi_rows.iter().any(|row| row.len() != n_u)
-        {
-            loquat_debug!("✗ Evaluation vector size mismatch");
-            return Err(LoquatError::verification_failure(
-                "evaluation vector size mismatch",
-            ));
-        }
-
-        let mut c_row = vec![F2::zero(); n_u];
-        for idx in 0..n_u {
-            for col in &self.signature.c_prime_evals {
-                c_row[idx] += col[idx];
-            }
-        }
-        if c_row != self.signature.pi_rows[0]
-            || self.signature.s_evals != self.signature.pi_rows[1]
-            || self.signature.h_evals != self.signature.pi_rows[2]
-            || self.signature.p_evals != self.signature.pi_rows[3]
-        {
-            loquat_debug!("✗ Π₀ rows mismatch");
-            return Err(LoquatError::verification_failure("Π₀ rows mismatch"));
-        }
-
-        for row_idx in 0..4 {
-            let exponent = self
-                .params
-                .rho_star_num
-                .checked_sub(self.params.rho_numerators[row_idx])
-                .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_i"))?
-                as u128;
-            let mut scaled = Vec::with_capacity(n_u);
-            for (value, &y) in self.signature.pi_rows[row_idx]
-                .iter()
-                .zip(self.params.coset_u.iter())
-            {
-                scaled.push(*value * y.pow(exponent));
-            }
-            if scaled != self.signature.pi_rows[row_idx + 4] {
-                loquat_debug!("✗ Π₁ row {} mismatch", row_idx + 1);
-                return Err(LoquatError::verification_failure("Π₁ rows mismatch"));
-            }
-        }
-
-        if self.signature.e_vector.len() != 8 {
-            loquat_debug!("✗ e-vector length mismatch");
-            return Err(LoquatError::verification_failure(
-                "e-vector length mismatch",
-            ));
-        }
-
-        let mut f0_expected = vec![F2::zero(); n_u];
-        for (row_idx, row) in self.signature.pi_rows.iter().enumerate() {
-            for (col, value) in row.iter().enumerate() {
-                f0_expected[col] += self.signature.e_vector[row_idx] * *value;
-            }
-        }
-        if f0_expected != self.signature.f0_evals {
-            loquat_debug!("✗ f^(0) mismatch");
-            return Err(LoquatError::verification_failure("f^(0) mismatch"));
-        }
-        Ok(())
-    }
-
     fn verify_sumcheck(&mut self) -> LoquatResult<()> {
         loquat_debug!("--- Algorithm 7 · Sumcheck Verification ---");
         let num_variables = (self.params.coset_h.len()).trailing_zeros() as usize;
@@ -726,25 +666,20 @@ impl<'a> Algorithm7Verifier<'a> {
 
     fn absorb_sigma3_sigma4(&mut self) -> LoquatResult<()> {
         self.transcript
-            .append_message(b"root_s", &self.signature.root_s);
-        let s_sum_bytes = field2_to_bytes(&self.signature.s_sum);
-        self.transcript.append_message(b"s_sum", &s_sum_bytes);
+            .append_digest32_as_fields(b"root_s", &self.signature.root_s);
+        self.transcript.append_f2(b"s_sum", self.signature.s_sum);
 
-        let mut h3 = [0u8; 32];
-        self.transcript.challenge_bytes(b"h3", &mut h3);
-        let z = F2::new(field_utils::bytes_to_field_element(&h3), F::zero());
+        let z_scalar = self.transcript.challenge_f(b"h3");
+        let z = F2::new(z_scalar, F::zero());
         if z != self.signature.z_challenge {
             loquat_debug!("✗ z challenge mismatch");
             return Err(LoquatError::verification_failure("z challenge mismatch"));
         }
 
         self.transcript
-            .append_message(b"root_h", &self.signature.root_h);
-        let mut h4 = [0u8; 32];
-        self.transcript.challenge_bytes(b"h4", &mut h4);
-        let expected_e = expand_challenge(&h4, 8, b"e_vector", &mut |slice| {
-            F2::new(field_utils::bytes_to_field_element(slice), F::zero())
-        });
+            .append_digest32_as_fields(b"root_h", &self.signature.root_h);
+        let h4_seed = self.transcript.challenge_seed(b"h4");
+        let expected_e = expand_f2_real(h4_seed, 8, b"e_vector");
         if expected_e != self.signature.e_vector {
             loquat_debug!("✗ e-vector mismatch");
             return Err(LoquatError::verification_failure("e-vector mismatch"));
@@ -753,7 +688,26 @@ impl<'a> Algorithm7Verifier<'a> {
     }
 
     fn verify_ldt(&mut self) -> LoquatResult<()> {
-        if !verify_ldt_proof(self.signature, self.params, &mut self.transcript)? {
+        unreachable!("verify_ldt must be called with transcript-derived indices/lambdas/epsilons");
+    }
+
+    fn verify_ldt_openings(
+        &mut self,
+        indices: &[usize],
+        lambdas: &[F],
+        epsilons: &[F2],
+    ) -> LoquatResult<()> {
+        if self.signature.e_vector.len() != 8 {
+            return Err(LoquatError::verification_failure("e-vector length mismatch"));
+        }
+        if !verify_ldt_proof(
+            self.signature,
+            self.params,
+            &mut self.transcript,
+            indices,
+            lambdas,
+            epsilons,
+        )? {
             loquat_debug!("✗ Low-degree test failed");
             return Err(LoquatError::verification_failure("low-degree test failed"));
         }
@@ -765,10 +719,9 @@ impl<'a> Algorithm7Verifier<'a> {
         let indices = self.absorb_sigma1()?;
         let (lambdas, epsilons) = self.absorb_sigma2()?;
         self.verify_legendre_constraints(&indices, &lambdas, &epsilons)?;
-        self.verify_pi_rows()?;
         self.verify_sumcheck()?;
         self.absorb_sigma3_sigma4()?;
-        self.verify_ldt()?;
+        self.verify_ldt_openings(&indices, &lambdas, &epsilons)?;
         loquat_debug!("✓ Loquat verification completed");
         Ok(())
     }

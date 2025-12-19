@@ -1,10 +1,10 @@
-use crate::loquat::field_utils::{F, field_to_bytes};
+use crate::loquat::field_utils::{field_to_bytes, F};
 use num_bigint::BigUint;
 use num_traits::{One, ToPrimitive, Zero};
 use once_cell::sync::Lazy;
 use sha3::{
     Shake256,
-    digest::{ExtendableOutput, Update, XofReader},
+    digest::ExtendableOutput,
 };
 use std::cmp::{max, min};
 
@@ -100,14 +100,15 @@ fn griffin_permutation(params: &GriffinParams, state: &mut GriffinState) {
     linear_layer(params, state);
 }
 
-/// Public helper to run the core permutation on a raw state buffer.
-/// This is useful for lightweight compression (e.g., Merkle leaves) where we
-/// want a single permutation call without the sponge logic.
-pub fn griffin_permutation_raw(state: &mut [F; STATE_WIDTH]) {
+/// Low-level permutation wrapper over a raw lane array.
+///
+/// This is used by the Merkle-tree implementation to guarantee that leaf/internal-node
+/// compression uses exactly one permutation invocation.
+pub fn griffin_permutation_raw(state: &mut [F; GRIFFIN_STATE_WIDTH]) {
     let params = get_griffin_params();
-    let mut gs = GriffinState { lanes: *state };
-    griffin_permutation(params, &mut gs);
-    *state = gs.lanes;
+    let mut s = GriffinState { lanes: *state };
+    griffin_permutation(params, &mut s);
+    *state = s.lanes;
 }
 
 fn nonlinear_layer(params: &GriffinParams, state: &mut GriffinState) {
@@ -145,7 +146,7 @@ fn li(z0: F, z1: F, z2: F, i: usize) -> F {
 fn bytes_to_field_elements(bytes: &[u8]) -> Vec<F> {
     const LIMB_BYTES: usize = 16;
     if bytes.is_empty() {
-        return vec![];
+        return vec![F::zero()];
     }
     let mut elems = Vec::with_capacity((bytes.len() + LIMB_BYTES - 1) / LIMB_BYTES);
     let mut chunk = [0u8; LIMB_BYTES];
@@ -168,11 +169,6 @@ fn field_elements_to_bytes(elements: &[F]) -> Vec<u8> {
     for elem in elements {
         out.extend_from_slice(&field_to_bytes(elem));
     }
-    if out.len() >= 32 {
-        out.truncate(32);
-    } else {
-        out.resize(32, 0u8);
-    }
     out
 }
 
@@ -190,7 +186,8 @@ fn compute_griffin_params() -> GriffinParams {
     let bytes_per_int = ((127 + 7) / 8) + 1;
     let num_elements = STATE_WIDTH * (rounds - 1) + 2;
     let mut shake = Shake256::default();
-    shake.update(
+    sha3::digest::Update::update(
+        &mut shake,
         format!(
             "Griffin({},{},{},{})",
             FIELD_MODULUS, STATE_WIDTH, CAPACITY, SECURITY_LEVEL
@@ -199,7 +196,7 @@ fn compute_griffin_params() -> GriffinParams {
     );
     let mut reader = shake.finalize_xof();
     let mut buf = vec![0u8; bytes_per_int * num_elements];
-    reader.read(&mut buf);
+    sha3::digest::XofReader::read(&mut reader, &mut buf);
 
     let mut offset = 0;
     let alpha = bytes_chunk_to_field(&buf[offset..offset + bytes_per_int]);
@@ -281,8 +278,14 @@ fn get_number_of_rounds(d: u128) -> usize {
     let target = BigUint::one() << (SECURITY_LEVEL / 2);
     let mut rgb = 1usize;
     loop {
-        let left = binomial(rgb * (d as usize + STATE_WIDTH) + 1, 1 + STATE_WIDTH * rgb);
-        let right = binomial((d as usize).pow(rgb as u32) + 1 + rgb, 1 + rgb);
+        let left = binomial(
+            rgb * (d as usize + STATE_WIDTH) + 1,
+            1 + STATE_WIDTH * rgb,
+        );
+        let right = binomial(
+            (d as usize).pow(rgb as u32) + 1 + rgb,
+            1 + rgb,
+        );
         if min(left.clone(), right.clone()) >= target {
             break;
         }
@@ -310,10 +313,18 @@ fn binomial(n: usize, k: usize) -> BigUint {
 }
 
 fn build_matrix() -> [[F; STATE_WIDTH]; STATE_WIDTH] {
-    [
-        [F::new(5), F::new(7), F::one(), F::new(3)],
-        [F::new(4), F::new(6), F::one(), F::one()],
-        [F::one(), F::new(3), F::new(5), F::new(7)],
-        [F::one(), F::one(), F::new(4), F::new(6)],
-    ]
+    // Simple circulant MDS-like matrix. For STATE_WIDTH=4, this is I + J (diagonal 2, off-diagonal 1),
+    // which is invertible over our field since 5 ≠ 0 mod p.
+    circulant([F::new(2), F::new(1), F::new(1), F::new(1)])
+}
+
+fn circulant(first_row: [F; STATE_WIDTH]) -> [[F; STATE_WIDTH]; STATE_WIDTH] {
+    let mut matrix = [[F::zero(); STATE_WIDTH]; STATE_WIDTH];
+    for row in 0..STATE_WIDTH {
+        for col in 0..STATE_WIDTH {
+            let idx = (row + col) % STATE_WIDTH;
+            matrix[row][col] = first_row[idx];
+        }
+    }
+    matrix
 }

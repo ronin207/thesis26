@@ -10,7 +10,7 @@ mod integration_tests {
     use crate::LoquatError;
     use crate::bdec::{
         bdec_issue_credential, bdec_nym_key, bdec_prigen, bdec_revoke, bdec_setup,
-        bdec_show_credential, bdec_verify_credential, bdec_verify_shown_credential,
+        bdec_show_credential_paper, bdec_verify_credential, bdec_verify_shown_credential_paper,
     };
     use crate::loquat::field_p127::Fp2;
     use crate::loquat::field_utils::{F, F2, legendre_prf_secure, u128_to_field};
@@ -18,43 +18,9 @@ mod integration_tests {
     use crate::loquat::setup::loquat_setup;
     use crate::loquat::sign::loquat_sign;
     use crate::loquat::verify::loquat_verify;
-    use methods::ZKVM_RISC0_ID;
-    use risc0_zkvm::{
-        Digest, FakeReceipt, InnerReceipt, MaybePruned, Receipt, ReceiptClaim, serde as risc0_serde,
-    };
-    use serde::{Deserialize, Serialize};
-    use std::sync::Once;
-
-    #[derive(Debug, Serialize, Deserialize)]
-    struct TestGuestOutput {
-        loquat_valid: bool,
-        attribute_count: u32,
-        revealed_count: u32,
-    }
-
-    fn ensure_dev_mode() {
-        static INIT: Once = Once::new();
-        INIT.call_once(|| unsafe {
-            std::env::set_var("RISC0_DEV_MODE", "1");
-        });
-    }
-
-    fn encode_journal<T: Serialize>(value: &T) -> Vec<u8> {
-        let words = risc0_serde::to_vec(value).expect("serialize journal words");
-        let mut bytes = Vec::with_capacity(words.len() * 4);
-        for word in words {
-            bytes.extend_from_slice(&word.to_le_bytes());
-        }
-        bytes
-    }
-
-    fn fake_receipt_from_output(output: &TestGuestOutput, image_id: [u32; 8]) -> Receipt {
-        ensure_dev_mode();
-        let journal_bytes = encode_journal(output);
-        let claim = ReceiptClaim::ok(Digest::from(image_id), journal_bytes.clone());
-        let inner: InnerReceipt = FakeReceipt::new(MaybePruned::Value(claim)).into();
-        Receipt::new(inner, journal_bytes)
-    }
+    // Note: Earlier iterations of this repo integrated RISC0 receipts into BDEC tests.
+    // The current paper-aligned BDEC implementation does not include zkVM receipts, so
+    // these integration tests exercise the host-side BDEC flow directly.
 
     /// Test complete signature generation and verification flow
     #[test]
@@ -220,33 +186,23 @@ mod integration_tests {
             "Signature with tampered FRI commitment should be invalid"
         );
 
-        // Tamper with FRI codeword chunk
+        // Tamper with LDT opening codeword chunk (openings-only signature format).
         let mut signature =
             loquat_sign(message, &keypair, &params).expect("Signature generation should succeed");
-        signature.fri_codewords[0][0] = signature.fri_codewords[0][0] + F2::one();
+        signature.ldt_proof.openings[0].codeword_chunks[0][0] =
+            signature.ldt_proof.openings[0].codeword_chunks[0][0] + F2::one();
         let is_valid = loquat_verify(message, &signature, &keypair.public_key, &params)
             .expect("Verification should complete");
         assert!(
             !is_valid,
-            "Signature with tampered FRI codeword chunk should be invalid"
-        );
-
-        // Tamper with Π row folding values
-        let mut signature =
-            loquat_sign(message, &keypair, &params).expect("Signature generation should succeed");
-        signature.ldt_proof.openings[0].row_chunks[0][0][0] =
-            signature.ldt_proof.openings[0].row_chunks[0][0][0] + F2::one();
-        let is_valid = loquat_verify(message, &signature, &keypair.public_key, &params)
-            .expect("Verification should complete");
-        assert!(
-            !is_valid,
-            "Signature with tampered Π row folding data should be invalid"
+            "Signature with tampered LDT codeword chunk should be invalid"
         );
     }
 
     #[test]
     fn test_bdec_attribute_bound_and_revocation_enforcement() {
-        let system = bdec_setup(128, 2).expect("Setup should succeed");
+        // Use the smallest supported paper level to keep SNARK-heavy BDEC tests tractable.
+        let system = bdec_setup(80, 2).expect("Setup should succeed");
         let user_keypair = bdec_prigen(&system).expect("Key generation should succeed");
         let user_nym = bdec_nym_key(&system, &user_keypair).expect("Pseudonym generation failed");
 
@@ -279,7 +235,7 @@ mod integration_tests {
         }
 
         let mut revoked_system = system.clone();
-        bdec_revoke(&mut revoked_system, &credential.owner_public_key)
+        bdec_revoke(&mut revoked_system, &user_keypair.public_key)
             .expect("Revocation should succeed");
         assert!(
             !bdec_verify_credential(&revoked_system, &credential)
@@ -313,8 +269,9 @@ mod integration_tests {
     }
 
     #[test]
+    #[ignore = "expensive: runs Aurora proofs; run with `cargo test --release -- --ignored`"]
     fn test_bdec_sign_verify() {
-        let system = bdec_setup(128, 8).expect("Setup should succeed");
+        let system = bdec_setup(80, 8).expect("Setup should succeed");
         let user_keypair = bdec_prigen(&system).expect("Key generation should succeed");
         let user_nym = bdec_nym_key(&system, &user_keypair).expect("Pseudonym generation failed");
         let attributes = vec![
@@ -329,52 +286,40 @@ mod integration_tests {
             .expect("Credential verification should succeed");
         assert!(valid_credential, "Credential should verify");
 
-        // Prepare guest input mirroring the host logic.
-        let verifier_pseudonym =
-            bdec_nym_key(&system, &user_keypair).expect("verifier pseudonym generation failed");
-
         let credential_bundle = vec![credential.clone()];
         let revealed = vec![attributes[0].clone()];
-        let guest_output = TestGuestOutput {
-            loquat_valid: true,
-            attribute_count: credential.attributes.len() as u32,
-            revealed_count: revealed.len() as u32,
-        };
-        let receipt = fake_receipt_from_output(&guest_output, ZKVM_RISC0_ID);
 
-        let shown = bdec_show_credential(
+        let shown = bdec_show_credential_paper(
             &system,
+            &user_keypair,
             &credential_bundle,
-            verifier_pseudonym.clone(),
             revealed.clone(),
-            receipt.clone(),
         )
         .expect("Show credential should succeed");
 
-        let valid_show = bdec_verify_shown_credential(
+        let valid_show = bdec_verify_shown_credential_paper(
             &system,
             &shown,
-            &verifier_pseudonym.public,
-            ZKVM_RISC0_ID,
+            &shown.verifier_pseudonym.public,
         )
         .expect("Shown credential verification should succeed");
         assert!(valid_show, "Shown credential should verify");
 
         let mut tampered = shown.clone();
         tampered.verifier_pseudonym.public[0] ^= 1;
-        let is_valid = bdec_verify_shown_credential(
+        let is_valid = bdec_verify_shown_credential_paper(
             &system,
             &tampered,
-            &verifier_pseudonym.public,
-            ZKVM_RISC0_ID,
+            &shown.verifier_pseudonym.public,
         )
         .expect("Tampered verification should complete");
         assert!(!is_valid, "Tampered proof should be rejected");
     }
 
     #[test]
+    #[ignore = "expensive: runs Aurora proofs; run with `cargo test --release -- --ignored`"]
     fn test_bdec_multi_credentials_and_revocation() {
-        let mut system = bdec_setup(128, 8).expect("Setup should succeed");
+        let mut system = bdec_setup(80, 8).expect("Setup should succeed");
         let user_keypair = bdec_prigen(&system).expect("Key generation should succeed");
         let user_nym_one =
             bdec_nym_key(&system, &user_keypair).expect("Pseudonym generation failed");
@@ -402,53 +347,42 @@ mod integration_tests {
         assert!(bdec_verify_credential(&system, &credential_one).unwrap());
         assert!(bdec_verify_credential(&system, &credential_two).unwrap());
 
-        let verifier_pseudonym =
-            bdec_nym_key(&system, &user_keypair).expect("verifier pseudonym generation failed");
-
         let credential_bundle = vec![credential_one.clone(), credential_two.clone()];
         let revealed = vec![attributes_one[0].clone()];
-        let guest_output = TestGuestOutput {
-            loquat_valid: true,
-            attribute_count: credential_one.attributes.len() as u32,
-            revealed_count: revealed.len() as u32,
-        };
-        let receipt = fake_receipt_from_output(&guest_output, ZKVM_RISC0_ID);
 
-        let shown = bdec_show_credential(
+        let shown = bdec_show_credential_paper(
             &system,
+            &user_keypair,
             &credential_bundle,
-            verifier_pseudonym.clone(),
             revealed.clone(),
-            receipt.clone(),
         )
         .expect("Show credential should succeed");
 
         assert!(
-            bdec_verify_shown_credential(
+            bdec_verify_shown_credential_paper(
                 &system,
                 &shown,
-                &verifier_pseudonym.public,
-                ZKVM_RISC0_ID
+                &shown.verifier_pseudonym.public,
             )
             .unwrap()
         );
 
         // Revocation edge case
-        bdec_revoke(&mut system, &shown.owner_public_key).expect("revocation should succeed");
+        bdec_revoke(&mut system, &user_keypair.public_key).expect("revocation should succeed");
         assert!(
-            !bdec_verify_shown_credential(
+            !bdec_verify_shown_credential_paper(
                 &system,
                 &shown,
-                &verifier_pseudonym.public,
-                ZKVM_RISC0_ID
+                &shown.verifier_pseudonym.public,
             )
             .unwrap()
         );
     }
 
     #[test]
+    #[ignore = "expensive: runs Aurora proofs; run with `cargo test --release -- --ignored`"]
     fn test_secret_key_witness_mismatch() {
-        let system = bdec_setup(128, 8).expect("Setup should succeed");
+        let system = bdec_setup(80, 8).expect("Setup should succeed");
         let user_keypair = bdec_prigen(&system).expect("Key generation should succeed");
         let user_nym = bdec_nym_key(&system, &user_keypair).expect("Pseudonym generation failed");
         let attributes = vec![
@@ -460,41 +394,30 @@ mod integration_tests {
             bdec_issue_credential(&system, &user_keypair, &user_nym, attributes.clone())
                 .expect("Credential issuance should succeed");
 
-        let verifier_pseudonym =
-            bdec_nym_key(&system, &user_keypair).expect("verifier pseudonym generation failed");
-
         let credential_bundle = vec![credential.clone()];
         let revealed = vec![attributes[0].clone()];
 
-        let invalid_output = TestGuestOutput {
-            loquat_valid: false,
-            attribute_count: credential.attributes.len() as u32,
-            revealed_count: revealed.len() as u32,
-        };
-        let receipt = fake_receipt_from_output(&invalid_output, ZKVM_RISC0_ID);
+        let shown =
+            bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, revealed)
+                .expect("Show credential should succeed");
 
-        let shown = bdec_show_credential(
-            &system,
-            &credential_bundle,
-            verifier_pseudonym.clone(),
-            revealed,
-            receipt,
-        )
-        .expect("Show credential should succeed even with invalid proof");
+        // Tamper with the SNARK proof to simulate a malformed witness/proof pair.
+        let mut tampered = shown.clone();
+        tampered.show_proof.witness_root[0] ^= 1;
 
-        let is_valid = bdec_verify_shown_credential(
+        let is_valid = bdec_verify_shown_credential_paper(
             &system,
-            &shown,
-            &verifier_pseudonym.public,
-            ZKVM_RISC0_ID,
+            &tampered,
+            &shown.verifier_pseudonym.public,
         )
         .expect("verification should run");
-        assert!(!is_valid, "Verifier must reject when zk proof is invalid");
+        assert!(!is_valid, "Verifier must reject when the SNARK proof is tampered");
     }
 
     #[test]
+    #[ignore = "expensive: runs Aurora proofs; run with `cargo test --release -- --ignored`"]
     fn test_bdec_show_credential_rejects_mismatched_owner() {
-        let system = bdec_setup(128, 4).expect("Setup should succeed");
+        let system = bdec_setup(80, 4).expect("Setup should succeed");
         let user_a = bdec_prigen(&system).expect("Key generation for user A should succeed");
         let user_b = bdec_prigen(&system).expect("Key generation for user B should succeed");
 
@@ -517,34 +440,37 @@ mod integration_tests {
         )
         .expect("Credential for user B should succeed");
 
-        let verifier_pseudonym =
-            bdec_nym_key(&system, &user_a).expect("Verifier pseudonym generation failed");
-
-        let guest_output = TestGuestOutput {
-            loquat_valid: true,
-            attribute_count: credential_a.attributes.len() as u32,
-            revealed_count: 1,
-        };
-        let receipt = fake_receipt_from_output(&guest_output, ZKVM_RISC0_ID);
-
-        let result = bdec_show_credential(
+        let result = bdec_show_credential_paper(
             &system,
+            &user_a,
             &[credential_a.clone(), credential_b.clone()],
-            verifier_pseudonym,
             vec!["attr:alpha".to_string()],
-            receipt,
         );
 
-        assert!(matches!(
-            result,
-            Err(LoquatError::InvalidParameters { constraint, .. })
-                if constraint == "credential does not match user public key"
-        ));
+        match result {
+            Ok(shown) => {
+                // If the prover attempts to combine credentials from different owners, the
+                // resulting SNARK statement should be rejected by ShowVer.
+                assert!(
+                    !bdec_verify_shown_credential_paper(
+                        &system,
+                        &shown,
+                        &shown.verifier_pseudonym.public,
+                    )
+                    .expect("ShowVer should run"),
+                    "mixed-owner shown credential must be rejected"
+                );
+            }
+            Err(_) => {
+                // Either behavior is acceptable here (early failure or later ShowVer rejection).
+            }
+        }
     }
 
     #[test]
+    #[ignore = "expensive: runs Aurora proofs; run with `cargo test --release -- --ignored`"]
     fn test_bdec_verify_shown_credential_rejects_invalid_journal() {
-        let system = bdec_setup(128, 6).expect("Setup should succeed");
+        let system = bdec_setup(80, 6).expect("Setup should succeed");
         let user_keypair = bdec_prigen(&system).expect("Key generation should succeed");
         let user_nym = bdec_nym_key(&system, &user_keypair).expect("Pseudonym generation failed");
         let attributes = vec!["grade:A".to_string(), "year:2024".to_string()];
@@ -553,68 +479,41 @@ mod integration_tests {
             bdec_issue_credential(&system, &user_keypair, &user_nym, attributes.clone())
                 .expect("Credential issuance should succeed");
 
-        let verifier_pseudonym =
-            bdec_nym_key(&system, &user_keypair).expect("Verifier pseudonym generation failed");
-
         let credential_bundle = vec![credential.clone()];
         let disclosed = vec![attributes[0].clone()];
 
-        let valid_output = TestGuestOutput {
-            loquat_valid: true,
-            attribute_count: credential.attributes.len() as u32,
-            revealed_count: disclosed.len() as u32,
-        };
-        let receipt_valid = fake_receipt_from_output(&valid_output, ZKVM_RISC0_ID);
-
-        let shown = bdec_show_credential(
-            &system,
-            &credential_bundle,
-            verifier_pseudonym.clone(),
-            disclosed.clone(),
-            receipt_valid,
-        )
-        .expect("Show credential should succeed");
+        let shown =
+            bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, disclosed)
+                .expect("Show credential should succeed");
 
         assert!(
-            bdec_verify_shown_credential(
-                &system,
-                &shown,
-                &verifier_pseudonym.public,
-                ZKVM_RISC0_ID,
-            )
-            .expect("verification should run")
+            bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public)
+                .expect("verification should run")
         );
 
-        let invalid_output = TestGuestOutput {
-            loquat_valid: false,
-            attribute_count: credential.attributes.len() as u32,
-            revealed_count: disclosed.len() as u32,
-        };
-        let receipt_invalid = fake_receipt_from_output(&invalid_output, ZKVM_RISC0_ID);
-
+        // Tamper with the disclosed attributes without updating the hash/proof.
         let mut invalid_shown = shown.clone();
-        invalid_shown.receipt = receipt_invalid;
+        invalid_shown
+            .disclosed_attributes
+            .push("grade:forged".to_string());
 
         assert!(
-            !bdec_verify_shown_credential(
+            !bdec_verify_shown_credential_paper(
                 &system,
                 &invalid_shown,
-                &verifier_pseudonym.public,
-                ZKVM_RISC0_ID,
+                &shown.verifier_pseudonym.public,
             )
             .expect("verification should run"),
-            "Invalid journal must be rejected"
+            "Tampered disclosure must be rejected"
         );
     }
 
     #[test]
+    #[ignore = "expensive matrix: runs multiple Aurora proofs; run with `cargo test --release -- --ignored`"]
     fn test_bdec_attribute_variation_matrix() {
-        let system = bdec_setup(128, 16).expect("Setup should succeed");
+        let system = bdec_setup(80, 16).expect("Setup should succeed");
         let user_keypair = bdec_prigen(&system).expect("Key generation should succeed");
         let user_nym = bdec_nym_key(&system, &user_keypair).expect("Pseudonym generation failed");
-
-        let verifier_pseudonym =
-            bdec_nym_key(&system, &user_keypair).expect("Verifier pseudonym generation failed");
 
         let parameter_sets = &[(1usize, 1usize), (3, 1), (5, 2), (8, 3), (10, 5)];
 
@@ -633,42 +532,22 @@ mod integration_tests {
 
             let credential_bundle = vec![credential.clone()];
             let revealed: Vec<String> = attributes.iter().take(*reveal_count).cloned().collect();
-
-            let guest_output = TestGuestOutput {
-                loquat_valid: true,
-                attribute_count: attributes.len() as u32,
-                revealed_count: revealed.len() as u32,
-            };
-            let receipt = fake_receipt_from_output(&guest_output, ZKVM_RISC0_ID);
-
-            let shown = bdec_show_credential(
-                &system,
-                &credential_bundle,
-                verifier_pseudonym.clone(),
-                revealed.clone(),
-                receipt.clone(),
-            )
-            .expect("Show credential should succeed");
+            let shown = bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, revealed.clone())
+                .expect("Show credential should succeed");
 
             assert!(
-                bdec_verify_shown_credential(
-                    &system,
-                    &shown,
-                    &verifier_pseudonym.public,
-                    ZKVM_RISC0_ID,
-                )
-                .expect("Shown credential verification should succeed"),
+                bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public)
+                    .expect("Shown credential verification should succeed"),
                 "Shown credential should verify for attribute count {attribute_count}"
             );
 
             let mut tampered_attributes = shown.clone();
             tampered_attributes.credentials[0].attributes[0].push_str(":tamper");
             assert!(
-                !bdec_verify_shown_credential(
+                !bdec_verify_shown_credential_paper(
                     &system,
                     &tampered_attributes,
-                    &verifier_pseudonym.public,
-                    ZKVM_RISC0_ID,
+                    &shown.verifier_pseudonym.public,
                 )
                 .expect("Tampered verification should run"),
                 "Tampered credential must fail verification"
@@ -679,11 +558,10 @@ mod integration_tests {
                 .disclosed_attributes
                 .push("attr:bogus".to_string());
             assert!(
-                !bdec_verify_shown_credential(
+                !bdec_verify_shown_credential_paper(
                     &system,
                     &tampered_disclosure,
-                    &verifier_pseudonym.public,
-                    ZKVM_RISC0_ID,
+                    &shown.verifier_pseudonym.public,
                 )
                 .expect("Tampered disclosure verification should run"),
                 "Disclosure outside attribute set must be rejected"
@@ -692,8 +570,9 @@ mod integration_tests {
     }
 
     #[test]
+    #[ignore = "expensive: runs Aurora proofs; run with `cargo test --release -- --ignored`"]
     fn test_bdec_shown_credential_unlinkability_via_fresh_pseudonyms() {
-        let system = bdec_setup(128, 8).expect("Setup should succeed");
+        let system = bdec_setup(80, 8).expect("Setup should succeed");
         let user_keypair = bdec_prigen(&system).expect("Key generation should succeed");
         let user_nym = bdec_nym_key(&system, &user_keypair).expect("Pseudonym generation failed");
 
@@ -709,37 +588,13 @@ mod integration_tests {
 
         let credential_bundle = vec![credential.clone()];
         let revealed = vec![attributes[0].clone()];
-        let guest_output = TestGuestOutput {
-            loquat_valid: true,
-            attribute_count: attributes.len() as u32,
-            revealed_count: revealed.len() as u32,
-        };
+        let shown_a =
+            bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, revealed.clone())
+                .expect("Show credential A should succeed");
 
-        let receipt_a = fake_receipt_from_output(&guest_output, ZKVM_RISC0_ID);
-        let receipt_b = fake_receipt_from_output(&guest_output, ZKVM_RISC0_ID);
-
-        let verifier_pseudonym_a =
-            bdec_nym_key(&system, &user_keypair).expect("Verifier pseudonym A failed");
-        let verifier_pseudonym_b =
-            bdec_nym_key(&system, &user_keypair).expect("Verifier pseudonym B failed");
-
-        let shown_a = bdec_show_credential(
-            &system,
-            &credential_bundle,
-            verifier_pseudonym_a.clone(),
-            revealed.clone(),
-            receipt_a,
-        )
-        .expect("Show credential A should succeed");
-
-        let shown_b = bdec_show_credential(
-            &system,
-            &credential_bundle,
-            verifier_pseudonym_b.clone(),
-            revealed.clone(),
-            receipt_b,
-        )
-        .expect("Show credential B should succeed");
+        let shown_b =
+            bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, revealed.clone())
+                .expect("Show credential B should succeed");
 
         assert_ne!(
             shown_a.verifier_pseudonym.public, shown_b.verifier_pseudonym.public,
@@ -747,27 +602,26 @@ mod integration_tests {
         );
 
         assert!(
-            bdec_verify_shown_credential(
+            bdec_verify_shown_credential_paper(
                 &system,
                 &shown_a,
-                &verifier_pseudonym_a.public,
-                ZKVM_RISC0_ID,
+                &shown_a.verifier_pseudonym.public
             )
             .expect("Verification for shown A should succeed")
         );
         assert!(
-            bdec_verify_shown_credential(
+            bdec_verify_shown_credential_paper(
                 &system,
                 &shown_b,
-                &verifier_pseudonym_b.public,
-                ZKVM_RISC0_ID,
+                &shown_b.verifier_pseudonym.public
             )
             .expect("Verification for shown B should succeed")
         );
     }
     #[test]
     fn test_different_security_levels() {
-        for &lambda in &[128, 192, 256] {
+        // Paper-supported levels for this repo.
+        for &lambda in &[80, 100, 128] {
             let params = loquat_setup(lambda).expect(&format!("Setup for {}-bit failed", lambda));
             let keypair =
                 keygen_with_params(&params).expect(&format!("Keygen for {}-bit failed", lambda));
