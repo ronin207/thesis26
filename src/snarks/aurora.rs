@@ -118,6 +118,23 @@ pub fn aurora_prove_with_options(
 
     let (residual_tree, residual_root) = build_merkle_from_f2(&residual_evals)?;
     let (witness_tree, witness_root) = build_merkle_from_f(&assignment)?;
+    eprintln!(
+        "aurora_prove: constraint_count={}, log_size={}, eval_len={}, residual_evals_len={}",
+        constraint_count,
+        log_size,
+        eval_len,
+        residual_evals.len()
+    );
+    let sample_len = residual_evals.len().min(4);
+    let residual_sample: Vec<F2> = residual_evals.iter().take(sample_len).copied().collect();
+    eprintln!(
+        "aurora_prove: residual sample ({} entries) {:?}",
+        sample_len, &residual_sample
+    );
+    eprintln!(
+        "aurora_prove: witness_root {:02x?}, residual_root {:02x?}",
+        witness_root, residual_root
+    );
 
     let mut transcript = FieldTranscript::new(TRANSCRIPT_LABEL);
     transcript.append_digest32_as_fields(b"instance", &instance.digest());
@@ -186,8 +203,43 @@ pub fn aurora_verify(
     if proof.residual_evals.len() != expected_len {
         return Ok(None);
     }
+    eprintln!(
+        "aurora_verify: constraint_count={}, expected_log={}, proof_log={}, expected_len={}, residual_evals_len={}",
+        instance.num_constraints(),
+        expected_log,
+        proof.num_constraints_log2,
+        expected_len,
+        proof.residual_evals.len()
+    );
+    let sample_len = proof.residual_evals.len().min(4);
+    let residual_sample: Vec<F2> = proof
+        .residual_evals
+        .iter()
+        .take(sample_len)
+        .copied()
+        .collect();
+    eprintln!(
+        "aurora_verify: residual sample ({} entries) {:?}",
+        sample_len, &residual_sample
+    );
+    eprintln!(
+        "aurora_verify: witness_root {:02x?}, claimed residual_root {:02x?}",
+        proof.witness_root, proof.residual_root
+    );
     let recomputed_root = compute_merkle_root_from_f2(&proof.residual_evals)?;
+    eprintln!(
+        "aurora_verify: recomputed residual_root {:02x?}",
+        recomputed_root
+    );
     if recomputed_root != proof.residual_root {
+        eprintln!(
+            "aurora_verify: residual root mismatch\n  recomputed: {:02x?}\n  claimed:    {:02x?}",
+            recomputed_root, proof.residual_root
+        );
+        eprintln!(
+            "aurora_verify: residual sample ({} entries) {:?}",
+            sample_len, &residual_sample
+        );
         return Ok(None);
     }
 
