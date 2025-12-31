@@ -18,6 +18,7 @@ use crate::loquat::merkle::MerkleTree;
 use crate::snarks::{
     AuroraParams, AuroraProof, R1csConstraint, R1csInstance, R1csWitness, aurora_prove, aurora_verify,
     build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_witness_instance,
+    build_loquat_r1cs_pk_sig_witness,
     build_revocation_r1cs_pk_witness, build_revocation_r1cs_pk_witness_instance,
 };
 use crate::{LoquatError, LoquatKeyPair, LoquatResult, keygen_with_params};
@@ -1407,4 +1408,330 @@ mod tests {
                 .expect("showver after revoke")
         );
     }
+}
+
+// ============================================================================
+// New "Paper" API: Minimal credential publishing (ppk, h, c, ε)
+// ============================================================================
+
+/// Minimal paper-aligned credential that publishes only (ppk, h, c, ε).
+///
+/// This credential format uses the new `build_loquat_r1cs_pk_sig_witness_inner` function
+/// to prove knowledge of a valid Loquat signature without revealing the full signature.
+/// Only the essential public components are published:
+/// - ppk: pseudonym public key
+/// - h: message commitment hash
+/// - c: Aurora commitment
+/// - ε: Aurora proof of knowledge
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BdecPaperCredential {
+    /// Pseudonym public key (ppk)
+    pub pseudonym_public: Vec<u8>,
+    /// Message commitment hash (h)
+    pub message_commitment: [u8; 32],
+    /// Aurora commitment (c)
+    pub aurora_commitment: [u8; 32],
+    /// Aurora proof (ε)
+    pub aurora_proof: AuroraProof,
+}
+
+/// Create a minimal paper-aligned credential from a user's Loquat signature.
+///
+/// This function uses the new witness builder that enforces the full Loquat verification
+/// circuit including LDT queries, producing an Aurora proof that attests to signature validity
+/// without revealing the signature itself.
+///
+/// # Arguments
+/// * `system` - BDEC system parameters
+/// * `user_keypair` - User's long-term keypair (sk_U, pk_U)
+/// * `message` - Message being signed (e.g., attribute commitment)
+/// * `signature` - Valid Loquat signature on the message
+///
+/// # Returns
+/// A `BdecPaperCredential` containing only (ppk, h, c, ε)
+pub fn bdec_paper_create_credential(
+    system: &BdecSystem,
+    user_keypair: &LoquatKeyPair,
+    message: &[u8],
+    signature: &LoquatSignature,
+) -> LoquatResult<BdecPaperCredential> {
+    // Verify the signature is valid before creating the credential
+    if !loquat_verify(message, signature, &user_keypair.public_key, &system.params.loquat_params)? {
+        return Err(LoquatError::verification_failure(
+            "signature verification failed during paper credential creation",
+        ));
+    }
+
+    // Build the R1CS instance and witness using the new extended witness builder
+    let (r1cs_instance, r1cs_witness) = crate::snarks::build_loquat_r1cs_pk_sig_witness(
+        message,
+        signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )?;
+
+    // Generate Aurora proof
+    let aurora_proof = aurora_prove(&r1cs_instance, &r1cs_witness, &system.params.aurora_params)?;
+
+    // Extract message commitment from signature
+    let message_commitment: [u8; 32] = signature
+        .message_commitment
+        .as_slice()
+        .try_into()
+        .map_err(|_| LoquatError::verification_failure("invalid message commitment length"))?;
+
+    // Compute Aurora commitment (hash of instance)
+    let mut hasher = Sha256::new();
+    hasher.update(&system.params.crs_digest);
+    for constraint in &r1cs_instance.constraints {
+        // Simplified commitment - in production, use a proper binding commitment
+        hasher.update(&[constraint.a.len() as u8]);
+    }
+    let aurora_commitment = hasher.finalize().into();
+
+    // Generate pseudonym public key (serialized)
+    let pseudonym = bdec_nym_key(system, user_keypair)?;
+
+    Ok(BdecPaperCredential {
+        pseudonym_public: pseudonym.public,
+        message_commitment,
+        aurora_commitment,
+        aurora_proof,
+    })
+}
+
+/// Verify a minimal paper-aligned credential.
+///
+/// This function verifies the Aurora proof without requiring access to the full signature.
+/// It reconstructs the R1CS instance from public information and verifies the proof.
+///
+/// # Arguments
+/// * `system` - BDEC system parameters
+/// * `credential` - Paper credential to verify
+/// * `message` - Message that was signed
+///
+/// # Returns
+/// `true` if the credential is valid, `false` otherwise
+pub fn bdec_paper_verify_credential(
+    system: &BdecSystem,
+    credential: &BdecPaperCredential,
+    message: &[u8],
+) -> LoquatResult<bool> {
+    // Build the R1CS instance (instance-only generation)
+    let r1cs_instance = crate::snarks::build_loquat_r1cs_pk_sig_witness_instance(
+        message,
+        &system.params.loquat_params,
+    )?;
+
+    // Verify the Aurora proof (pass None for verification hints)
+    let result = aurora_verify(&r1cs_instance, &credential.aurora_proof, &system.params.aurora_params, None)?;
+    // If aurora_verify returns Some(_), the verification succeeded; None indicates failure
+    Ok(result.is_some())
+}
+
+#[cfg(test)]
+mod paper_api_tests {
+    use super::*;
+
+    #[test]
+    fn test_bdec_paper_credential_create_and_verify() {
+        // Setup BDEC system
+        let system = bdec_setup(128, 3).expect("setup");
+
+        // Generate user keypair
+        let user = bdec_prigen(&system).expect("prigen");
+
+        // Create a message (e.g., attribute commitment)
+        let message = b"test_message_for_paper_credential";
+
+        // Create a Loquat signature on the message
+        let signature = loquat_sign(message, &user, &system.params.loquat_params).expect("sign");
+
+        // Create paper credential using new API
+        let credential = bdec_paper_create_credential(&system, &user, message, &signature)
+            .expect("paper credential creation");
+
+        // Verify the paper credential
+        assert!(
+            bdec_paper_verify_credential(&system, &credential, message).expect("paper verify"),
+            "Paper credential verification failed"
+        );
+
+        // Verify that tampering with the message causes verification to fail
+        let tampered_message = b"tampered_message";
+        assert!(
+            !bdec_paper_verify_credential(&system, &credential, tampered_message)
+                .expect("paper verify tampered"),
+            "Tampered credential should not verify"
+        );
+    }
+
+    #[test]
+    fn test_bdec_vc_like_credential_flow() {
+        println!("\n=== BDEC VC-like Credential Flow Test ===\n");
+
+        // =========================================================================
+        // Step 1: Setup (corresponds to Setup in paper)
+        // =========================================================================
+        println!("Step 1: BDEC System Setup");
+        let system = bdec_setup(128, 5).expect("setup");
+        println!("  ✓ System parameters initialized");
+        println!("  ✓ Loquat params: λ={}, max_attributes={}", 128, 5);
+
+        // =========================================================================
+        // Step 2: PriGen (User generates long-term keypair)
+        // =========================================================================
+        println!("\nStep 2: User Key Generation (PriGen)");
+        let user_keypair = bdec_prigen(&system).expect("prigen");
+        println!("  ✓ Generated (sk_U, pk_U)");
+        println!("  ✓ pk_U length: {} bits", user_keypair.public_key.len());
+
+        // =========================================================================
+        // Step 3: NymKey (Generate pseudonym for TA)
+        // =========================================================================
+        println!("\nStep 3: Pseudonym Generation (NymKey for TA)");
+        let pseudonym_ta = bdec_nym_key(&system, &user_keypair).expect("nym_key");
+        println!("  ✓ Generated pseudonym (ppk_U_TA, psk_U_TA)");
+        println!("  ✓ ppk_U_TA length: {} bytes", pseudonym_ta.public.len());
+
+        // =========================================================================
+        // Step 4: CreGen (Issue credential with attributes)
+        // =========================================================================
+        println!("\nStep 4: Credential Generation (CreGen)");
+        let attributes = vec![
+            "Name:Alice".to_string(),
+            "University:XYZ University".to_string(),
+            "Degree:Bachelor of Software Engineering".to_string(),
+            "Year:2023".to_string(),
+            "GPA:4.8/5".to_string(),
+        ];
+        println!("  Attributes:");
+        for attr in &attributes {
+            println!("    - {}", attr);
+        }
+
+        let credential = bdec_issue_credential(&system, &user_keypair, &pseudonym_ta, attributes.clone())
+            .expect("issue credential");
+
+        println!("  ✓ Generated credential signature c_U_TA");
+        println!("  ✓ Computed attribute hash h_U_TA");
+        println!("  ✓ Generated zkSNARK proof ε_c_U_TA");
+
+        // Map to VC-like structure
+        println!("\n  VC-like structure mapping:");
+        println!("  {{");
+        println!("    \"type\": [\"BDECApprovedCredential\"],");
+        println!("    \"issuer\": {{ \"id\": \"did:example:TA-XYZ-University\" }},");
+        println!("    \"credentialSubject\": {{");
+        let ppk_sample = &pseudonym_ta.public[..8.min(pseudonym_ta.public.len())];
+        println!("      \"id\": \"bdec:ppk:{}\",", hex_encode_sample(ppk_sample));
+        println!("      \"attributes\": {{ ... {} attributes ... }},", attributes.len());
+        println!("      \"commitment\": {{");
+        println!("        \"digest\": \"{}...\"", hex_encode_sample(&credential.attribute_hash[..8]));
+        println!("      }}");
+        println!("    }},");
+        println!("    \"bdecArtifacts\": {{");
+        println!("      \"ppk_U_TA\": \"{}...\",", hex_encode_sample(ppk_sample));
+        println!("      \"c_U_TA\": \"<signature bytes>\",");
+        println!("      \"epsilon_c_U_TA\": \"<proof bytes>\"");
+        println!("    }}");
+        println!("  }}");
+
+        // =========================================================================
+        // Step 5: CreVer (Verify the credential - simulates TA verification)
+        // =========================================================================
+        println!("\nStep 5: Credential Verification (CreVer)");
+        let verification_result = bdec_verify_credential(&system, &credential).expect("verify credential");
+        assert!(verification_result, "Credential verification failed");
+        println!("  ✓ TA verified credential successfully");
+        println!("  ✓ Ready for on-chain publication");
+
+        // =========================================================================
+        // Step 6: ShowCre (Create presentation for verifier)
+        // =========================================================================
+        println!("\nStep 6: Presentation Generation (ShowCre)");
+        let disclosed = vec![
+            "Degree:Bachelor of Software Engineering".to_string(),
+            "University:XYZ University".to_string(),
+        ];
+        println!("  Disclosed attributes:");
+        for attr in &disclosed {
+            println!("    - {}", attr);
+        }
+
+        let shown_credential = bdec_show_credential_paper(
+            &system,
+            &user_keypair,
+            &[credential.clone()],
+            disclosed.clone(),
+        ).expect("show credential");
+
+        println!("  ✓ Generated verifier pseudonym ppk_U_V");
+        println!("  ✓ Computed disclosure hash h_U_V");
+        println!("  ✓ Generated shown credential signature c_U_V");
+        println!("  ✓ Generated zkSNARK proof ε_c_U_V");
+
+        // Map to VC-like shown credential structure
+        println!("\n  Shown credential VC-like structure:");
+        println!("  {{");
+        println!("    \"type\": [\"BDECShownCredential\"],");
+        println!("    \"holderPseudonym\": {{");
+        let vpk_sample = &shown_credential.verifier_pseudonym.public[..8.min(shown_credential.verifier_pseudonym.public.len())];
+        println!("      \"id\": \"bdec:ppk:{}\",", hex_encode_sample(vpk_sample));
+        println!("      \"forVerifier\": \"did:example:Company-V\"");
+        println!("    }},");
+        println!("    \"disclosedAttributes\": {{ ... {} attributes ... }},", disclosed.len());
+        println!("    \"commitment\": {{");
+        println!("      \"digest\": \"{}...\"", hex_encode_sample(&shown_credential.disclosure_hash[..8]));
+        println!("    }},");
+        println!("    \"bdecArtifacts\": {{");
+        println!("      \"c_U_V\": \"<signature bytes>\",");
+        println!("      \"epsilon_c_U_V\": \"<proof bytes>\"");
+        println!("    }}");
+        println!("  }}");
+
+        // =========================================================================
+        // Step 7: ShowVer (Verifier checks the presentation)
+        // =========================================================================
+        println!("\nStep 7: Presentation Verification (ShowVer)");
+        let show_verification_result = bdec_verify_shown_credential_paper(
+            &system,
+            &shown_credential,
+            &shown_credential.verifier_pseudonym.public,
+        ).expect("verify shown credential");
+        assert!(show_verification_result, "Shown credential verification failed");
+        println!("  ✓ Verifier confirmed presentation validity");
+        println!("  ✓ Pseudonym ppk_U_V verified");
+        println!("  ✓ Disclosed attributes confirmed");
+
+        // =========================================================================
+        // Step 8: Demonstrate revocation
+        // =========================================================================
+        println!("\nStep 8: Revocation Test");
+        let mut system_mut = system.clone();
+        bdec_revoke(&mut system_mut, &user_keypair.public_key).expect("revoke");
+        println!("  ✓ User pk_U added to revocation list");
+
+        let revoked_verification = bdec_verify_shown_credential_paper(
+            &system_mut,
+            &shown_credential,
+            &shown_credential.verifier_pseudonym.public,
+        ).expect("verify after revocation");
+        assert!(!revoked_verification, "Revoked credential should not verify");
+        println!("  ✓ Revoked credential correctly rejected");
+
+        println!("\n=== Test Complete ===");
+        println!("All BDEC operations verified successfully!");
+        println!("\nKey insights:");
+        println!("  • Credentials contain cryptographic artifacts (ppk, c, ε), not JSON signatures");
+        println!("  • Attributes are hashed into commitments (h = H(A))");
+        println!("  • zkSNARK proofs bind pseudonyms to hidden pk_U");
+        println!("  • Selective disclosure via commitment to H(A↓)");
+        println!("  • Revocation via pk_U publication (privacy-preserving until revoked)");
+    }
+}
+
+// Helper functions for test output formatting
+fn hex_encode_sample(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>()
 }
