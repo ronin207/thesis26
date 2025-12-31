@@ -78,6 +78,10 @@ struct RunConfig {
     aurora_stats_only: bool,
     kappa: Option<usize>,
     paper_row: bool,
+    paper_table3: bool,
+    json: bool,
+    iters: usize,
+    aurora_iters: usize,
 }
 
 fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
@@ -99,6 +103,10 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
     let mut aurora_stats_only = false;
     let mut kappa = None;
     let mut paper_row = false;
+    let mut paper_table3 = false;
+    let mut json = false;
+    let mut iters = 1usize;
+    let mut aurora_iters = 1usize;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--skip-aurora" | "--no-aurora" => run_aurora = false,
@@ -106,6 +114,8 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
             "--compress" => compress = true,
             "--aurora-stats-only" => aurora_stats_only = true,
             "--paper-row" => paper_row = true,
+            "--paper-table3" | "--table3" => paper_table3 = true,
+            "--json" | "--jsonl" => json = true,
             "--kappa" => {
                 if let Some(next) = args.next() {
                     if let Ok(value) = next.parse::<usize>() {
@@ -115,6 +125,28 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
                     }
                 } else {
                     eprintln!("Missing value for --kappa, ignoring");
+                }
+            }
+            "--iters" | "--iterations" => {
+                if let Some(next) = args.next() {
+                    if let Ok(value) = next.parse::<usize>() {
+                        iters = value.max(1);
+                    } else {
+                        eprintln!("Ignoring invalid --iters value '{next}'");
+                    }
+                } else {
+                    eprintln!("Missing value for --iters, ignoring");
+                }
+            }
+            "--aurora-iters" | "--aurora-iterations" => {
+                if let Some(next) = args.next() {
+                    if let Ok(value) = next.parse::<usize>() {
+                        aurora_iters = value.max(1);
+                    } else {
+                        eprintln!("Ignoring invalid --aurora-iters value '{next}'");
+                    }
+                } else {
+                    eprintln!("Missing value for --aurora-iters, ignoring");
                 }
             }
             "--queries" => {
@@ -132,6 +164,24 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
                         aurora_queries = Some(q);
                     } else {
                         eprintln!("Ignoring invalid --queries value '{val}'");
+                    }
+                }
+            }
+            _ if arg.starts_with("--iters=") || arg.starts_with("--iterations=") => {
+                if let Some(val) = arg.split_once('=').map(|(_, v)| v) {
+                    if let Ok(value) = val.parse::<usize>() {
+                        iters = value.max(1);
+                    } else {
+                        eprintln!("Ignoring invalid --iters value '{val}'");
+                    }
+                }
+            }
+            _ if arg.starts_with("--aurora-iters=") || arg.starts_with("--aurora-iterations=") => {
+                if let Some(val) = arg.split_once('=').map(|(_, v)| v) {
+                    if let Ok(value) = val.parse::<usize>() {
+                        aurora_iters = value.max(1);
+                    } else {
+                        eprintln!("Ignoring invalid --aurora-iters value '{val}'");
                     }
                 }
             }
@@ -157,6 +207,10 @@ fn parse_args() -> Result<RunConfig, Box<dyn std::error::Error>> {
         aurora_stats_only,
         kappa,
         paper_row,
+        paper_table3,
+        json,
+        iters,
+        aurora_iters,
     })
 }
 
@@ -167,8 +221,9 @@ fn synthetic_message(len: usize) -> Vec<u8> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = parse_args()?;
     let message = synthetic_message(config.message_len);
+    let quiet = config.paper_row || config.paper_table3 || config.json;
 
-    if !config.paper_row {
+    if !quiet {
         println!("=== Loquat SNARK Stats ===\n");
         println!(
             "security level: {}-bit   message bytes: {}",
@@ -180,7 +235,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
     let effective_security = if config.tiny || tiny_env {
-        if !config.paper_row {
+        if !quiet {
             println!("(tiny debug parameters enabled)");
         }
         80
@@ -196,47 +251,90 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let keypair = keygen_with_params(&params)?;
 
+    let mut total_sign_s = 0.0f64;
+    let mut total_verify_s = 0.0f64;
+    let mut artifact_bytes = 0usize;
+    let mut transcript_bytes = 0usize;
+    let mut signature: Option<LoquatSignature> = None;
+    for iter in 0..config.iters {
     let sign_start = Instant::now();
-    let signature = loquat_sign(&message, &keypair, &params)?;
+        let sig = loquat_sign(&message, &keypair, &params)?;
     let sign_time = sign_start.elapsed();
 
     let verify_start = Instant::now();
-    let is_valid = loquat_verify(&message, &signature, &keypair.public_key, &params)?;
+        let is_valid = loquat_verify(&message, &sig, &keypair.public_key, &params)?;
     let verify_time = verify_start.elapsed();
     if !is_valid {
         eprintln!("signature failed to verify; aborting");
         return Ok(());
     }
 
-    let artifact_bytes = serialized_artifact_len(&signature)?;
-    let transcript_bytes = serialized_full_transcript_len(&signature)?;
+        total_sign_s += sign_time.as_secs_f64();
+        total_verify_s += verify_time.as_secs_f64();
+        if iter == 0 {
+            artifact_bytes = serialized_artifact_len(&sig)?;
+            transcript_bytes = serialized_full_transcript_len(&sig)?;
+        }
+        signature = Some(sig);
+    }
+    let signature = signature.expect("signature loop always runs at least once");
 
-    if !config.paper_row {
+    let avg_sign_s = total_sign_s / config.iters as f64;
+    let avg_verify_s = total_verify_s / config.iters as f64;
+
+    if config.paper_table3 {
+        let sig_kib = artifact_bytes as f64 / 1024.0;
+        println!(
+            "Loquat-{} & {} & {:.1} & {:.3} & {:.3} & {} \\\\",
+            effective_security,
+            params.kappa,
+            sig_kib,
+            avg_sign_s,
+            avg_verify_s,
+            "Griffin"
+        );
+        return Ok(());
+    }
+
+    if !quiet {
         println!("\n--- Loquat signature ---");
-        println!("  sign time:            {}", format_duration(sign_time));
-        println!("  verify time:          {}", format_duration(verify_time));
+        if config.iters == 1 {
+            println!("  sign time:            {}", format_duration(Duration::from_secs_f64(avg_sign_s)));
+            println!("  verify time:          {}", format_duration(Duration::from_secs_f64(avg_verify_s)));
+        } else {
+            println!(
+                "  sign time (avg, n={}): {}",
+                config.iters,
+                format_duration(Duration::from_secs_f64(avg_sign_s))
+            );
+            println!(
+                "  verify time (avg, n={}): {}",
+                config.iters,
+                format_duration(Duration::from_secs_f64(avg_verify_s))
+            );
+        }
         println!("  artifact size (B):    {:>10}", artifact_bytes);
         println!("  transcript size (B):  {:>10}", transcript_bytes);
         if config.compress {
-            let artifact_bytes = serialize_artifact(&signature)?;
-            let artifact_compressed = rle_compress(&artifact_bytes);
-            let transcript_bytes = serialize_full_transcript(&signature)?;
-            let transcript_compressed = rle_compress(&transcript_bytes);
+            let artifact_raw = serialize_artifact(&signature)?;
+            let artifact_compressed = rle_compress(&artifact_raw);
+            let transcript_raw = serialize_full_transcript(&signature)?;
+            let transcript_compressed = rle_compress(&transcript_raw);
             println!(
                 "  artifact (RLE):       {:>10} (raw {})",
-                artifact_compressed.len().min(artifact_bytes.len()),
-                artifact_bytes.len()
+                artifact_compressed.len().min(artifact_raw.len()),
+                artifact_raw.len()
             );
             println!(
                 "  transcript (RLE):     {:>10} (raw {})",
-                transcript_compressed.len().min(transcript_bytes.len()),
-                transcript_bytes.len()
+                transcript_compressed.len().min(transcript_raw.len()),
+                transcript_raw.len()
             );
         }
     }
 
-    let sign_ms = sign_time.as_secs_f64() * 1000.0;
-    let verify_ms = verify_time.as_secs_f64() * 1000.0;
+    let sign_ms = avg_sign_s * 1000.0;
+    let verify_ms = avg_verify_s * 1000.0;
 
     let print_paper_row = |r1cs_vars: Option<usize>,
                            r1cs_constraints: Option<usize>,
@@ -278,6 +376,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !config.run_aurora || config.aurora_stats_only {
         if config.paper_row {
             print_paper_row(None, None, None, None, None, None, None);
+        } else if config.json {
+            println!(
+                "{{\"security\":{},\"message_len\":{},\"kappa\":{},\"iters\":{},\"sign_s\":{:.6},\"verify_s\":{:.6},\"artifact_bytes\":{},\"transcript_bytes\":{},\"r1cs_vars\":null,\"r1cs_constraints\":null,\"aurora_queries\":null,\"aurora_prove_s\":null,\"aurora_verify_s\":null,\"aurora_proof_bytes\":null,\"aurora_ok\":null}}",
+                effective_security,
+                config.message_len,
+                params.kappa,
+                config.iters,
+                avg_sign_s,
+                avg_verify_s,
+                artifact_bytes,
+                transcript_bytes
+            );
         } else {
             println!(
                 "\nAurora skipped ({}).",
@@ -291,10 +401,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let query_count = config.aurora_queries.unwrap_or(4);
+    let query_count = config.aurora_queries.unwrap_or(8);
     let (instance, witness) =
         build_loquat_r1cs(&message, &signature, &keypair.public_key, &params)?;
-    if !config.paper_row {
+    if !quiet {
         println!("\n--- R1CS stats ---");
         println!("  variables:            {}", instance.num_variables);
         println!("  constraints:          {}", instance.constraints.len());
@@ -305,39 +415,83 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let aurora_opts = AuroraProverOptions::default();
 
+    let mut total_aurora_prove_s = 0.0f64;
+    let mut total_aurora_verify_s = 0.0f64;
+    let mut proof_bytes = 0usize;
+    let mut aurora_ok = None;
+    for _ in 0..config.aurora_iters {
     let prove_start = Instant::now();
     let proof = aurora_prove_with_options(&instance, &witness, &aurora_params, &aurora_opts)?;
     let aurora_prove_time = prove_start.elapsed();
+        total_aurora_prove_s += aurora_prove_time.as_secs_f64();
 
-    let proof_bytes = serialize(&proof)?.len();
+        proof_bytes = serialize(&proof)?.len();
     let aurora_verify_start = Instant::now();
     let verify_result = aurora_verify(&instance, &proof, &aurora_params, None)?;
     let aurora_verify_time = aurora_verify_start.elapsed();
+        total_aurora_verify_s += aurora_verify_time.as_secs_f64();
+        aurora_ok = Some(verify_result.is_some());
+    }
+    let avg_aurora_prove_s = total_aurora_prove_s / config.aurora_iters as f64;
+    let avg_aurora_verify_s = total_aurora_verify_s / config.aurora_iters as f64;
 
     if config.paper_row {
         print_paper_row(
             Some(instance.num_variables),
             Some(instance.constraints.len()),
             Some(query_count),
-            Some(aurora_prove_time.as_secs_f64()),
-            Some(aurora_verify_time.as_secs_f64()),
+            Some(avg_aurora_prove_s),
+            Some(avg_aurora_verify_s),
             Some(proof_bytes),
-            Some(verify_result.is_some()),
+            aurora_ok,
+        );
+    } else if config.json {
+        println!(
+            "{{\"security\":{},\"message_len\":{},\"kappa\":{},\"iters\":{},\"sign_s\":{:.6},\"verify_s\":{:.6},\"artifact_bytes\":{},\"transcript_bytes\":{},\"r1cs_vars\":{},\"r1cs_constraints\":{},\"aurora_queries\":{},\"aurora_iters\":{},\"aurora_prove_s\":{:.6},\"aurora_verify_s\":{:.6},\"aurora_proof_bytes\":{},\"aurora_ok\":{}}}",
+            effective_security,
+            config.message_len,
+            params.kappa,
+            config.iters,
+            avg_sign_s,
+            avg_verify_s,
+            artifact_bytes,
+            transcript_bytes,
+            instance.num_variables,
+            instance.constraints.len(),
+            query_count,
+            config.aurora_iters,
+            avg_aurora_prove_s,
+            avg_aurora_verify_s,
+            proof_bytes,
+            aurora_ok.unwrap_or(false)
         );
     } else {
         println!("\n--- Aurora proof ---");
+        if config.aurora_iters == 1 {
         println!(
             "  prove time:           {}",
-            format_duration(aurora_prove_time)
+                format_duration(Duration::from_secs_f64(avg_aurora_prove_s))
         );
         println!(
             "  verify time:          {}",
-            format_duration(aurora_verify_time)
+                format_duration(Duration::from_secs_f64(avg_aurora_verify_s))
+            );
+        } else {
+            println!(
+                "  prove time (avg, n={}): {}",
+                config.aurora_iters,
+                format_duration(Duration::from_secs_f64(avg_aurora_prove_s))
+            );
+            println!(
+                "  verify time (avg, n={}): {}",
+                config.aurora_iters,
+                format_duration(Duration::from_secs_f64(avg_aurora_verify_s))
         );
+        }
         println!("  proof size (B):       {:>10}", proof_bytes);
         println!(
             "  verification result:  {}",
-            if verify_result.is_some() {
+            if aurora_ok.unwrap_or(false) {
                 "success"
             } else {
                 "failure"

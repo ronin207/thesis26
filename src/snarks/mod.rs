@@ -29,6 +29,7 @@ pub use aurora::{
 pub use fractal::{FractalParams, FractalProof, fractal_prove, fractal_verify};
 pub use loquat_r1cs::{
     build_loquat_r1cs, build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_witness_instance,
+    build_loquat_r1cs_pk_sig_witness, build_loquat_r1cs_pk_sig_witness_instance,
     build_revocation_r1cs_pk_witness, build_revocation_r1cs_pk_witness_instance,
 };
 pub use r1cs::{R1csConstraint, R1csInstance, R1csWitness};

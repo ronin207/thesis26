@@ -1,0 +1,39 @@
+{
+  "source": {
+    "paper": "IACR ePrint 2024/868",
+    "pdf_path": "references/2024-868.pdf",
+    "table": "Table 3 (Performance Evaluation of Loquat)",
+    "notes": [
+      "Values are transcribed from the PDF text extraction; units match the paper (|σ| in KB, times in seconds).",
+      "Paper environment: Python + SageMath, single thread, 2021 MacBook Pro (M1 Max), 32GB RAM."
+    ]
+  },
+  "rows": [
+    { "scheme": "Loquat", "hash": "SHA/SHAKE", "security": 80, "kappa": 20, "sigma_kb": 37, "tP_s": 4.64, "tV_s": 0.16 },
+    { "scheme": "Loquat", "hash": "SHA/SHAKE", "security": 100, "kappa": 25, "sigma_kb": 46, "tP_s": 4.77, "tV_s": 0.19 },
+    { "scheme": "Loquat", "hash": "SHA/SHAKE", "security": 128, "kappa": 32, "sigma_kb": 57, "tP_s": 5.04, "tV_s": 0.21 },
+
+    { "scheme": "Loquat", "hash": "Griffin", "security": 80, "kappa": 20, "sigma_kb": 37, "tP_s": 104.0, "tV_s": 7.40 },
+    { "scheme": "Loquat", "hash": "Griffin", "security": 100, "kappa": 25, "sigma_kb": 46, "tP_s": 105.0, "tV_s": 9.15 },
+    { "scheme": "Loquat", "hash": "Griffin", "security": 128, "kappa": 32, "sigma_kb": 57, "tP_s": 105.0, "tV_s": 11.0 },
+
+    { "scheme": "Loquat*", "hash": "SHA/SHAKE", "security": 80, "kappa": 40, "sigma_kb": 75, "tP_s": 11.51, "tV_s": 0.27 },
+    { "scheme": "Loquat*", "hash": "SHA/SHAKE", "security": 100, "kappa": 50, "sigma_kb": 90, "tP_s": 12.08, "tV_s": 0.31 },
+    { "scheme": "Loquat*", "hash": "SHA/SHAKE", "security": 128, "kappa": 64, "sigma_kb": 114, "tP_s": 13.22, "tV_s": 0.37 },
+
+    { "scheme": "Loquat*", "hash": "Griffin", "security": 80, "kappa": 40, "sigma_kb": 75, "tP_s": 209.0, "tV_s": 15.0 },
+    { "scheme": "Loquat*", "hash": "Griffin", "security": 100, "kappa": 50, "sigma_kb": 90, "tP_s": 210.0, "tV_s": 18.0 },
+    { "scheme": "Loquat*", "hash": "Griffin", "security": 128, "kappa": 64, "sigma_kb": 114, "tP_s": 214.0, "tV_s": 25.0 }
+  ]
+}
+
+
+
+
+
+
+
+
+
+
+

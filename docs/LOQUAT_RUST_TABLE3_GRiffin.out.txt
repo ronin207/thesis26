@@ -1,0 +1,8 @@
+Loquat Table-3-style rows (Rust, Griffin hash)
+Columns: Security & kappa & |sigma| (KiB) & tP (s) & tV (s) & Hash \\
+
+Building loquat_snark_stats (release)...
+
+Loquat-80 & 20 & 38.6 & 0.023 & 0.018 & Griffin \\
+Loquat-100 & 25 & 50.5 & 0.024 & 0.021 & Griffin \\
+Loquat-128 & 32 & 60.0 & 0.024 & 0.022 & Griffin \\

@@ -649,6 +649,18 @@ impl R1csBuilder {
     }
 
     fn finalize(self) -> LoquatResult<(R1csInstance, R1csWitness)> {
+        self.finalize_inner(true)
+    }
+
+    /// Finalize without validating that the returned witness satisfies the instance.
+    ///
+    /// This is used for **instance-only** builders that must not depend on witness values
+    /// at build time (e.g., placeholder square-root witnesses or Merkle paths).
+    fn finalize_unchecked(self) -> LoquatResult<(R1csInstance, R1csWitness)> {
+        self.finalize_inner(false)
+    }
+
+    fn finalize_inner(self, validate: bool) -> LoquatResult<(R1csInstance, R1csWitness)> {
         let num_variables = self.witness.len() + 1;
         let constraints = self
             .constraints
@@ -662,7 +674,9 @@ impl R1csBuilder {
             .collect::<Vec<_>>();
         let instance = R1csInstance::new(num_variables, constraints)?;
         let witness = R1csWitness::new(self.witness);
-        witness.validate(&instance)?;
+        if validate {
+            witness.validate(&instance)?;
+        }
         Ok((instance, witness))
     }
 
@@ -1062,7 +1076,7 @@ pub fn build_loquat_r1cs_pk_witness(
     public_key: &[F],
     params: &LoquatPublicParams,
 ) -> LoquatResult<(R1csInstance, R1csWitness)> {
-    build_loquat_r1cs_pk_witness_inner(message, signature, Some(public_key), params, true)
+    build_loquat_r1cs_pk_witness_inner(message, signature, Some(public_key), params, true, true)
 }
 
 /// Build the **instance only** (no public key input), for verifying a pk-witness Aurora proof.
@@ -1074,7 +1088,33 @@ pub fn build_loquat_r1cs_pk_witness_instance(
     signature: &LoquatSignature,
     params: &LoquatPublicParams,
 ) -> LoquatResult<R1csInstance> {
-    let (instance, _) = build_loquat_r1cs_pk_witness_inner(message, signature, None, params, false)?;
+    let (instance, _) =
+        build_loquat_r1cs_pk_witness_inner(message, signature, None, params, false, false)?;
+    Ok(instance)
+}
+
+/// Build a Loquat verification circuit where **both the public key and the signature are witnesses**.
+///
+/// This models the existential statement:
+///   ∃ pk, σ  such that  Verify(pk, message, σ) = 1
+///
+/// This is used by the BDEC layer to keep pseudonym signatures (`psk`) hidden while still
+/// proving that the pseudonym public key was generated under the same hidden long-term `pk_U`.
+pub fn build_loquat_r1cs_pk_sig_witness(
+    message: &[u8],
+    signature: &LoquatSignature,
+    public_key: &[F],
+    params: &LoquatPublicParams,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    build_loquat_r1cs_pk_sig_witness_inner(message, Some(signature), Some(public_key), params, true)
+}
+
+/// Build the **instance only** for the pk+signature witness circuit.
+pub fn build_loquat_r1cs_pk_sig_witness_instance(
+    message: &[u8],
+    params: &LoquatPublicParams,
+) -> LoquatResult<R1csInstance> {
+    let (instance, _) = build_loquat_r1cs_pk_sig_witness_inner(message, None, None, params, false)?;
     Ok(instance)
 }
 
@@ -1129,7 +1169,7 @@ fn build_revocation_r1cs_pk_witness_inner(
     revocation_root: &[u8; 32],
     auth_path: Option<&[[u8; 32]]>,
     depth: usize,
-    _compute_values: bool,
+    validate_witness: bool,
 ) -> LoquatResult<(R1csInstance, R1csWitness)> {
     if depth == 0 {
         return Err(LoquatError::invalid_parameters("revocation depth must be > 0"));
@@ -1201,7 +1241,768 @@ fn build_revocation_r1cs_pk_witness_inner(
     builder.enforce_linear_relation(&[(current[0].idx, F::one())], -expected0);
     builder.enforce_linear_relation(&[(current[1].idx, F::one())], -expected1);
 
-    builder.finalize()
+    if validate_witness {
+        builder.finalize()
+    } else {
+        builder.finalize_unchecked()
+    }
+}
+
+fn build_loquat_r1cs_pk_sig_witness_inner(
+    message: &[u8],
+    signature: Option<&LoquatSignature>,
+    public_key: Option<&[F]>,
+    params: &LoquatPublicParams,
+    validate_witness: bool,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    let mut builder = R1csBuilder::new();
+
+    // Allocate pk bits first so the pk block is stable for BDEC circuit merging.
+    let mut pk_bits: Vec<FieldVar> = Vec::with_capacity(params.l);
+    for idx in 0..params.l {
+        let value = public_key
+            .and_then(|pk| pk.get(idx).copied())
+            .unwrap_or(F::zero());
+        let var_idx = builder.alloc(value);
+        builder.enforce_boolean(var_idx);
+        pk_bits.push(FieldVar::new(var_idx, value));
+    }
+
+    // Load signature-dependent witness values (or placeholders for instance-only).
+    let message_commitment_bytes = signature
+        .map(|sig| sig.message_commitment.as_slice())
+        .unwrap_or(&[]);
+    let message_commitment_arr: [u8; 32] = if message_commitment_bytes.len() == 32 {
+        let mut out = [0u8; 32];
+        out.copy_from_slice(message_commitment_bytes);
+        out
+    } else {
+        [0u8; 32]
+    };
+    let root_c_bytes = signature.map(|sig| sig.root_c).unwrap_or([0u8; 32]);
+
+    let mu_value = signature.map(|sig| sig.mu).unwrap_or(F2::zero());
+
+    let t_values = if let Some(sig) = signature {
+        if sig.t_values.len() != params.n || sig.t_values.iter().any(|row| row.len() != params.m) {
+            return Err(LoquatError::verification_failure(
+                "t-value matrix dimension mismatch",
+            ));
+        }
+        sig.t_values.clone()
+    } else {
+        vec![vec![F::zero(); params.m]; params.n]
+    };
+    let o_values = if let Some(sig) = signature {
+        if sig.o_values.len() != params.n || sig.o_values.iter().any(|row| row.len() != params.m) {
+            return Err(LoquatError::verification_failure(
+                "o-value matrix dimension mismatch",
+            ));
+        }
+        sig.o_values.clone()
+    } else {
+        vec![vec![F::zero(); params.m]; params.n]
+    };
+
+    // Enforce message commitment inside the circuit:
+    // GriffinHasher::hash(message) == signature.message_commitment (witness).
+    let message_bytes = bytes_from_constants(&mut builder, message);
+    let computed_commitment_bytes = griffin_hash_bytes_circuit(&mut builder, &message_bytes);
+    if computed_commitment_bytes.len() != 32 {
+        return Err(LoquatError::verification_failure(
+            "message commitment circuit digest must be 32 bytes",
+        ));
+    }
+    let computed_commitment_fields = bytes_to_field_elements(&mut builder, &computed_commitment_bytes);
+    if computed_commitment_fields.len() != 2 {
+        return Err(LoquatError::verification_failure(
+            "message commitment must map to 2 field limbs",
+        ));
+    }
+    let mc0 = field_utils::bytes_to_field_element(&message_commitment_arr[0..16]);
+    let mc1 = field_utils::bytes_to_field_element(&message_commitment_arr[16..32]);
+    let mc0_idx = builder.alloc(mc0);
+    let mc1_idx = builder.alloc(mc1);
+    builder.enforce_eq(computed_commitment_fields[0].idx, mc0_idx);
+    builder.enforce_eq(computed_commitment_fields[1].idx, mc1_idx);
+    let mc_fields = [FieldVar::new(mc0_idx, mc0), FieldVar::new(mc1_idx, mc1)];
+
+    // Allocate root_c as witness field limbs (bound later via Merkle constraints).
+    let rc0 = field_utils::bytes_to_field_element(&root_c_bytes[0..16]);
+    let rc1 = field_utils::bytes_to_field_element(&root_c_bytes[16..32]);
+    let rc0_idx = builder.alloc(rc0);
+    let rc1_idx = builder.alloc(rc1);
+    let root_c_fields = [FieldVar::new(rc0_idx, rc0), FieldVar::new(rc1_idx, rc1)];
+
+    // Allocate μ as witness (paper: μ ∈ F², but in this implementation μ is real).
+    let mu_var = builder.alloc_f2(mu_value);
+    // Enforce imaginary component is zero.
+    builder.enforce_linear_relation(&[(mu_var.c1, F::one())], F::zero());
+
+    // Allocate t-values and o-values as witness variables.
+    let mut t_var_indices = Vec::with_capacity(params.n);
+    for row in &t_values {
+        let mut row_indices = Vec::with_capacity(row.len());
+        for &value in row {
+            let idx = builder.alloc(value);
+            builder.enforce_boolean(idx);
+            row_indices.push(idx);
+        }
+        t_var_indices.push(row_indices);
+    }
+    let mut o_var_indices = Vec::with_capacity(params.n);
+    for row in &o_values {
+        let mut row_indices = Vec::with_capacity(row.len());
+        for &value in row {
+            row_indices.push(builder.alloc(value));
+        }
+        o_var_indices.push(row_indices);
+    }
+
+    // Transcript σ₀..σ₂: absorb (message_commitment, root_c, t_values, o_values).
+    let mut transcript = FieldTranscriptCircuit::new(&mut builder, b"loquat_signature");
+    transcript.append_f_vec(&mut builder, b"message_commitment", &mc_fields);
+    transcript.append_f_vec(&mut builder, b"root_c", &root_c_fields);
+    let mut t_fields = Vec::with_capacity(params.m * params.n);
+    for (row_vars, row_vals) in t_var_indices.iter().zip(t_values.iter()) {
+        for (&idx, &val) in row_vars.iter().zip(row_vals.iter()) {
+            t_fields.push(FieldVar::existing(idx, val));
+        }
+    }
+    transcript.append_f_vec(&mut builder, b"t_values", &t_fields);
+
+    let mut o_fields = Vec::with_capacity(params.m * params.n);
+    for (row_vars, row_vals) in o_var_indices.iter().zip(o_values.iter()) {
+        for (&idx, &val) in row_vars.iter().zip(row_vals.iter()) {
+            o_fields.push(FieldVar::existing(idx, val));
+        }
+    }
+    transcript.append_f_vec(&mut builder, b"o_values", &o_fields);
+
+    // h1-derived indices I_{i,j} ∈ [0, L).
+    let h1_seed = transcript.challenge_seed(&mut builder, b"h1");
+    let num_checks = params.m * params.n;
+    let raw_indices = expand_f_circuit(&mut builder, h1_seed, b"I_indices", num_checks);
+    let modulus = params.l;
+    let k = (usize::BITS - modulus.saturating_sub(1).leading_zeros()) as usize;
+    if k == 0 || k > 8 {
+        return Err(LoquatError::verification_failure(
+            "index reduction expects modulus <= 256",
+        ));
+    }
+    let mask = (1u128 << k) - 1;
+
+    // h2-derived lambdas and epsilons.
+    let h2_seed = transcript.challenge_seed(&mut builder, b"h2");
+    let lambda_scalars = expand_f_circuit(&mut builder, h2_seed, b"lambdas", num_checks);
+    let epsilon_vals = expand_f_circuit(&mut builder, h2_seed, b"e_j", params.n);
+
+    // Enforce QR witness constraints and compute μ = Σ_j ε_j * (Σ_i λ_{j,i} * o_{j,i}).
+    let two = F::new(2);
+    let mut mu_terms: Vec<(usize, F)> = Vec::new();
+    for j in 0..params.n {
+        let epsilon = epsilon_vals[j];
+        for i in 0..params.m {
+            let check_idx = j * params.m + i;
+            let raw = raw_indices[check_idx];
+
+            // Reduce raw index to idx ∈ [0, L) using the same “low bits + conditional subtraction” rule.
+            let bits = builder.decompose_to_bits(raw.idx, raw.value, 128);
+            let raw_low = raw.value.0 & mask;
+            let low_idx = builder.alloc(F::new(raw_low));
+            let mut low_terms = Vec::with_capacity(k + 1);
+            low_terms.push((low_idx, F::one()));
+            for bit_pos in 0..k {
+                low_terms.push((bits[bit_pos], -F::new(1u128 << bit_pos)));
+            }
+            builder.enforce_linear_relation(&low_terms, F::zero());
+
+            let b_val = (raw_low as usize >= modulus) as u128;
+            let b_idx = builder.alloc(F::new(b_val));
+            builder.enforce_boolean(b_idx);
+            let reduced_u128 = if b_val == 1 {
+                raw_low
+                    .checked_sub(modulus as u128)
+                    .ok_or_else(|| LoquatError::verification_failure("index underflow"))?
+            } else {
+                raw_low
+            };
+            let reduced_idx = builder.alloc(F::new(reduced_u128));
+            // low = reduced + modulus*b
+            builder.enforce_linear_relation(
+                &[
+                    (low_idx, F::one()),
+                    (reduced_idx, -F::one()),
+                    (b_idx, -F::new(modulus as u128)),
+                ],
+                F::zero(),
+            );
+
+            // Decompose reduced into k bits and enforce reduced < modulus.
+            let mut reduced_bits = Vec::with_capacity(k);
+            let mut reduced_terms = Vec::with_capacity(k + 1);
+            reduced_terms.push((reduced_idx, F::one()));
+            for bit_pos in 0..k {
+                let bit_val = ((reduced_u128 >> bit_pos) & 1) == 1;
+                let bit_idx = builder.alloc_bit(bit_val);
+                reduced_bits.push(bit_idx);
+                reduced_terms.push((bit_idx, -F::new(1u128 << bit_pos)));
+            }
+            builder.enforce_linear_relation(&reduced_terms, F::zero());
+
+            // Enforce reduced < modulus unless modulus is exactly 2^k (in which case reduced is
+            // already k-bit and the inequality is automatic).
+            if modulus != (1usize << k) {
+                // less-than constant modulus using MSB-first comparator on k bits.
+                let (mut equal_idx, mut equal_val) = alloc_const_bit(&mut builder, true);
+                let (mut less_idx, mut less_val) = alloc_const_bit(&mut builder, false);
+                for bit_pos in (0..k).rev() {
+                    let a_idx = reduced_bits[bit_pos];
+                    let a_val = ((reduced_u128 >> bit_pos) & 1) == 1;
+                    let b_const = ((modulus >> bit_pos) & 1) == 1;
+
+                    // eq_bit = (a == b_const)
+                    let (eq_bit_idx, eq_bit_val) = if b_const {
+                        (a_idx, a_val)
+                    } else {
+                        builder.not_bit(a_idx, a_val)
+                    };
+                    let (new_equal_idx, new_equal_val) =
+                        builder.and_bits(equal_idx, eq_bit_idx, equal_val, eq_bit_val);
+
+                    // lt_candidate = equal_old & (!a) when b_const == 1, else 0.
+                    let (lt_candidate_idx, lt_candidate_val) = if b_const {
+                        let (not_a_idx, not_a_val) = builder.not_bit(a_idx, a_val);
+                        builder.and_bits(equal_idx, not_a_idx, equal_val, not_a_val)
+                    } else {
+                        alloc_const_bit(&mut builder, false)
+                    };
+                    // less = less OR lt_candidate
+                    let (xor_idx, xor_val) =
+                        builder.xor_bits(less_idx, lt_candidate_idx, less_val, lt_candidate_val);
+                    let (and_idx, and_val) =
+                        builder.and_bits(less_idx, lt_candidate_idx, less_val, lt_candidate_val);
+                    let (new_less_idx, new_less_val) =
+                        builder.xor_bits(xor_idx, and_idx, xor_val, and_val);
+
+                    equal_idx = new_equal_idx;
+                    equal_val = new_equal_val;
+                    less_idx = new_less_idx;
+                    less_val = new_less_val;
+                }
+                // Enforce reduced < modulus.
+                builder.enforce_linear_relation(&[(less_idx, F::one())], -F::one());
+            }
+
+            // Build FieldVar bits for selection.
+            let bits_fv = reduced_bits
+                .iter()
+                .enumerate()
+                .map(|(bit_pos, &idx)| {
+                    let val = ((reduced_u128 >> bit_pos) & 1) == 1;
+                    FieldVar::existing(idx, F::new(val as u128))
+                })
+                .collect::<Vec<_>>();
+
+            // Select pk bit for this check.
+            let pk_selected = select_from_field_vars_by_bits(&mut builder, pk_bits.clone(), &bits_fv)?;
+            // Enforce QR witness constraint for this (j,i).
+            let t_idx = t_var_indices[j][i];
+            let t_val = t_values[j][i];
+            let o_idx = o_var_indices[j][i];
+            let o_val = o_values[j][i];
+            enforce_qr_witness_constraint_pk_var(
+                &mut builder,
+                o_idx,
+                o_val,
+                t_idx,
+                t_val,
+                pk_selected.idx,
+                pk_selected.value,
+                params.qr_non_residue,
+                two,
+                validate_witness,
+            )?;
+
+            // μ term: ε_j * (λ_{j,i} * o_{j,i})
+            let lambda = lambda_scalars[check_idx];
+            let lambda_o_value = lambda.value * o_val;
+            let lambda_o_idx = builder.alloc(lambda_o_value);
+            builder.enforce_mul_vars(lambda.idx, o_idx, lambda_o_idx);
+            let term_value = lambda_o_value * epsilon.value;
+            let term_idx = builder.alloc(term_value);
+            builder.enforce_mul_vars(lambda_o_idx, epsilon.idx, term_idx);
+            mu_terms.push((term_idx, F::one()));
+        }
+    }
+
+    // Enforce μ.c0 matches computed sum and μ.c1 = 0.
+    builder.enforce_sum_equals(&mu_terms, mu_var.c0);
+
+    // ------------------------------------------------------------
+    // Sumcheck proof verification (mirrors the logic in build_loquat_r1cs_pk_witness_inner)
+    // ------------------------------------------------------------
+    let num_variables = (params.coset_h.len()).trailing_zeros() as usize;
+    if num_variables == 0 {
+        return Err(LoquatError::verification_failure(
+            "invalid H size for sumcheck variables",
+        ));
+    }
+
+    let (claimed_sum_value, final_evaluation_value, round_polynomials) = if let Some(sig) = signature
+    {
+        if sig.pi_us.round_polynomials.len() != num_variables {
+            return Err(LoquatError::verification_failure(
+                "sumcheck round polynomial length mismatch",
+            ));
+        }
+        (
+            sig.pi_us.claimed_sum,
+            sig.pi_us.final_evaluation,
+            sig.pi_us
+                .round_polynomials
+                .iter()
+                .map(|poly| (poly.c0, poly.c1))
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        (
+            F2::zero(),
+            F2::zero(),
+            vec![(F2::zero(), F2::zero()); num_variables],
+        )
+    };
+
+    let mut last_sum_var = builder.alloc_f2(claimed_sum_value);
+    builder.enforce_f2_eq(last_sum_var, mu_var);
+    transcript.append_f_vec(
+        &mut builder,
+        b"claimed_sum",
+        &[
+            FieldVar::existing(last_sum_var.c0, claimed_sum_value.c0),
+            FieldVar::existing(last_sum_var.c1, claimed_sum_value.c1),
+        ],
+    );
+
+    let two_const = F::new(2);
+    for (round_idx, (c0_value, c1_value)) in round_polynomials.iter().copied().enumerate() {
+        // Absorb the round polynomial into the transcript (same as sumcheck.rs).
+        let c0_var = builder.alloc_f2(c0_value);
+        let c1_var = builder.alloc_f2(c1_value);
+        transcript.append_f_vec(
+            &mut builder,
+            b"round_poly",
+            &[
+                FieldVar::existing(c0_var.c0, c0_value.c0),
+                FieldVar::existing(c0_var.c1, c0_value.c1),
+                FieldVar::existing(c1_var.c0, c1_value.c0),
+                FieldVar::existing(c1_var.c1, c1_value.c1),
+            ],
+        );
+        let chal_fields = transcript.challenge_f2(&mut builder, b"challenge");
+        let chal_var = F2Var {
+            c0: chal_fields[0].idx,
+            c1: chal_fields[1].idx,
+        };
+        let chal_value = F2::new(chal_fields[0].value, chal_fields[1].value);
+
+        // Sumcheck constraint: g(0) + g(1) == last_sum.
+        // For g(X)=c0 + c1*X, this becomes: 2*c0 + c1 == last_sum.
+        builder.enforce_linear_relation(
+            &[
+                (last_sum_var.c0, F::one()),
+                (c0_var.c0, -two_const),
+                (c1_var.c0, -F::one()),
+            ],
+            F::zero(),
+        );
+        builder.enforce_linear_relation(
+            &[
+                (last_sum_var.c1, F::one()),
+                (c0_var.c1, -two_const),
+                (c1_var.c1, -F::one()),
+            ],
+            F::zero(),
+        );
+
+        // Update last_sum := g(challenge).
+        let prod = f2_mul(&mut builder, c1_var, c1_value, chal_var, chal_value);
+        let next_sum_value = c0_value + (c1_value * chal_value);
+        let next_sum_var = builder.alloc_f2(next_sum_value);
+        enforce_f2_add(&mut builder, c0_var, prod, next_sum_var);
+        last_sum_var = next_sum_var;
+
+        let _ = round_idx; // reserved for debug instrumentation
+    }
+
+    let final_eval_var = builder.alloc_f2(final_evaluation_value);
+    builder.enforce_f2_eq(last_sum_var, final_eval_var);
+
+    // ------------------------------------------------------------
+    // Remaining verification stages (root_s, s_sum, z; root_h, e_vector; LDT)
+    // ------------------------------------------------------------
+
+    // Extract signature data (or use placeholders if signature is None).
+    let (root_s_bytes, s_sum_value, root_h_bytes, e_vector_values, fri_challenges, ldt_commitments, query_openings, ldt_openings) = if let Some(sig) = signature {
+        (
+            sig.root_s,
+            sig.s_sum,
+            sig.root_h,
+            sig.e_vector.clone(),
+            sig.fri_challenges.clone(),
+            sig.ldt_proof.commitments.clone(),
+            sig.query_openings.clone(),
+            sig.ldt_proof.openings.clone(),
+        )
+    } else {
+        (
+            [0u8; 32],
+            F2::zero(),
+            [0u8; 32],
+            vec![F2::zero(); 8],
+            vec![F2::zero(); params.r],
+            vec![[0u8; 32]; params.r + 1],
+            Vec::new(),
+            Vec::new(),
+        )
+    };
+
+    // Absorb root_s and s_sum, derive z.
+    let rs0 = field_utils::bytes_to_field_element(&root_s_bytes[0..16]);
+    let rs1 = field_utils::bytes_to_field_element(&root_s_bytes[16..32]);
+    let rs0_idx = builder.alloc(rs0);
+    let rs1_idx = builder.alloc(rs1);
+    let root_s_fields = [FieldVar::new(rs0_idx, rs0), FieldVar::new(rs1_idx, rs1)];
+    transcript.append_f_vec(&mut builder, b"root_s", &root_s_fields);
+
+    let s_sum_var = builder.alloc_f2(s_sum_value);
+    transcript.append_f_vec(
+        &mut builder,
+        b"s_sum",
+        &[
+            FieldVar::existing(s_sum_var.c0, s_sum_value.c0),
+            FieldVar::existing(s_sum_var.c1, s_sum_value.c1),
+        ],
+    );
+
+    let z_scalar = transcript.challenge_f(&mut builder, b"h3");
+    let z_challenge = F2::new(z_scalar.value, F::zero());
+
+    // Absorb root_h, derive e_vector.
+    let rh0 = field_utils::bytes_to_field_element(&root_h_bytes[0..16]);
+    let rh1 = field_utils::bytes_to_field_element(&root_h_bytes[16..32]);
+    let rh0_idx = builder.alloc(rh0);
+    let rh1_idx = builder.alloc(rh1);
+    let root_h_fields = [FieldVar::new(rh0_idx, rh0), FieldVar::new(rh1_idx, rh1)];
+    transcript.append_f_vec(&mut builder, b"root_h", &root_h_fields);
+
+    let h4_seed = transcript.challenge_seed(&mut builder, b"h4");
+    let e_vector_circuit = expand_f_circuit(&mut builder, h4_seed, b"e_vector", 8);
+    // Bind e_vector from signature to derived challenges.
+    for (idx, out) in e_vector_circuit.into_iter().enumerate() {
+        let expected = e_vector_values.get(idx).copied().unwrap_or(F2::zero());
+        builder.enforce_linear_relation(&[(out.idx, F::one())], -expected.c0);
+    }
+
+    // Absorb LDT commitments and derive fri_challenges and query positions.
+    if ldt_commitments.len() != params.r + 1 {
+        return Err(LoquatError::verification_failure(
+            "LDT commitment count mismatch in witness builder",
+        ));
+    }
+    if fri_challenges.len() != params.r {
+        return Err(LoquatError::verification_failure(
+            "FRI challenge count mismatch in witness builder",
+        ));
+    }
+
+    // Absorb first LDT commitment.
+    let c0_bytes: [u8; 32] = ldt_commitments[0];
+    let c0_f0 = field_utils::bytes_to_field_element(&c0_bytes[0..16]);
+    let c0_f1 = field_utils::bytes_to_field_element(&c0_bytes[16..32]);
+    let c0_f0_idx = builder.alloc(c0_f0);
+    let c0_f1_idx = builder.alloc(c0_f1);
+    let c0_fields = [FieldVar::new(c0_f0_idx, c0_f0), FieldVar::new(c0_f1_idx, c0_f1)];
+    transcript.append_f_vec(&mut builder, b"merkle_commitment", &c0_fields);
+
+    // Derive FRI folding challenges and absorb subsequent commitments.
+    for round in 0..params.r {
+        let chal = transcript.challenge_f2(&mut builder, b"challenge");
+        let expected_chal = fri_challenges[round];
+        builder.enforce_linear_relation(&[(chal[0].idx, F::one())], -expected_chal.c0);
+        builder.enforce_linear_relation(&[(chal[1].idx, F::one())], -expected_chal.c1);
+
+        let cm_bytes: [u8; 32] = ldt_commitments[round + 1];
+        let cm_f0 = field_utils::bytes_to_field_element(&cm_bytes[0..16]);
+        let cm_f1 = field_utils::bytes_to_field_element(&cm_bytes[16..32]);
+        let cm_f0_idx = builder.alloc(cm_f0);
+        let cm_f1_idx = builder.alloc(cm_f1);
+        let cm_fields = [FieldVar::new(cm_f0_idx, cm_f0), FieldVar::new(cm_f1_idx, cm_f1)];
+        transcript.append_f_vec(&mut builder, b"merkle_commitment", &cm_fields);
+    }
+
+    // Derive query positions and bind them to the opened query positions.
+    if query_openings.len() != params.kappa || ldt_openings.len() != params.kappa {
+        return Err(LoquatError::verification_failure(
+            "query/LDT opening count mismatch in witness builder",
+        ));
+    }
+    if params.coset_u.is_empty() || !params.coset_u.len().is_power_of_two() {
+        return Err(LoquatError::invalid_parameters(
+            "|U| must be a non-zero power of two for witness builder",
+        ));
+    }
+    let log_u = params.coset_u.len().trailing_zeros() as usize;
+    let mask_u = if log_u >= 128 {
+        u128::MAX
+    } else {
+        (1u128 << log_u) - 1
+    };
+    for query_idx in 0..params.kappa {
+        let chal = transcript.challenge_f2(&mut builder, b"challenge");
+        let bits = builder.decompose_to_bits(chal[0].idx, chal[0].value, 128);
+        let low_value_u128 = chal[0].value.0 & mask_u;
+        let low_idx = builder.alloc(F::new(low_value_u128));
+        let mut terms = Vec::with_capacity(log_u + 1);
+        terms.push((low_idx, F::one()));
+        for bit_pos in 0..log_u {
+            terms.push((bits[bit_pos], -F::new(1u128 << bit_pos)));
+        }
+        builder.enforce_linear_relation(&terms, F::zero());
+
+        let expected_pos = ldt_openings[query_idx].position;
+        builder.enforce_linear_relation(&[(low_idx, F::one())], -F::new(expected_pos as u128));
+    }
+
+    // ------------------------------------------------------------
+    // Enforce full LDT queries logic (witness-only form).
+    // ------------------------------------------------------------
+    if let Some(sig) = signature {
+        // Replay full transcript data to compute q_hat_on_u and epsilon_vals.
+        let transcript_data_full = replay_transcript_data(message, sig, params)?;
+
+        // Compute q_hat_on_u (needed for f'(x) computation).
+        let q_hat_on_u = compute_q_hat_on_u(params, &transcript_data_full)?;
+
+        // Compute z_mu_plus_s.
+        let z_mu_plus_s_value = z_challenge * sig.mu + sig.s_sum;
+        let z_mu_plus_s_var = builder.alloc_f2(z_mu_plus_s_value);
+
+        // Enforce LDT queries (Merkle openings + folding + f'/p/f^(0) constraints).
+        let fri_leaf_arity = 1usize << params.eta;
+        enforce_ldt_queries_witness_only(
+            &mut builder,
+            params,
+            sig,
+            &q_hat_on_u,
+            z_mu_plus_s_var,
+            z_mu_plus_s_value,
+            &transcript_data_full.epsilon_vals,
+            &e_vector_values,
+            &fri_challenges,
+            fri_leaf_arity,
+        )?;
+    }
+
+    if validate_witness {
+        builder.finalize()
+    } else {
+        builder.finalize_unchecked()
+    }
+}
+
+// Witness-only LDT query enforcement (mirrors enforce_ldt_queries but without full transcript binding).
+fn enforce_ldt_queries_witness_only(
+    builder: &mut R1csBuilder,
+    params: &LoquatPublicParams,
+    signature: &LoquatSignature,
+    q_hat_on_u: &[Vec<F2>],
+    z_mu_plus_s_var: F2Var,
+    z_mu_plus_s_value: F2,
+    epsilon_vals: &[F2],
+    e_vector: &[F2],
+    fri_challenges: &[F2],
+    chunk_size: usize,
+) -> LoquatResult<()> {
+    if chunk_size == 0 {
+        return Err(LoquatError::invalid_parameters("chunk size is zero"));
+    }
+
+    // Compute constants for p(x) computation.
+    let h_order = params.coset_h.len() as u128;
+    let z_h_constant = params.h_shift.pow(h_order);
+    let h_size_scalar = F2::new(F::new(params.coset_h.len() as u128), F::zero());
+    // Reconstruct z_challenge from signature (we computed it earlier but need it here).
+    let z = F2::new(signature.z_challenge.c0, F::zero());
+
+    if signature.query_openings.len() != signature.ldt_proof.openings.len() {
+        return Err(LoquatError::verification_failure(
+            "query/LDT opening count mismatch",
+        ));
+    }
+
+    for (_query_idx, (ldt_opening, query_opening)) in signature
+        .ldt_proof
+        .openings
+        .iter()
+        .zip(signature.query_openings.iter())
+        .enumerate()
+    {
+        if ldt_opening.position != query_opening.position {
+            return Err(LoquatError::verification_failure("position mismatch"));
+        }
+
+        let position = ldt_opening.position;
+        let chunk_index = position / chunk_size;
+
+        // Allocate query opening chunks for c'/s/h.
+        let mut c_prime_chunk_vars: Vec<Vec<F2Var>> = Vec::with_capacity(chunk_size);
+        for off in 0..chunk_size {
+            let mut row_vars = Vec::with_capacity(params.n);
+            for j in 0..params.n {
+                row_vars.push(builder.alloc_f2(query_opening.c_prime_chunk[off][j]));
+            }
+            c_prime_chunk_vars.push(row_vars);
+        }
+        let mut s_chunk_vars = Vec::with_capacity(chunk_size);
+        for off in 0..chunk_size {
+            s_chunk_vars.push(builder.alloc_f2(query_opening.s_chunk[off]));
+        }
+        let mut h_chunk_vars = Vec::with_capacity(chunk_size);
+        for off in 0..chunk_size {
+            h_chunk_vars.push(builder.alloc_f2(query_opening.h_chunk[off]));
+        }
+
+        // Allocate LDT codeword chunks per layer (r+1).
+        let mut ldt_chunk_vars: Vec<Vec<F2Var>> = Vec::with_capacity(params.r + 1);
+        for layer in 0..=params.r {
+            let chunk_vals = &ldt_opening.codeword_chunks[layer];
+            let mut vars = Vec::with_capacity(chunk_vals.len());
+            for &val in chunk_vals {
+                vars.push(builder.alloc_f2(val));
+            }
+            ldt_chunk_vars.push(vars);
+        }
+
+        // Enforce FRI folding constraints.
+        let mut fold_index = position;
+        let mut layer_len = params.coset_u.len();
+        for layer in 0..params.r {
+            let expected_len = chunk_size.min(layer_len);
+            let chunk_vals = &ldt_opening.codeword_chunks[layer];
+            let chunk_vars = &ldt_chunk_vars[layer];
+            if chunk_vals.len() != expected_len || chunk_vars.len() != expected_len {
+                return Err(LoquatError::verification_failure("LDT chunk length mismatch"));
+            }
+
+            let challenge = fri_challenges[layer];
+            let mut coeff = F2::one();
+            let mut fold_terms: Vec<(F2Var, F2)> = Vec::with_capacity(expected_len);
+            for var in chunk_vars {
+                fold_terms.push((*var, coeff));
+                coeff *= challenge;
+            }
+
+            let next_index = fold_index / chunk_size;
+            let next_offset = next_index % chunk_size;
+            let next_var = ldt_chunk_vars[layer + 1]
+                .get(next_offset)
+                .copied()
+                .ok_or_else(|| LoquatError::verification_failure("next offset out of range"))?;
+            enforce_f2_const_lincomb_eq(builder, &fold_terms, next_var)?;
+
+            fold_index = next_index;
+            layer_len = ((layer_len + chunk_size - 1) / chunk_size).max(1);
+        }
+
+        // Enforce f'/p/f^(0) constraints at each opened chunk position.
+        let chunk_start = chunk_index * chunk_size;
+        for off in 0..chunk_size {
+            let global_idx = chunk_start + off;
+            if global_idx >= params.coset_u.len() {
+                return Err(LoquatError::verification_failure("query index out of range"));
+            }
+            let x = params.coset_u[global_idx];
+            let z_h = x.pow(h_order) - z_h_constant;
+            let denom_scalar = h_size_scalar * x;
+
+            // f'(x) = ŝ(x) + z * Σ_j (ε_j * c′_j(x) * q̂_j(x))
+            let mut f_prime_value = query_opening.s_chunk[off];
+            let mut f_prime_terms: Vec<(F2Var, F2)> = Vec::with_capacity(params.n + 1);
+            f_prime_terms.push((s_chunk_vars[off], F2::one()));
+
+            for j in 0..params.n {
+                let coeff = z * epsilon_vals[j] * q_hat_on_u[j][global_idx];
+                f_prime_value += query_opening.c_prime_chunk[off][j] * coeff;
+                f_prime_terms.push((c_prime_chunk_vars[off][j], coeff));
+            }
+            let f_prime_var = builder.alloc_f2(f_prime_value);
+            enforce_f2_const_lincomb_eq(builder, &f_prime_terms, f_prime_var)?;
+
+            // p(x) = (|H|·f'(x) − |H|·Z_H(x)·h(x) − (z·μ + S)) / (|H|·x)
+            let expr_value = h_size_scalar * f_prime_value - h_size_scalar * z_h * query_opening.h_chunk[off];
+            let expr_var = builder.alloc_f2(expr_value);
+            let h_coeff = -(h_size_scalar * z_h);
+            enforce_f2_const_lincomb_eq(
+                builder,
+                &[(f_prime_var, h_size_scalar), (h_chunk_vars[off], h_coeff)],
+                expr_var,
+            )?;
+
+            let numerator_value = expr_value - z_mu_plus_s_value;
+            let numerator_var = builder.alloc_f2(numerator_value);
+            builder.enforce_f2_sub(expr_var, z_mu_plus_s_var, numerator_var);
+
+            let denom_inv = denom_scalar
+                .inverse()
+                .ok_or_else(|| LoquatError::verification_failure("denominator not invertible"))?;
+            let p_value = numerator_value * denom_inv;
+            let p_var = builder.alloc_f2(p_value);
+            enforce_f2_const_mul_eq(builder, p_var, denom_scalar, numerator_var);
+
+            // f^(0)(x) constraint: opened f^(0)(x) must match recomputation.
+            let exponents: [u128; 4] = [
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[0])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_1"))?
+                    as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[1])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_2"))?
+                    as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[2])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_3"))?
+                    as u128,
+                params
+                    .rho_star_num
+                    .checked_sub(params.rho_numerators[3])
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_4"))?
+                    as u128,
+            ];
+
+            let c_coeff = e_vector[0] + e_vector[4] * x.pow(exponents[0]);
+            let s_coeff = e_vector[1] + e_vector[5] * x.pow(exponents[1]);
+            let h_coeff = e_vector[2] + e_vector[6] * x.pow(exponents[2]);
+            let p_coeff = e_vector[3] + e_vector[7] * x.pow(exponents[3]);
+
+            let mut f0_terms: Vec<(F2Var, F2)> = Vec::with_capacity(params.n + 3);
+            for j in 0..params.n {
+                f0_terms.push((c_prime_chunk_vars[off][j], c_coeff));
+            }
+            f0_terms.push((s_chunk_vars[off], s_coeff));
+            f0_terms.push((h_chunk_vars[off], h_coeff));
+            f0_terms.push((p_var, p_coeff));
+
+            // Target is the opened f^(0) value from the LDT base layer chunk.
+            enforce_f2_const_lincomb_eq(builder, &f0_terms, ldt_chunk_vars[0][off])?;
+        }
+    }
+
+    Ok(())
 }
 
 fn merkle_conditional_order_digest(
@@ -1253,12 +2054,80 @@ fn merkle_conditional_order_digest(
     (left, right)
 }
 
+/// Select between two field elements based on a boolean bit.
+///
+/// Returns `a` when `bit=0`, and `b` when `bit=1`.
+fn field_select(builder: &mut R1csBuilder, bit: FieldVar, a: FieldVar, b: FieldVar) -> FieldVar {
+    // delta = b - a
+    let delta_value = b.value - a.value;
+    let delta_idx = builder.alloc(delta_value);
+    builder.enforce_linear_relation(
+        &[(delta_idx, F::one()), (b.idx, -F::one()), (a.idx, F::one())],
+        F::zero(),
+    );
+
+    // prod = bit * delta
+    let prod_value = bit.value * delta_value;
+    let prod_idx = builder.alloc(prod_value);
+    builder.enforce_mul_vars(bit.idx, delta_idx, prod_idx);
+
+    // out = a + prod
+    let out_value = a.value + prod_value;
+    let out_idx = builder.alloc(out_value);
+    builder.enforce_linear_relation(
+        &[(out_idx, F::one()), (a.idx, -F::one()), (prod_idx, -F::one())],
+        F::zero(),
+    );
+    FieldVar::new(out_idx, out_value)
+}
+
+fn alloc_const_bit(builder: &mut R1csBuilder, value: bool) -> (usize, bool) {
+    let idx = builder.alloc_bit(value);
+    // Fix to the desired constant value.
+    builder.enforce_linear_relation(&[(idx, F::one())], -F::new(value as u128));
+    (idx, value)
+}
+
+fn select_from_field_vars_by_bits(
+    builder: &mut R1csBuilder,
+    mut items: Vec<FieldVar>,
+    bits_le: &[FieldVar],
+) -> LoquatResult<FieldVar> {
+    if bits_le.is_empty() {
+        return Err(LoquatError::verification_failure(
+            "empty index bits for selection",
+        ));
+    }
+    let target_len = 1usize << bits_le.len();
+    if items.len() > target_len {
+        return Err(LoquatError::verification_failure(
+            "selection items exceed addressable space",
+        ));
+    }
+    while items.len() < target_len {
+        items.push(FieldVar::constant(builder, F::zero()));
+    }
+    for &bit in bits_le {
+        let mut next = Vec::with_capacity(items.len() / 2);
+        for pair in items.chunks(2) {
+            let a = pair[0];
+            let b = pair[1];
+            next.push(field_select(builder, bit, a, b));
+        }
+        items = next;
+    }
+    Ok(items
+        .pop()
+        .ok_or_else(|| LoquatError::verification_failure("selection failed"))?)
+}
+
 fn build_loquat_r1cs_pk_witness_inner(
     message: &[u8],
     signature: &LoquatSignature,
     public_key: Option<&[F]>,
     params: &LoquatPublicParams,
     compute_sqrt_witness: bool,
+    validate_witness: bool,
 ) -> LoquatResult<(R1csInstance, R1csWitness)> {
     trace_stage("build_loquat_r1cs_pk_witness: begin");
 
@@ -1508,7 +2377,11 @@ fn build_loquat_r1cs_pk_witness_inner(
 
     // NOTE: For the pk-witness builder, we do not support the stats-only shortcut because
     // callers use this for BDEC proof generation/verification.
-    builder.finalize()
+    if validate_witness {
+        builder.finalize()
+    } else {
+        builder.finalize_unchecked()
+    }
 }
 
 fn enforce_qr_witness_constraint_pk_var(
@@ -1724,6 +2597,63 @@ fn enforce_f2_const_mul_eq(builder: &mut R1csBuilder, source: F2Var, scalar: F2,
         (source.c1, -scalar.c0),
     ];
     builder.enforce_linear_relation(&imag_terms, F::zero());
+}
+
+fn alloc_f2(builder: &mut R1csBuilder, value: F2) -> F2Var {
+    builder.alloc_f2(value)
+}
+
+fn enforce_f2_add_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+    enforce_f2_add(builder, left, right, target);
+}
+
+fn enforce_f2_sub_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+    builder.enforce_f2_sub(left, right, target);
+}
+
+/// Multiply two Fp2 variables and return a fresh variable holding the product.
+///
+/// Uses the field rule `i^2 = 3` (see `field_p127.rs` and `enforce_f2_const_mul_eq`).
+fn f2_mul(
+    builder: &mut R1csBuilder,
+    left: F2Var,
+    left_value: F2,
+    right: F2Var,
+    right_value: F2,
+) -> F2Var {
+    let out_value = left_value * right_value;
+    let out = builder.alloc_f2(out_value);
+
+    // (a + bi)(c + di) = (ac + bd*3) + (ad + bc)i
+    let ac_value = left_value.c0 * right_value.c0;
+    let ac_idx = builder.alloc(ac_value);
+    builder.enforce_mul_vars(left.c0, right.c0, ac_idx);
+
+    let bd_value = left_value.c1 * right_value.c1;
+    let bd_idx = builder.alloc(bd_value);
+    builder.enforce_mul_vars(left.c1, right.c1, bd_idx);
+
+    let ad_value = left_value.c0 * right_value.c1;
+    let ad_idx = builder.alloc(ad_value);
+    builder.enforce_mul_vars(left.c0, right.c1, ad_idx);
+
+    let bc_value = left_value.c1 * right_value.c0;
+    let bc_idx = builder.alloc(bc_value);
+    builder.enforce_mul_vars(left.c1, right.c0, bc_idx);
+
+    let qnr = F::new(3);
+    // out.c0 - ac - qnr*bd = 0
+    builder.enforce_linear_relation(
+        &[(out.c0, F::one()), (ac_idx, -F::one()), (bd_idx, -qnr)],
+        F::zero(),
+    );
+    // out.c1 - ad - bc = 0
+    builder.enforce_linear_relation(
+        &[(out.c1, F::one()), (ad_idx, -F::one()), (bc_idx, -F::one())],
+        F::zero(),
+    );
+
+    out
 }
 
 fn enforce_f2_add(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
