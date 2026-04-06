@@ -1,0 +1,217 @@
+\section{System Design and Implementation}\label{sec:system}
+
+This chapter describes the dual implementation of BDEC credential verification across both proving backends. The central design principle is \emph{fixed-semantics comparison}: both backends implement the identical $\mathcal{R}_{\textsf{ShowVer}}$ verification relation, ensuring that any observed performance differences arise from architectural factors (arithmetization regime, field selection, proving strategy) rather than semantic discrepancies.
+
+We first articulate the architectural rationale and design constraints (\S\ref{sec:design-rationale}), then decompose the $\mathcal{R}_{\textsf{ShowVer}}$ relation into its constituent sub-components (\S\ref{sec:showver-decomposition}), detail how each sub-component is realized in the Noir + Aurora static circuit pipeline (\S\ref{sec:noir-impl}) and the RISC Zero zkVM pipeline (\S\ref{sec:risczero-impl}), compare the two pipelines side-by-side (\S\ref{sec:pipeline-comparison}), and conclude with a discussion of implementation challenges and optimization strategies (\S\ref{sec:impl-challenges}).
+
+\subsection{Architectural Rationale and Design Constraints}
+\label{sec:design-rationale}
+
+The design of a controlled comparison between two fundamentally different proving architectures requires careful attention to confounding variables. We impose the following design constraints to ensure that the comparison isolates architectural effects:
+
+\paragraph{Constraint 1: Identical Verification Semantics.}
+Both backends must implement the same mathematical relation $\mathcal{R}_{\textsf{ShowVer}}$ with identical public inputs, private witnesses, and acceptance conditions. Any deviation in semantics would confound the performance comparison with functional differences.
+
+\paragraph{Constraint 2: Same Cryptographic Primitive.}
+Both backends use Loquat-128 as the signature scheme, with identical parameter sets ($B = 128$ challenges, $\kappa = 32$ queries, Mersenne prime $p = 2^{127} - 1$). This ensures that the cryptographic workload is identical; only the proof system's handling of that workload differs.
+
+\paragraph{Constraint 3: Transparent Proving Only.}
+Both backends use transparent (no trusted setup) proving systems: Aurora for the static path and STARK for the zkVM path. This eliminates trusted setup logistics as a confounding variable in the update churn analysis, since neither backend requires a setup ceremony for circuit changes.
+
+\paragraph{Constraint 4: Single Codebase.}
+Both implementations reside in the same repository, sharing common data structures, serialization formats, and test vectors. This ensures that differences in input parsing, data encoding, or test infrastructure do not contribute to observed performance variations.
+
+These constraints mean that our comparison is narrower than a general-purpose ``zkVM vs. SNARK'' benchmark: we deliberately hold the application, primitive, and transparency model constant to isolate the effect of the arithmetization regime (R1CS vs. AIR) and field selection strategy (aligned vs. mismatched).
+
+
+\subsection{Decomposition of the ShowVer Relation}
+\label{sec:showver-decomposition}
+
+Recall from \S\ref{sec:anon-creds} that the BDEC $\textsf{ShowVer}$ zero-knowledge argument proves a composite statement consisting of $k + 2$ Loquat signature verifications (Equation~\ref{eq:showver}). For our implementation, we instantiate the simplified variant with $k = 1$ (single TA credential), yielding three signature verifications. However, to isolate the core performance dynamics while keeping implementation tractable, we further simplify to two verifications (omitting the pseudonym binding verification), yielding:
+
+\begin{equation}
+\mathcal{R}_{\textsf{ShowVer}}^{\textsf{simplified}}(x, w) = 1 \iff
+\begin{cases}
+\textsf{L-Verify}(pk_U, h_{U,TA}, \sigma_{U,TA}) = 1 \\
+\textsf{L-Verify}(pk_{TA}, h_{\text{cred}}, \sigma_{\text{cred}}) = 1
+\end{cases}
+\label{eq:showver-simplified}
+\end{equation}
+
+This simplified relation preserves the essential structure---two full Loquat-128 verifications chained through credential binding hashes---while reducing implementation complexity. The performance characteristics scale linearly with the number of verifications; results for the full $k + 2$ variant can be projected from our measurements.
+
+\subsubsection{Sub-Component Inventory}
+
+Each Loquat-128 verification (as analyzed in \S\ref{sec:loquat-decomposition}) decomposes into the following sub-components that must be realized in both backends:
+
+\paragraph{(S1) Challenge Generation.}
+The verifier reconstructs Fiat-Shamir challenges by hashing components of the public key and signature using the Griffin hash function in a sponge construction. Each challenge derivation invokes one Griffin sponge call (Section~\ref{sec:noir-impl}), with the number of permutations per call determined by the input length and the sponge rate ($r = 2$). For a typical L-Verify invocation, challenge generation accounts for a small fraction of the total Griffin budget relative to the Merkle path verification (S4).
+
+\paragraph{(S2) Legendre PRF Evaluation.}
+For $B = 128$ challenged indices, the circuit checks the quadratic residuosity relation $t_b = s_b^2 \pmod{p}$ using the QNR trick (Definition~\ref{def:leg-verify}). This costs $4B + 1 = 513$ R1CS constraints under field alignment---a negligible fraction of the total.
+
+\paragraph{(S3) Polynomial Evaluation and Sumcheck Verification.}
+The decomposed witness polynomials $\hat{f}_j$ (with $m = 16$, $n = 8$) are evaluated and verified via the univariate sumcheck protocol. This involves polynomial interpolation over multiplicative cosets and evaluation at $\kappa \cdot 2^\eta = 128$ points.
+
+\paragraph{(S4) Merkle Authentication Path Verification.}
+The signature contains Merkle authentication paths for commitment openings. With $\kappa = 32$ queries, $|U| = 2^{13}$, $\eta = 2$, and tree cap parameter $t = 4$, verification requires 1,028 Griffin hash evaluations for the Merkle paths, plus 9 for hash chain recomputation and 4 for challenge expansion---totaling 1,041 hash evaluations per L-Verify (Appendix~\ref{app:loquat-params}).
+
+\paragraph{(S5) Credential Binding.}
+The two L-Verify instances are connected through credential binding hashes: $h_{U,TA} = H(pk_U \| \textsf{attr})$ and $h_{\text{cred}} = H(pk_{TA} \| h_{U,TA} \| \textsf{metadata})$. Each binding hash requires additional Griffin permutations.
+
+\paragraph{(S6) Selective Disclosure (Optional).}
+If selective disclosure is enabled, the circuit includes a Merkle tree accumulator over the attribute set. The prover provides Merkle authentication paths for the disclosed attributes, and the circuit reconstructs the root from these paths and checks it against the signed credential root. Our base implementation does not include selective disclosure; its impact is discussed as a scalability consideration in Chapter~\ref{sec:discussion}.
+
+\subsubsection{Aggregate Operation Count}
+
+Table~\ref{tab:subcomponent-summary} summarizes the sub-component costs for the simplified ShowVer relation.
+
+\begin{table}[h]
+\centering
+\caption{Sub-component inventory for $\mathcal{R}_{\textsf{ShowVer}}^{\textsf{simplified}}$.}
+\label{tab:subcomponent-summary}
+\begin{tabular}{llrr}
+\hline
+\textbf{ID} & \textbf{Sub-component} & \textbf{Per L-Verify} & \textbf{$\times 2$ (ShowVer)} \\
+\hline
+S1 & Griffin hash (challenge gen.) & $\sim$10 permutations & $\sim$20 \\
+S2 & Legendre PRF ($4B + 1$) & 513 constraints & 1,026 \\
+S3 & Polynomial evaluation & $\sim$5{,}000 constraints & $\sim$10{,}000 \\
+S4 & Merkle paths (1,041 hashes) & 1,041 Griffin calls & 2,082 \\
+S5 & Credential binding & 2 Griffin calls & 4 \\
+\hline
+& \textbf{Total R1CS constraints} & \textbf{148{,}825} & $\approx$\textbf{308{,}000} \\
+\hline
+\end{tabular}
+\end{table}
+
+% Note: Per-L-Verify count (148,825) from Loquat paper; our implementation measures 172,765
+% per single loquat_verify (including witness allocation overhead). ShowVer ×2 estimate
+% from 03-preliminaries.tex: 2 × 148,825 + ~10,000 binding ≈ 308,000.
+
+
+\subsection{Implementation A: Noir + Aurora (Static Circuit)}
+\label{sec:noir-impl}
+
+\subsubsection{Compilation Pipeline}
+
+The static circuit implementation follows the four-stage pipeline introduced in \S\ref{sec:compilers}:
+
+\begin{equation}
+\underbrace{\text{Noir source}}_{\text{(1) DSL}} \xrightarrow{\texttt{nargo compile}} \underbrace{\text{ACIR bytecode}}_{\text{(2) intermediate}} \xrightarrow{\text{ACVM}} \underbrace{\text{R1CS } (A, B, C)}_{\text{(3) constraints}} \xrightarrow{\text{Aurora prover}} \underbrace{\pi}_{\text{(4) proof}}
+\end{equation}
+
+\paragraph{Stage 1: Noir Source.}
+The verification logic is expressed in Noir 1.0.0-beta.17. The implementation consists of:
+\begin{itemize}
+\item A \texttt{loquat\_verify} function implementing the Legendre verification relation (Definition~\ref{def:leg-verify}), including the QNR trick, quadratic residuosity checks, and polynomial evaluation.
+\item A \texttt{griffin\_hash} module implementing the Griffin permutation with state sizes 3 (expansion) and 4 (compression), configured for 128-bit security with 11 rounds and power map exponent $d = 5$.
+\item A \texttt{merkle\_verify} function implementing authentication path verification using Griffin hash.
+\item A top-level \texttt{main} function that composes two \texttt{loquat\_verify} calls with credential binding hash checks.
+\end{itemize}
+
+\paragraph{Stage 2: ACIR Compilation.}
+Compilation via \texttt{nargo compile} produces ACIR bytecode in binary format (21,698 bytes). The compiled circuit contains 17 constrained ACIR opcodes that encode the ShowVer verification logic at a high level; each opcode expands into many R1CS constraints during the ACVM translation stage. The Griffin inverse power map ($x^{1/d}$) is computed in Brillig (unconstrained witness generation) and verified via the constraint $y^d = x$ in ACIR, following the compute-then-verify pattern. Compilation completes in approximately 71~ms (median over 10 runs on Apple M2).
+
+\paragraph{Stage 3: R1CS Generation.}
+The ACVM translates ACIR to R1CS over the field $\mathbb{F}_p$ with $p = 2^{127} - 1$, achieving field alignment with Loquat's operating domain. The generated R1CS instance size depends on the credential configuration. For the full PP2 evaluation configuration ($k = 2$, $m = 64$ attributes, revocation depth 20), the instance has 996,523 constraints. A single isolated \texttt{loquat\_verify} sub-circuit accounts for 172,765 constraints (17.3\% of the full instance). Matrices $A, B, C \in \mathbb{F}_p^{m \times n}$ encode the constraint system in sparse representation.
+
+\paragraph{Stage 4: Aurora Proof Generation.}
+The R1CS instance is proven using Aurora (via the \emph{libiop} library). Aurora's IOP protocol proceeds through rowcheck (verifying $(Az) \circ (Bz) = Cz$ entry-wise), lincheck (verifying the matrix-vector products $Az$, $Bz$, $Cz$), and FRI low-degree testing. The proof is made non-interactive via the Fiat-Shamir transform.
+
+\subsubsection{Field Selection Rationale}
+
+The choice of $p = 2^{127} - 1$ as the R1CS field is the single most important implementation decision for the static circuit backend. This Mersenne prime matches Loquat's native field, ensuring that:
+\begin{itemize}
+\item Every $\mathbb{F}_q$ multiplication maps to exactly one R1CS constraint (Theorem~\ref{thm:constraint-opt}).
+\item No multi-precision emulation, carry propagation, or range checks are needed.
+\item Griffin hash operates natively in $\mathbb{F}_p$, preserving its algebraic efficiency.
+\end{itemize}
+
+Note that Loquat's sumcheck and LDT components operate over $\mathbb{F}_{p^2}$ (the quadratic extension), which introduces a small overhead for extension field arithmetic within the R1CS. This overhead is absorbed into the 148,825 total constraint count reported by~\cite{zhang2024loquat}.
+
+
+\subsection{Implementation B: RISC Zero (zkVM)}
+\label{sec:risczero-impl}
+
+\subsubsection{Compilation Pipeline}
+
+The zkVM implementation follows a fundamentally different pipeline:
+
+\begin{equation}
+\underbrace{\text{Rust source}}_{\text{(1) GPL}} \xrightarrow{\texttt{cargo build}} \underbrace{\text{RISC-V ELF}}_{\text{(2) rv32im}} \xrightarrow{\text{zkVM execute}} \underbrace{\textsf{Tr} \in \mathbb{F}_p^{T \times W}}_{\text{(3) trace}} \xrightarrow{\text{STARK prove}} \underbrace{\text{receipt}}_{\text{(4) proof}}
+\end{equation}
+
+\paragraph{Stage 1: Rust Guest Program.}
+The verification logic is implemented as a RISC Zero ``guest program'' in Rust, targeting RISC Zero SDK version 3.0.3. The guest reuses the shared \texttt{vc\_pqc} library crate---the same field arithmetic, Griffin permutation, and Merkle tree modules used in the static path---compiled to RISC-V rather than to R1CS. This code-sharing strategy satisfies Design Constraint~4 (single codebase) and ensures that any performance differences arise from the proving architecture, not from implementation divergence.
+
+\paragraph{Stage 2: RISC-V Compilation.}
+The guest program is compiled to a RISC-V rv32im ELF binary via \texttt{cargo build --release --target riscv32im-risc0-zkvm-elf}, with \texttt{opt-level = 3} and link-time optimization (\texttt{lto = true}). The binary is identified by its \emph{imageID}---a 32-byte SHA-256 hash of the ELF content---which serves as the verification key analogue. Unlike the Aurora verification key ($\sim$32~MB), the imageID is a compact 32-byte value, yielding the $10^6\times$ key-distribution advantage noted in Table~\ref{tab:pipeline-comparison}.
+
+\paragraph{Stages 3--4: Execution and STARK Proving.}
+The host loads the guest binary into the RISC Zero zkVM executor, which records every CPU state into an execution trace $\textsf{Tr} \in \mathbb{F}_p^{T \times W}$ (Definition~\ref{def:exec-trace}). The prover then processes this trace through DEEP-ALI constraint verification and batched FRI low-degree testing (folding factor 16, 50 queries) to produce a computational receipt.
+
+The key architectural consequence is the \emph{arithmetic mismatch}: Loquat operates over $\mathbb{F}_q$ ($q = 2^{127} - 1$) while RISC Zero's native field is BabyBear ($p = 2^{31} - 2^{27} + 1$). Every $\mathbb{F}_q$ operation is emulated via $k = 4$ limb multi-precision arithmetic (Theorem~\ref{thm:multi-prec}), and the Griffin inverse power map ($x^{1/d}$) requires full Fermat exponentiation rather than the compute-then-verify shortcut available in R1CS. The theoretical cost model predicts a trace amplification factor $\alpha \geq 25$ (Theorem~\ref{thm:trace-amp}).
+
+
+\subsection{Pipeline Comparison}
+\label{sec:pipeline-comparison}
+
+Before examining implementation challenges, it is instructive to compare the two pipelines side-by-side. Table~\ref{tab:pipeline-comparison} summarizes the key architectural differences and their implications.
+
+\begin{table}[h]
+\centering
+\caption{Side-by-side comparison of the two implementation pipelines.}
+\label{tab:pipeline-comparison}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.22\linewidth}>{\raggedright\arraybackslash}p{0.34\linewidth}>{\raggedright\arraybackslash}p{0.34\linewidth}@{}}
+\toprule
+\textbf{Dimension} & \textbf{$\mathcal{A}$: Noir + Aurora} & \textbf{$\mathcal{Z}$: RISC Zero} \\ \midrule
+Source language & Noir (domain-specific) & Rust (general-purpose) \\
+Intermediate repr. & ACIR $\to$ R1CS & RISC-V ELF $\to$ exec.\ trace \\
+Native field & $\mathbb{F}_{2^{127}-1}$ (configurable) & BabyBear $\mathbb{F}_{2^{31}-2^{27}+1}$ (fixed) \\
+Field alignment & Aligned ($k = 1$) & Mismatched ($k = 4$) \\
+$x^{1/d}$ strategy & Compute-then-verify & Full Fermat exponentiation \\
+Proof system & IOP (Aurora) & STARK (FRI-based) \\
+Setup requirement & Transparent (indexer) & None \\
+IOP transcript size\footnotemark & $\sim$32 MB & --- \\
+Succinct proof (theoretical) & $O(\log^2 n) \approx 130$--$170$~KB\footnotemark & $\sim$200--300 KB (projected) \\
+Update mechanism & Recompile + re-index + redistribute & Recompile ELF only \\
+Verification key & Circuit-bound (changes with logic) & ImageID (ELF hash, changes with logic) \\
+Key distribution & 32 MB to all verifiers & 32 bytes to all verifiers \\
+\bottomrule
+\end{tabular}
+\footnotetext{The 32~MB figure is the full IOP transcript (oracle evaluations over the padded domain, $2^{20}$ elements $\times$ 32 bytes/element), not the compiled succinct proof.}
+\footnotetext{Under the BCS transformation~\cite{ben2019aurora}, Aurora compiles the IOP transcript into a succinct proof of size $O(\log^2 n) \approx 130$--$170$~KB for our constraint count ($\sim$1M). Our measurement reflects the IOP-model transcript, which includes the full residual polynomial evaluation over the padded domain.}
+\end{table}
+
+The table reveals the core trade-off that motivates this thesis: the static path achieves superior prover performance through field alignment and algebraic optimization, while the zkVM path achieves superior operational agility through software-level abstraction. The $10^6\times$ difference in verification key distribution bandwidth (32~MB vs.\ 32 bytes) is particularly striking and has direct implications for blockchain-based deployments where on-chain storage is expensive.
+
+\paragraph{Data Flow Comparison.}
+The two pipelines also differ in how data flows from the prover's private witness to the final proof. In the static path, the witness is ``compiled into'' the constraint system: the prover fills in the R1CS variable assignment, and the Aurora prover commits to this assignment via polynomial commitments. The entire computation is visible to the proof system at the constraint level. In the zkVM path, the witness is ``executed through'' the CPU: the prover runs the guest program with the witness as input, and the STARK prover commits to the resulting execution trace. The proof system sees CPU state transitions, not algebraic operations. This distinction has a profound consequence: in the static path, the proof system can exploit the algebraic structure of the computation (e.g., recognizing that a Griffin permutation is a low-degree polynomial map), while in the zkVM path, the proof system treats all operations uniformly as CPU instructions, paying the same overhead for algebraically simple and complex operations alike. This uniformity is both the source of the zkVM's flexibility (any program can be proven) and its performance limitation (no operation receives special treatment unless a precompile exists).
+
+
+\subsection{Implementation Challenges}
+\label{sec:impl-challenges}
+
+Two cross-cutting implementation challenges merit discussion, as they illuminate the architectural differences between the two backends.
+
+\paragraph{Griffin Inverse Power Map.}
+The $x^{1/d}$ computation is the most expensive single operation in both backends, but for different reasons. In the Noir circuit, it is handled via the compute-then-verify pattern: the inverse is computed in Brillig (unconstrained witness generation) and verified via the constraint $y^5 = x$ in ACIR, costing only $\lceil \log_2 5 \rceil = 3$ R1CS constraints. In RISC Zero, no such shortcut exists---the full Fermat exponentiation ($\sim$127 sequential $\mathbb{F}_q$ multiplications) must be executed instruction-by-instruction. This asymmetry is a direct consequence of the abstraction-level difference: R1CS exposes algebraic structure that the prover can exploit, whereas the zkVM treats all computation uniformly.
+
+\paragraph{Extension Field Arithmetic.}
+Loquat's sumcheck and LDT components operate over $\mathbb{F}_{p^2}$ (the quadratic extension of $\mathbb{F}_p = \mathbb{F}_{2^{127}-1}$). In the Noir circuit, extension field arithmetic is handled by the ACIR backend with $\sim$4$\times$ overhead per extension multiplication. Since Griffin hash dominates at 91--94\% of total constraints (Proposition~\ref{prop:griffin-dominance}), the extension field overhead is bounded to approximately 6--9\% of total constraints. In RISC Zero, the overhead compounds: each $\mathbb{F}_{p^2}$ multiplication requires 3 $\mathbb{F}_p$ multiplications (via Karatsuba), each of which is itself a multi-precision operation over 4 limbs.
+
+
+\subsection{Chapter Summary}
+
+This chapter has described the realization of $\mathcal{R}_{\textsf{ShowVer}}$ across both backends, from source code to proof generation, under the fixed-semantics comparison methodology outlined in Section~\ref{sec:design-rationale}. The key implementation decisions and their architectural consequences are as follows.
+
+First, \textbf{field selection} ($p = 2^{127} - 1$ for Noir + Aurora) eliminates multi-precision overhead in the static circuit, while the fixed BabyBear field in RISC Zero forces $k = 4$ limb emulation---directly instantiating the arithmetic mismatch predicted by Theorem~\ref{thm:multi-prec}.
+
+Second, the \textbf{Griffin implementation strategy} differs fundamentally between backends: the compute-then-verify pattern in Noir reduces the inverse power map to $\lceil \log_2 d \rceil$ constraints, while RISC Zero requires full Fermat exponentiation at $O(\log q) \approx 127$ sequential multiplications per invocation. Given that Griffin permutations dominate the constraint budget (Proposition~\ref{prop:griffin-dominance}), this single difference accounts for a substantial fraction of the expected inter-backend performance gap.
+
+Third, the \textbf{pipeline comparison} (Table~\ref{tab:pipeline-comparison}) reveals that the two backends operate at fundamentally different abstraction levels: the static path exposes algebraic structure to the proof system, while the zkVM path abstracts all computation into CPU instructions. This abstraction is the mechanism through which the zkVM achieves operational agility---and the mechanism through which it incurs the agility tax.
+
+The Noir + Aurora pipeline is fully characterized: a single \texttt{loquat\_verify} accounts for 172,765 R1CS constraints, and the full PP2 configuration ($k = 2$) totals 996,523 constraints. The RISC Zero pipeline is structurally complete---the guest program compiles and shares the same verification logic---with the theoretical cost model from Chapter~\ref{sec:theory} providing the analytical basis for cross-backend comparison.
+
+The measured costs from the static-path implementation are presented and analyzed in the following chapter, where we evaluate the theoretical predictions against empirical data across all three evaluation dimensions (D1, D2, D3).

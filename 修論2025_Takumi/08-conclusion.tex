@@ -1,0 +1,40 @@
+\section{Conclusion}\label{sec:conclusion}
+
+This thesis investigated how to future-proof post-quantum anonymous credentials by fixing a single verification semantics and implementing it in two backend paradigms:
+\begin{itemize}
+    \item static constraints (\(\mathcal{A}\): Noir+Aurora), and
+    \item execution-trace proofs (\(\mathcal{Z}\): RISC Zero).
+\end{itemize}
+
+The central question was not whether one backend is universally superior, but how the trade-off between cryptographic agility and runtime cost appears under a fixed relation.
+
+\subsection{Main Findings}\label{subsec:conclusion-findings}
+
+The static circuit path (Noir+Aurora) is fully characterized through comprehensive benchmarking: 996,523 R1CS constraints for PP2, 127.8~s prover time, 79.7~s verifier time, and 32.0~MB IOP transcript size (the BCS-compiled succinct proof would be $\approx 130$--$170$~KB). The component analysis reveals that credential infrastructure overhead (64.6\%) dominates over the Loquat signature verifications themselves (34.7\%), and scaling is perfectly linear at 247,429 constraints per additional credential. These measurements establish the concrete baseline against which the agility tax can eventually be quantified.
+
+The update churn analysis confirms a categorical architectural difference between the two backends. Logic updates in static circuits couple to circuit artifacts, key regeneration, and verifier-network coordination (hours to months), while logic updates in the zkVM path couple only to guest binary recompilation (minutes to hours), with a \(10^6\times\) reduction in update bandwidth. This difference is structural---it follows from the architecture, not from runtime performance---and holds regardless of the eventual zkVM prover time.
+
+The theoretical framework formalizing the arithmetic mismatch (Chapter~\ref{sec:Theoretical Bottleneck}) provides the explanatory mechanism for the expected agility tax, establishing a structural \(\Omega(k^2)\) lower bound on non-native field operations. The Precompile Paradox, validated through published benchmark data, confirms that SNARK-friendly primitives like Griffin become the primary cost driver in zkVM execution.
+
+\subsection{Answer to the Thesis Question}\label{subsec:conclusion-answer}
+
+The answer is conditional:
+\begin{itemize}
+    \item If immediate end-to-end provability with complete runtime metrics is the priority, the current static-circuit instantiation is presently more practical.
+    \item If policy evolution and software-level agility are the dominant lifecycle requirement, zkVM architecture remains compelling, but full receipt benchmarking must be completed before strong performance claims.
+\end{itemize}
+
+Thus, the ``performance tax of cryptographic agility'' is real in current measurements, and its magnitude must be treated as an engineering parameter rather than a fixed constant.
+
+\subsection{Limitations}\label{subsec:conclusion-limitations}
+
+The primary limitation is that the cross-backend comparison is one-sided: the static path has complete end-to-end measurements, while the zkVM path has a completed design and partial implementation but no receipt-side benchmarks. Consequently, the agility tax is established as a theoretical lower bound rather than a measured quantity. Additional limitations include: D3 (privacy) is partially validated but not closed by expensive end-to-end unlinkability runs; all quantitative values are from a single hardware environment (Apple M2); and policy/revocation sweeps are point measurements rather than full parameter-space explorations.
+
+\subsection{Future Work}\label{subsec:conclusion-future}
+
+The immediate next step is to complete matched PP2/PP3 zkVM receipt runs and report \(t_P\), \(t_V\), and \(|\rho|\) under the same experimental envelope used for the static path. After that, controlled sweeps over state size and update frequency are needed to identify crossover regions where D1 advantages justify D2 penalties. D3 should then be closed with at least one completed expensive unlinkability run and explicit adversarial validation. Longer-term work includes optimization of non-native arithmetic paths and extension of the framework to additional post-quantum primitives and hybrid migration strategies.
+
+\subsection{Closing Statement}\label{subsec:conclusion-closing}
+
+Future-proof post-quantum identity systems require both cryptographic soundness and operational evolvability.
+By fixing semantics and comparing backend realizations directly, this thesis provides a concrete, defensible basis for deciding when to accept agility cost and when to prioritize static efficiency in real-world credential deployments.

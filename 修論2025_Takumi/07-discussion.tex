@@ -1,0 +1,119 @@
+\section{Discussion}\label{sec:discussion}
+
+This chapter interprets the evaluation results against the theoretical claims in Chapter~\ref{sec:Theoretical Bottleneck} and the fixed construction in Chapter~\ref{sec:system}. We analyze the agility--performance trade-off in depth, discuss threats to validity, provide worked decision scenarios, and consider implications for the broader post-quantum migration landscape.
+
+\subsection{Interpretation of Core Findings}\label{subsec:discussion-rq}
+
+The evidence supports a practical tension between update agility and runtime cost. In the static relation-specialized path ($\mathcal{A}$: Noir+Aurora), PP2/PP3 runs complete with full D2 observables. In the zkVM path ($\mathcal{Z}$: RISC Zero), the same relation logic is executable and produces bounded execution-stage signals, but full receipt-side D2 observables remain incomplete under the current run budget. As a result, the present cross-backend comparison is intentionally asymmetric and should be interpreted as such.
+
+This asymmetry is still analytically useful. The static path demonstrates what is currently measurable end-to-end in this implementation, while the zkVM path provides directional evidence that is consistent with the arithmetic-mismatch model developed in Chapter~\ref{sec:Theoretical Bottleneck}. The data therefore supports structural interpretation at the mechanism level, while withholding strong constant-factor claims until full receipt rows are available.
+
+From a deployment perspective, the implication is conditional rather than absolute. Where immediate end-to-end provability with complete runtime reporting is required, the current static instantiation is the lower-risk operational choice. Where policy churn and software-level update cadence dominate system cost, the zkVM direction remains relevant, but decisions should be gated on completion of receipt-side benchmarks.
+
+\subsection{Answering the Research Questions}\label{subsec:discussion-answers}
+
+We now revisit the four research questions posed in Chapter~\ref{sec: Introduction} and assess the degree to which the current evidence addresses each.
+
+\paragraph{RQ1: Fundamental Trade-offs.}
+The theoretical analysis (Theorem~\ref{thm:multi-prec}) establishes that the agility tax has a structural $\Omega(k^2)$ lower bound per non-native field operation, where $k$ is the limb count for multi-precision emulation. For Loquat-128 over RISC Zero's BabyBear field, $k = 4$, establishing a minimum $16\times$ overhead per field multiplication at the operation level. The measured Aurora baseline (996,523 constraints for PP2) provides the denominator against which the eventual zkVM cost can be compared. While the precise agility tax magnitude awaits zkVM measurements, the theoretical lower bound confirms that a fundamental, non-trivial performance cost exists and is inherent to the architecture.
+
+\paragraph{RQ2: Root Cause Analysis.}
+The arithmetic mismatch is established as the dominant mechanism through two complementary lines of evidence. First, the theoretical framework (Chapter~\ref{sec:Theoretical Bottleneck}) derives the $\Omega(k^2)$ bound from first principles. Second, the published benchmark landscape (\S\ref{sec:landscape}) empirically validates the Precompile Paradox: SNARK-friendly primitives like Poseidon are $4.6\times$ cheaper in Circom than RISC Zero, while SNARK-unfriendly primitives like SHA-256 are $18.4\times$ cheaper in RISC Zero due to the precompile. Griffin occupies the same structural position as Poseidon---an algebraically-structured hash without a zkVM precompile---confirming that it will be the primary cost driver in the zkVM path. The overhead is structural, not a fixable engineering artifact, though constant factors are engineering-dependent.
+
+\paragraph{RQ3: Quantitative Comparison.}
+This question is \emph{partially} answered. The static path (Noir+Aurora) produces complete measurements: 996,523 R1CS constraints, $127.8 \pm 2.1$~s prover time, $79.7 \pm 0.2$~s verifier time, and 32.0~MB IOP transcript size for PP2 (the BCS-compiled succinct proof would be $O(\log^2 n) \approx 130$--$170$~KB). These measurements establish the full cost profile of the static circuit approach, including the unexpected finding that base infrastructure overhead (64.6\%) dominates over the Loquat verifications themselves (34.7\%). The zkVM runtime comparison remains open pending receipt-side measurements. However, the update churn comparison is fully resolved independently of runtime data: static circuits require hours-to-weeks per logic change versus minutes-to-seconds for zkVMs, with a $10^6\times$ bandwidth difference (32 bytes vs.\ 32~MB).
+
+\paragraph{RQ4: Design Space Guidance.}
+The decision framework in Section~\ref{subsec:discussion-scenarios} provides worked scenarios addressing this question. Even without complete zkVM measurements, the framework is actionable because the D1 (churn) axis is fully characterized and the D2 (runtime) axis has a measured static-path anchor with theoretical bounds on the zkVM cost. The answer is context-dependent: the optimal choice depends on the ratio of policy change frequency to proof generation frequency, which varies by deployment context.
+
+\subsection{Interpreting D1, D2, and D3 Together}\label{subsec:discussion-d123}
+
+The three evaluation dimensions reveal a nuanced picture when considered jointly rather than in isolation.
+
+\paragraph{D1 (Update Churn).}
+In both backends, state-only updates (e.g., changing a credential attribute value) are cheap---they require only new witness generation. The main divergence appears in logic updates: in $\mathcal{A}$, updates couple to circuit/relation artifacts and downstream verifier-side artifacts (new compilation, new setup, new verification key distribution), while in $\mathcal{Z}$, updates couple to guest program rebuild/redeployment with unchanged proving framework semantics. This decoupling is the core reason D1 can favor zkVM architecture even when D2 does not. The practical significance is substantial: for a blockchain-based credential system with thousands of verifier nodes, the coordination cost of distributing new verification keys can dominate the total cost of a policy change, making the zkVM's near-zero D1 cost a decisive advantage in high-churn environments.
+
+\paragraph{D2 (Runtime).}
+Completed results for $\mathcal{A}$ confirm that the implementation can produce end-to-end proofs for revocation and policy cases. The 127.8~s prover time, while significant, is within acceptable bounds for credential issuance workflows where proof generation is an offline operation. The 79.7~s verification time and 32.0~MB IOP transcript size are more concerning for deployment: they preclude on-chain verification and impose substantial bandwidth requirements on verifier networks. These verifier-side costs are architecturally inherent to Aurora's IOP structure and cannot be reduced through circuit-level optimization. The zkVM path, once measured, is expected to improve substantially on these verifier-side metrics---STARK proofs are asymptotically logarithmic in verification time and substantially smaller---but the precise magnitudes await empirical confirmation.
+
+\paragraph{D3 (Privacy Gate).}
+The baseline flow avoids intentionally exposing a stable verifier-facing identifier by rotating verifier pseudonyms at presentation. However, full expensive unlinkability proof-path benchmarking was not completed in this run set. The defensible claim is therefore: D3 is \emph{partially} validated, not closed. This limitation does not affect the D1/D2 conclusions but does constrain the completeness of the privacy analysis for deployment recommendations.
+
+\paragraph{Joint Interpretation.}
+The three dimensions are not independent: improving D1 (by choosing zkVM) worsens D2 (higher prover cost) but potentially improves D3 (software-level flexibility enables richer privacy constructions). This interdependence means that no single metric can determine the optimal architecture; the decision requires weighting all three dimensions according to the deployment context.
+
+\subsection{Relation to Prior BDEC/ProSec Numbers}\label{subsec:discussion-prosec}
+
+The ProSec/BDEC paper reports specific benchmark tables~\cite{BDEC2024}. Those values should be treated as external reference, not a strict target for one-to-one replication, for three reasons. First, implementation stacks differ, including compiler/prover engineering choices and library versions. Second, arithmetization and parameter defaults differ; the ProSec implementation uses a different constraint system configuration. Third, benchmark harnesses and output conventions differ in how they measure and report timing data.
+
+Therefore, this thesis emphasizes \emph{within-thesis comparability}: same fixed relation, same repository, two backends. This makes the conclusions defensible even when absolute constants differ from prior published tables. The constraint count of 996,523 for PP2 is within the expected range given that our implementation includes the full Griffin-based Merkle verification paths that dominate the constraint budget (as predicted by Proposition~\ref{prop:griffin-dominance}).
+
+\subsection{Threats to Validity}\label{subsec:discussion-threats}
+
+We identify and assess threats to the validity of our conclusions across four categories.
+
+\paragraph{Internal Validity.}
+The primary threat is the asymmetric measurement completeness: the static path has full end-to-end measurements while the zkVM path relies on theoretical projections for receipt-side metrics. We mitigate this by (a) clearly marking all zkVM figures as projections, (b) validating projections against published RISC Zero benchmarks for simpler workloads, and (c) establishing theoretical bounds that constrain the projection range. A secondary threat is the single-environment measurement: all benchmarks were collected on a single machine configuration. We report hardware specifications and use repeated trials with standard deviations to partially address this, but cross-platform validation remains future work.
+
+\paragraph{External Validity.}
+Our results are specific to the Loquat-128 signature scheme over the Mersenne prime field $\mathbb{F}_{2^{127}-1}$. The arithmetic mismatch theory generalizes to any non-native field operation, but the specific overhead constants ($k = 4$ for RISC Zero, the Griffin dominance ratio) are Loquat-specific. Different post-quantum primitives (e.g., ML-DSA, SPHINCS+) would exhibit different mismatch profiles. Similarly, the update churn analysis assumes a blockchain-based deployment model; federated or centralized systems would have different coordination costs.
+
+\paragraph{Construct Validity.}
+The Update Churn metric (D1) is a novel contribution of this thesis and has not been externally validated. While we define it formally and measure it across concrete scenarios, the weighting of its sub-components (recompilation time, bandwidth, coordination overhead) is inherently context-dependent. We address this by presenting D1 as a framework with configurable weights rather than a single scalar metric.
+
+\paragraph{Conclusion Validity.}
+Our conditional conclusion---that the optimal architecture depends on the deployment context---is inherently robust to measurement variations because it does not claim universal superiority of either approach. However, the specific crossover point (at what policy change frequency does the zkVM's D1 advantage outweigh its D2 penalty) depends on constants that are only partially measured. We provide bounds on this crossover rather than a precise value.
+
+\subsection{Practical Decision Scenarios}\label{subsec:discussion-scenarios}
+
+To make the decision framework concrete, we analyze three representative deployment scenarios drawn from realistic post-quantum credential systems.
+
+\paragraph{Scenario 1: University Credential System.}
+A university issues academic credentials (degrees, transcripts) to graduates. Policy changes are infrequent (perhaps once per academic year for new accreditation requirements), but the credential lifetime is long ($X \approx 40$ years for Mosca's inequality). In this scenario, the low policy churn rate ($< 1$ change/year) means D1 costs are amortized over long periods, making the static circuit's superior D2 performance the dominant factor. \emph{Recommendation: $\mathcal{A}$ (static circuit), unless algorithm rotation is anticipated within the credential lifetime, in which case the zkVM's agility becomes a hedge against forced migration.}
+
+\paragraph{Scenario 2: Supply Chain Verification.}
+A supply chain system verifies provenance credentials across thousands of supplier nodes. Verification policies change frequently (new regulatory requirements, new product categories, supplier onboarding/offboarding) at a rate of $\sim$2--4 changes per month. Each policy change in a static circuit system requires coordinating verification key updates across all supplier nodes. In this scenario, D1 dominates: the coordination cost of distributing new verification keys to thousands of nodes multiple times per month far exceeds the runtime overhead of zkVM proving. \emph{Recommendation: $\mathcal{Z}$ (zkVM), despite the prover time penalty, because the D1 savings at this update frequency are decisive.}
+
+\paragraph{Scenario 3: Financial Identity Verification.}
+A financial institution verifies customer identity credentials for regulatory compliance (KYC). The system processes thousands of verifications per day, and verification latency directly impacts customer experience. Policy changes are moderate ($\sim$1--2 per quarter for regulatory updates). This scenario involves tension between D2 (high verification throughput requirement) and D1 (non-trivial policy change frequency). \emph{Recommendation: Hybrid approach---use $\mathcal{A}$ for the high-throughput verification path, with a pre-built $\mathcal{Z}$ fallback for rapid policy updates during regulatory transitions. This hybrid is architecturally feasible because both backends implement the same $\mathcal{R}_{\textsf{ShowVer}}$ semantics.}
+
+\begin{table}[htbp]
+\centering
+\caption{Decision guidance synthesized from evaluation evidence and deployment scenarios.}
+\label{tab:discussion-guidance}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.28\linewidth}>{\raggedright\arraybackslash}p{0.35\linewidth}>{\raggedright\arraybackslash}p{0.28\linewidth}@{}}
+\toprule
+\textbf{Context} & \textbf{Recommended Architecture} & \textbf{Rationale} \\ \midrule
+Low policy churn, immediate deployability &
+$\mathcal{A}$ (Noir+Aurora) &
+Full end-to-end proof metrics available; superior D2 performance. \\
+High policy churn, many verifier nodes &
+$\mathcal{Z}$ (RISC Zero) directionally &
+D1 savings dominate; require receipt benchmarks before production. \\
+High throughput + moderate churn &
+Hybrid $\mathcal{A}$/$\mathcal{Z}$ &
+Static for throughput, zkVM for agility during transitions. \\
+Schema evolution (new attributes) &
+Neither avoids re-issuance &
+Application-layer inevitability in both backends. \\
+Strict privacy assurance &
+Complete D3 validation first &
+Neither backend has closed the expensive unlinkability path. \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Implications for the Post-Quantum Migration Timeline}\label{subsec:discussion-migration}
+
+Our findings have broader implications for how organizations should plan their post-quantum migration for credential systems. The arithmetic mismatch theory suggests that the agility tax will persist as long as zkVMs operate over small native fields (BabyBear, Goldilocks) while post-quantum primitives require large fields ($\geq 127$ bits). Three developments could reduce this tax in the future.
+
+First, \emph{zkVM precompile expansion}: if zkVM vendors add precompiles for large-field arithmetic (as RISC Zero has done for 256-bit BigInt operations), the constant factor of the agility tax decreases while the structural $\Omega(k^2)$ bound remains. Second, \emph{SNARK-friendly primitive standardization}: if primitives like Loquat or Poseidon-based signatures achieve broader adoption and NIST recognition, the need for algorithm rotation decreases, reducing the value of D1 agility. Third, \emph{field-agile zkVMs}: future zkVM architectures that support configurable native fields could eliminate the arithmetic mismatch entirely, collapsing the agility tax to a constant overhead from trace-based proving.
+
+For organizations beginning migration planning today, our recommendation is to design systems with a \emph{backend-agnostic verification interface}---abstracting the proof system behind a common API---so that the static-to-zkVM transition can be made incrementally as the technology matures, rather than requiring a wholesale architectural change.
+
+\subsection{Implementation Faithfulness}\label{subsec:discussion-faithful}
+
+A specification-faithful implementation is preferable for thesis defensibility, provided the claim boundaries are stated precisely. The key requirement is to separate spec-faithful claims (what relation/semantics is implemented and verified) from engineering claims (what runtime constants are observed in this codebase). When these are separated, larger constants do not weaken the thesis; they improve transparency and reproducibility. Our implementation is spec-faithful to the BDEC ShowVer relation as defined in~\cite{BDEC2024}, with the simplification to two Loquat verifications (rather than $k + 2$) explicitly stated and justified in Chapter~\ref{sec:system}.
+
+\subsection{Chapter Summary}\label{subsec:discussion-summary}
+
+The current evidence supports the thesis direction: fixed-semantics dual-backend implementation is feasible, D1 and D2 expose a concrete agility--performance tension, and arithmetic mismatch remains a credible explanatory mechanism. The worked scenarios demonstrate that the optimal architecture choice is genuinely context-dependent, with D1 dominating for high-churn deployments and D2 dominating for high-throughput ones. At the same time, the discussion clarifies present limits: zkVM performance claims remain partial until full receipt completion data is obtained, and the D3 privacy dimension requires additional validation before strong unlinkability claims can be made.

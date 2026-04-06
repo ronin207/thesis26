@@ -1,0 +1,340 @@
+\section{Theoretical Foundations of the Arithmetic Mismatch}
+\label{sec:Theoretical Bottleneck}
+
+This chapter establishes a formal theoretical framework for analyzing the computational overhead incurred when migrating post-quantum cryptographic primitives from application-specific static circuits to general-purpose Zero-Knowledge Virtual Machines (zkVMs). We introduce the concept of \emph{arithmetic mismatch}---the fundamental discrepancy between the algebraic structure of a cryptographic primitive and the native field arithmetic of its proof system---and develop a rigorous cost model to quantify this phenomenon.
+
+Our analysis proceeds in four parts. First, we formally define arithmetization regimes and establish a cost model (\S\ref{sec:cost-model}) that captures prover complexity across different proof system architectures. Second, we analyze the ideal case of algebraic alignment (\S\ref{sec:alignment}), where the proof system's native field matches the primitive's operating domain, and establish tight lower bounds. Third, we characterize the arithmetic mismatch regime (\S\ref{sec:mismatch}), derive explicit bounds on multi-precision overhead, and formalize the \emph{precompile paradox}. Fourth, we analyze trace complexity in STARK-based zkVMs (\S\ref{sec:stark}) and prove that the overhead propagates multiplicatively through the FRI-dominated proving pipeline. We conclude with a summary of the \emph{Agility Tax} (\S\ref{sec:agility-tax}).
+
+
+\subsection{Formal Cost Model and Arithmetization Regimes}
+\label{sec:cost-model}
+
+\begin{definition}[Arithmetization Regime]
+\label{def:arith-regime}
+An \emph{arithmetization regime} $\mathcal{A}$ for a relation $\mathcal{R}$ over a computational domain $D$ is a tuple $\mathcal{A} = (\mathbb{F}, \varphi, \mathcal{C})$ where:
+\begin{itemize}
+\item $\mathbb{F}$ is the native field of the proof system,
+\item $\varphi: D \to \mathbb{F}^k$ is an encoding function that maps elements of the computational domain to field elements (possibly using $k$ limbs for multi-precision representation),
+\item $\mathcal{C}$ is the constraint representation (R1CS, AIR, or PLONKish) that expresses $\mathcal{R}$ over $\mathbb{F}$.
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Field Alignment]
+\label{def:field-alignment}
+Let $f: \mathbb{F}_q \to \mathbb{F}_q$ be a cryptographic primitive operating over field $\mathbb{F}_q$, and let $\mathbb{F}_p$ be the native field of a proof system. The proof system is \emph{field-aligned} with $f$ if there exists an isomorphism $\psi: \mathbb{F}_q \xrightarrow{\sim} \mathbb{F}_p$ such that encoding is trivial ($k = 1$). Otherwise, we say there is an \emph{arithmetic mismatch} of degree $k = \lceil \log_p q \rceil$.
+\end{definition}
+
+\begin{definition}[Proof System Cost Model]
+\label{def:cost-model}
+For a relation $\mathcal{R}(x, w) = 1$ with statement $x$ and witness $w$, a proof system is characterized by the following complexity measures:
+\begin{itemize}
+\item $N_C$: the \emph{constraint count} (R1CS constraints) or \emph{trace length} (AIR cycles) required to express $\mathcal{R}$,
+\item $T_P$: the \emph{prover time}, typically dominated by polynomial commitment costs,
+\item $T_V$: the \emph{verifier time},
+\item $|\pi|$: the \emph{proof size} (communication complexity),
+\item $T_S$: the \emph{setup cost} (when applicable).
+\end{itemize}
+\end{definition}
+
+
+\subsection{Algebraic Alignment: The Ideal Case}
+\label{sec:alignment}
+
+In application-specific static circuits, the system architect possesses the freedom to select a proof system whose native field $\mathbb{F}_p$ aligns with the natural algebraic domain of the cryptographic primitive. We formalize this ideal case and establish lower bounds that serve as a baseline for the mismatch analysis.
+
+\subsubsection{The Loquat Verification Relation}
+
+The Loquat signature scheme~\cite{zhang2024loquat} operates over the Mersenne prime $p = 2^{127} - 1$ for 128-bit security. The core verification relation is built upon the Legendre PRF.
+
+\begin{definition}[Keyed Legendre PRF]
+\label{def:legendre-prf}
+For an odd prime $p$, the base Legendre PRF is $L_0(a) = \lfloor \frac{1}{2}(1 - (a/p)) \rfloor \in \{0, 1\}$, where $(a/p)$ denotes the Legendre symbol. The keyed PRF with secret key $K \in \mathbb{F}_p$ is $L_K(a) = L_0(K + a)$.
+\end{definition}
+
+\begin{definition}[Legendre Verification Relation]
+\label{def:leg-verify}
+Given a fixed quadratic non-residue $\alpha \in \mathbb{F}_p$, the SNARK-optimized verification computes, for each challenged index $b \in [B]$:
+\begin{equation}
+t_b = o_b \cdot \bigl(\alpha \cdot (pk_{I_b} + T_b) + (1 - (pk_{I_b} + T_b))\bigr)
+\end{equation}
+and verifies the quadratic residuosity constraint $t_b = s_b^2 \pmod{p}$, where $s_b$ is a witness provided by the prover. This costs exactly $3B$ multiplications and $4B$ additions in $\mathbb{F}_p$, yielding $4B + 1$ R1CS constraints~\cite{zhang2024loquat}.
+\end{definition}
+
+\subsubsection{Direct Field Arithmetic via Isomorphic Mapping}
+
+In the baseline BDEC implementation, we construct a proof system over a field $\mathbb{F}_p$ where $p = 2^{127} - 1$. Since Loquat operates over the same field, we achieve field alignment ($k = 1$).
+
+\begin{theorem}[Constraint Optimality under Field Alignment]
+\label{thm:constraint-opt}
+Let $\mathbb{F}_p$ be the scalar field of an R1CS-based proof system and let $\mathcal{R}_{\textsf{Leg}}$ be the Legendre verification relation over $\mathbb{F}_q$. If $p = q$, then verifying the quadratic residuosity $t_b = s_b^2$ requires exactly $N_C = 1$ R1CS constraint per evaluation.
+\end{theorem}
+
+\begin{proof}
+The quadratic residue assertion $s_b^2 = t_b$ is equivalent to $(1 \cdot s_b) \times (1 \cdot s_b) = (1 \cdot t_b)$ in $\mathbb{F}_p$, which is a single rank-1 constraint with $A_i = B_i = e_{s_b}$ and $C_i = e_{t_b}$ (standard basis vectors selecting the appropriate witness positions). Since $p = q$, the field element $s_b$ requires no decomposition: it is a single element of $\mathbb{F}_p$ and thus a single wire in the R1CS.
+\end{proof}
+
+\begin{theorem}[Static Circuit Complexity Bound]
+\label{thm:static-bound}
+Let $f: \mathbb{F}_q^n \to \mathbb{F}_q^m$ be a cryptographic primitive with multiplicative complexity $\mu(f)$. If $p = q$, then the R1CS constraint count satisfies $N_C(f) = \mu(f) + O(n + m)$, where the additive term accounts for input/output wire routing and linear constraints.
+\end{theorem}
+
+\begin{proof}
+By the QAP/R1CS correspondence~\cite{gennaro2013qap,parno2013pinocchio}, each bilinear gate (multiplication) in an arithmetic circuit maps to exactly one R1CS constraint. Additions are ``free'' in R1CS as they are absorbed into the linear combinations defining $A$, $B$, $C$ rows. The $O(n + m)$ overhead arises from boundary constraints (input consistency) and wire routing for multi-output computations.
+\end{proof}
+
+\subsubsection{Constraint Decomposition of Loquat-128 under Field Alignment}
+\label{sec:loquat-decomposition}
+
+The total R1CS constraint count for Loquat-128 verification is $N_C = 148{,}825$~\cite{zhang2024loquat}. The Griffin hash function~\cite{grassi2023griffin}, instantiated with state size 4 for compression and state size 3 for expansion, dominates this count. The Loquat paper reports $\sim$110 multiplicative constraints per compression permutation and $\sim$88 per expansion permutation as the theoretical minimum; our R1CS implementation produces approximately 304 constraints per compression permutation ($d = 5$, 11 rounds, state width 4) because linear relation checks are wrapped as explicit R1CS constraints, yielding a higher count than the $\sim$96 multiplicative-only figure reported in~\cite{grassi2023griffin}.
+
+\begin{proposition}[Griffin Dominance]
+\label{prop:griffin-dominance}
+For Loquat-80 with Griffin hash, the Griffin hash evaluations account for 95{,}480 out of 102{,}089 total constraints ($93.5\%$), while the remaining algebraic protocol operations (quadratic residuosity checks, polynomial evaluation, LDT round consistency) require only 6{,}609 constraints ($6.5\%$).
+\end{proposition}
+
+\begin{remark}
+\label{rem:griffin-dominance}
+This decomposition reveals that Loquat's ``SNARK-friendliness'' is primarily a statement about Griffin hash efficiency in R1CS, not about the Legendre PRF itself. The PRF's quadratic residuosity check ($4B + 1$ constraints) is a small fraction of the total. Any performance comparison between backends will therefore be dominated by how efficiently each backend handles algebraic hash evaluations.
+\end{remark}
+
+
+\subsection{The Arithmetic Mismatch Regime}
+\label{sec:mismatch}
+
+When migrating to a zkVM with native field $\mathbb{F}_{p_{\textsf{VM}}}$ where $q \gg p_{\textsf{VM}}$, we encounter the arithmetic mismatch. For RISC Zero, the native field is the BabyBear field $\mathbb{F}_p$ with $p = 2^{31} - 2^{27} + 1$ (a 31-bit prime)~\cite{risczero2023}, while Loquat operates over $q = 2^{127} - 1$ (a 127-bit prime).
+
+\subsubsection{The Non-Native Field Problem}
+
+Elements of $\mathbb{F}_q$ must be represented as $k$-tuples of machine words for arithmetic within the RISC-V rv32im architecture. Let $w = 32$ denote the word size.
+
+\begin{definition}[Limb Decomposition]
+\label{def:limb}
+An element $x \in \mathbb{F}_q$ with $\ell_q = \lceil \log_2 q \rceil$ bits is represented as a $k$-tuple $(x_0, x_1, \ldots, x_{k-1})$ where $k = \lceil \ell_q / w \rceil$ and $x = \sum_{i=0}^{k-1} x_i \cdot 2^{iw}$ with $0 \le x_i < 2^w$. For Loquat-128 on RISC Zero: $\ell_q = 127$, $w = 32$, and $k = 4$.
+\end{definition}
+
+\begin{theorem}[Multi-Precision Multiplication Overhead]
+\label{thm:multi-prec}
+Computing $z = x \cdot y \pmod{q}$ for $x, y \in \mathbb{F}_q$ represented as $k$-limb integers requires $\Theta(k^2)$ native word multiplications, plus $\Theta(k^2)$ additions for carry propagation, plus $\Theta(k)$ word multiplications for modular reduction. The total operation count is $\Theta(k^2)$ word-level multiplications.
+\end{theorem}
+
+\begin{proof}
+We analyze each phase of the computation.
+
+\textbf{Phase 1: Schoolbook multiplication.}
+The product $x \cdot y$ (before reduction) is computed via schoolbook expansion:
+\begin{equation}
+x \cdot y = \left(\sum_{i=0}^{k-1} x_i \cdot 2^{iw}\right) \cdot \left(\sum_{j=0}^{k-1} y_j \cdot 2^{jw}\right) = \sum_{i=0}^{k-1}\sum_{j=0}^{k-1} x_i \cdot y_j \cdot 2^{(i+j)w}
+\end{equation}
+
+This requires exactly $k^2$ word-level multiplications to compute each cross-product $x_i \cdot y_j$. Each such multiplication produces a $2w$-bit result, requiring both $\texttt{MUL}$ (low word) and $\texttt{MULHU}$ (high word) instructions on rv32im---totaling $2k^2$ multiply instructions.
+
+The partial products must be accumulated into a $(2k)$-limb intermediate result $r = (r_0, \ldots, r_{2k-1})$. For each position $\ell \in \{0, \ldots, 2k-2\}$, we accumulate all products with $i + j = \ell$. This requires at most $\min(\ell+1, k, 2k-1-\ell)$ additions per position, with carry propagation after each. The total number of addition operations is bounded by:
+\begin{equation}
+\sum_{\ell=0}^{2k-2} \min(\ell+1, k) \le k^2
+\end{equation}
+
+Each carry propagation requires one comparison (\texttt{SLTU}) and one conditional addition, contributing at most $2k^2$ additional instructions.
+
+\textbf{Phase 2: Modular reduction.}
+The $2k$-limb product $r$ must be reduced modulo $q$ to obtain $z = r \bmod q$. Using Barrett reduction, this requires:
+\begin{itemize}
+\item Computing $\hat{q} = \lfloor r / q \rfloor$ via a precomputed reciprocal $\mu = \lfloor 2^{2\ell_q} / q \rfloor$: this costs $O(k)$ multiplications (multiplying the high limbs of $r$ by the precomputed constant $\mu$).
+\item Computing $r - \hat{q} \cdot q$: this costs $O(k)$ multiplications plus $O(k)$ subtractions.
+\item A final conditional subtraction if the result exceeds $q$: $O(k)$ comparisons and subtractions.
+\end{itemize}
+
+The reduction phase contributes $O(k)$ word multiplications, which is dominated by the $\Theta(k^2)$ term from Phase 1.
+
+\textbf{Total.} The multiplication cost is $\Theta(k^2)$ word multiplications plus $\Theta(k^2)$ additions/comparisons, giving total operation count $\Theta(k^2)$.
+\end{proof}
+
+\begin{corollary}[Per-Operation Overhead Factor]
+\label{cor:overhead}
+For Loquat-128 on RISC Zero ($k = 4$, $w = 32$), the multi-precision multiplication overhead without hardware acceleration is:
+\begin{equation}
+\textsf{Overhead}_{\textsf{software}} = \Theta(k^2) = \Theta(16) \text{ word multiplications per } \mathbb{F}_q \text{ multiplication}
+\end{equation}
+
+Including carry propagation, memory loads/stores for limb management, and reduction, the expected cycle count is on the order of tens of RISC-V cycles per $\mathbb{F}_q$ multiplication (the precise constant depends on compiler optimization and memory access patterns).
+
+With the RISC Zero 256-bit BigInt precompile (which computes a modular multiplication in 10 cycles~\cite{risczero2023opt}), the accelerated overhead is:
+\begin{equation}
+\textsf{Overhead}_{\textsf{precompile}} \approx 10 \text{ cycles per } \mathbb{F}_q \text{ multiplication}
+\end{equation}
+
+In both cases, this compares to exactly 1 R1CS constraint under field alignment (Theorem~\ref{thm:constraint-opt}).
+\end{corollary}
+
+\subsubsection{Range Check Overhead}
+\label{sec:range-checks}
+
+Beyond multiplication, each non-native modular reduction requires a range proof to prevent wrap-around attacks in the native field.
+
+\begin{proposition}[Range Check Constraints]
+\label{prop:range-check}
+To enforce $x = x' \bmod M$ inside a circuit over native field $\mathbb{F}_{p_{\textsf{VM}}}$, the prover introduces a quotient register $Q = \lfloor x' / M \rfloor$ and proves:
+\begin{enumerate}
+\item The linear constraint $x + M \cdot Q = x'$.
+\item A range proof $0 \le Q \le \lfloor p_{\textsf{VM}} / M \rfloor$, requiring $m = \lceil \log_2(p_{\textsf{VM}} / M) \rceil$ Boolean registers $(Q_0, \ldots, Q_{m-1})$ with constraints $Q_i(1 - Q_i) = 0$ for each $i$ and a reconstruction constraint $Q = \sum_i 2^i Q_i$.
+\end{enumerate}
+This adds $m + 2$ constraints per modular reduction, where $m = \lceil \log_2(p_{\textsf{VM}} / M) \rceil$.
+\end{proposition}
+
+\begin{remark}
+In RISC Zero's STARK-based system, range checks are handled implicitly by the PLOOKUP-based argument ($n_{\sigma_{\textsf{bytes}}} = 15$ accumulator columns dedicated to byte-range lookups~\cite{risczero2023}), rather than explicit Boolean decomposition. This amortizes the range check cost across the entire trace but contributes to the large trace width ($W > 160$ columns).
+\end{remark}
+
+
+\subsubsection{The Precompile Paradox}
+\label{sec:precompile-paradox}
+
+The arithmetic mismatch creates a counterintuitive inversion of efficiency assumptions when moving from static circuits to zkVMs.
+
+\begin{definition}[Precompile]
+A \emph{precompile} (or \emph{accelerator}) in a zkVM is a hardware-equivalent circuit extension that computes a specific function in $O(1)$ trace rows, bypassing the step-by-step ISA emulation. RISC Zero provides precompiles for SHA-256 (68 cycles per 64-byte block) and 256-bit modular arithmetic (10 cycles per multiply)~\cite{risczero2023opt}, but not for algebraic hash functions such as Griffin or Poseidon.
+\end{definition}
+
+\begin{proposition}[Precompile Paradox]
+\label{prop:precompile-paradox}
+Let $f_{\textsf{alg}}$ be an algebraic (``SNARK-friendly'') primitive and $f_{\textsf{std}}$ be a standard (``SNARK-unfriendly'') primitive performing the same function. In a field-aligned R1CS circuit:
+\begin{equation}
+N_C(f_{\textsf{alg}}) \ll N_C(f_{\textsf{std}})
+\end{equation}
+However, in a zkVM with a precompile for $f_{\textsf{std}}$ but not for $f_{\textsf{alg}}$:
+\begin{equation}
+T_{\textsf{cycles}}(f_{\textsf{alg}}) \gg T_{\textsf{cycles}}(f_{\textsf{std}})
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+We instantiate the paradox concretely. Consider Griffin (algebraic, SNARK-friendly) versus SHA-256 (bitwise, SNARK-unfriendly) as the hash function in Loquat verification.
+
+\textbf{In a field-aligned R1CS circuit:}
+\begin{itemize}
+\item Griffin compression: $\sim$110 multiplicative constraints per permutation~\cite{zhang2024loquat} ($\sim$304 total R1CS constraints in our implementation, including linearized relation checks).
+\item SHA-256: $\approx 826{,}000$ R1CS constraints for $\sim$28 compression blocks ($\sim$1.8~KB input), as reported in~\cite{grassi2021poseidon}, owing to the need to emulate bitwise rotations and XOR operations as arithmetic constraints over $\mathbb{F}_q$. For comparison, a single SHA-256 compression (one 64-byte block) costs approximately 29{,}000 R1CS constraints in standard Circom implementations~\cite{circomlib}.
+\end{itemize}
+On a per-call basis (single compression block vs.\ single permutation), Griffin is $\approx 95\times$ cheaper ($29{,}000 / 304$); the gap widens for multi-block SHA-256 inputs.
+
+\textbf{In RISC Zero:}
+\begin{itemize}
+\item Griffin: each permutation requires $\sim$110 non-native $\mathbb{F}_q$ multiplications (the multiplicative-only count from~\cite{zhang2024loquat}; our R1CS realization uses $\sim$304 total constraints), each costing $\Theta(k^2)$ native cycles in software emulation (or $\sim$10 cycles if the BigInt precompile were used), plus memory overhead---yielding a cost orders of magnitude above 68 cycles.
+\item SHA-256: 68 cycles per 64-byte block via the dedicated precompile~\cite{risczero2023opt}.
+\end{itemize}
+The precompile-accelerated primitive is dramatically cheaper despite being ``SNARK-unfriendly.''
+
+The ``SNARK-friendly'' primitive becomes the bottleneck in the zkVM because (1) it operates over a non-native 127-bit field requiring multi-precision emulation, and (2) it lacks a dedicated precompile, while the ``SNARK-unfriendly'' primitive benefits from a hardware-equivalent accelerator optimized for the zkVM's native word size.
+\end{proof}
+
+\begin{corollary}[Structural Implication for Loquat in zkVM]
+\label{cor:precompile-impact}
+Since Griffin hash accounts for $93.5\%$ of Loquat's R1CS constraints (Proposition~\ref{prop:griffin-dominance}), the lack of a Griffin precompile in RISC Zero means that this dominant component receives no hardware acceleration. In principle, replacing Griffin with a precompile-supported hash (e.g., SHA-256 at 68 cycles per block) would substantially reduce the hash-related cycle cost. However, such a replacement would change the signature scheme itself and is outside the scope of this thesis. The key observation is that \emph{SNARK-friendliness in a static circuit does not imply efficiency in a zkVM}, and the hash function choice is the primary lever governing the magnitude of the agility tax.
+\end{corollary}
+
+
+\subsection{Trace Complexity and the STARK Prover Bottleneck}
+\label{sec:stark}
+
+The arithmetic mismatch does not merely inflate the operation count; it amplifies the execution trace that the STARK prover must commit to and prove.
+
+\subsubsection{RISC Zero STARK Architecture}
+
+The RISC Zero proof system~\cite{risczero2023} implements a zk-STARK over the BabyBear field $\mathbb{F}_p$ with $p = 2^{31} - 2^{27} + 1$, using a degree-4 extension field $\mathbb{K} = \mathbb{F}_p[x]/(x^4 + 11)$. The execution trace $\textsf{Tr} \in \mathbb{F}_p^{T \times W}$ has:
+\begin{itemize}
+\item Trace length $T = 2^h$ (power-of-2, equal to the number of CPU cycles).
+\item Trace width $W = w_{\textsf{control}} + w_{\textsf{data}} + w_{\textsf{accum}}$, where $w_{\textsf{accum}} = 2e \cdot n_{\sigma_{\textsf{mem}}} + 2e \cdot n_{\sigma_{\textsf{bytes}}} = 2(4)(5) + 2(4)(15) = 160$ accumulator columns.
+\end{itemize}
+
+The proof proceeds through three phases: trace commitment (Reed-Solomon encoding + Merkle trees), DEEP-ALI (constraint verification), and batched FRI (low-degree testing) with folding factor $t_i = 16$, $n_{\textsf{queries}} = 50$ queries, and final polynomial degree $d_{\textsf{final}} = 256$.
+
+\subsubsection{Trace Amplification}
+
+\begin{definition}[Trace Amplification Factor]
+\label{def:trace-amp}
+For a function $f$ with multiplicative complexity $\mu(f)$, the \emph{trace amplification factor} is:
+\begin{equation}
+\alpha(f) = \frac{T_{\textsf{zkVM}}(f)}{N_C^{\textsf{static}}(f)}
+\end{equation}
+where $T_{\textsf{zkVM}}(f)$ is the number of zkVM cycles required to execute $f$ and $N_C^{\textsf{static}}(f)$ is the R1CS constraint count under field alignment.
+\end{definition}
+
+\begin{theorem}[Trace Amplification Bound]
+\label{thm:trace-amp}
+Under arithmetic mismatch with $k = \lceil \ell_q / w \rceil$ limbs, the trace amplification factor satisfies:
+\begin{equation}
+\alpha(f) = \Omega(k^2) \quad \text{(software emulation)}
+\end{equation}
+\begin{equation}
+\alpha(f) = \Omega(c_{\textsf{pre}}) \quad \text{(with precompile at } c_{\textsf{pre}} \text{ cycles per multiply)}
+\end{equation}
+where $c_{\textsf{pre}}$ is the precompile cost (e.g., $c_{\textsf{pre}} = 10$ for RISC Zero's BigInt accelerator).
+\end{theorem}
+
+\begin{proof}
+Each $\mathbb{F}_q$ multiplication maps to 1 R1CS constraint under field alignment but to $\Theta(k^2)$ cycles (Theorem~\ref{thm:multi-prec}) or $c_{\textsf{pre}}$ cycles (with precompile) in the zkVM. Since at least $\mu(f)$ multiplications are needed and each maps to at least 1 constraint and at least $\min(k^2, c_{\textsf{pre}})$ cycles, the ratio $\alpha(f) \ge \min(k^2, c_{\textsf{pre}})$.
+
+Additionally, the zkVM incurs overhead from instruction decoding, memory operations, and control flow that have no analogue in R1CS (where additions and linear operations are ``free''). This additive overhead increases $\alpha$ in practice. Furthermore, RISC Zero requires $T = 2^{\lceil \log_2 T_{\textsf{raw}} \rceil}$, potentially doubling the effective trace length.
+\end{proof}
+
+\subsubsection{STARK Prover Complexity and LDT Dominance}
+
+\begin{theorem}[STARK Prover Complexity]
+\label{thm:stark-prover}
+The RISC Zero STARK prover cost for a trace of length $T$ and width $W$ is:
+\begin{equation}
+T_{\textsf{prover}} = O(W \cdot T \cdot \log T) \quad \text{field operations over } \mathbb{F}_p
+\end{equation}
+This cost decomposes into three components:
+\begin{enumerate}
+\item \textbf{Trace commitment}: Reed-Solomon encoding of $W$ columns over a domain of size $|D| = T / \rho$ (where $\rho = 2^h / 2^k$ is the code rate), requiring $W$ NTTs of size $|D|$. Cost: $O(W \cdot |D| \cdot \log |D|) = O(W \cdot T \cdot \log T / \rho)$.
+\item \textbf{Constraint evaluation}: Evaluating the $|C_{\textsf{set}}|$ AIR constraints at $T$ points. Cost: $O(|C_{\textsf{set}}| \cdot T)$.
+\item \textbf{FRI low-degree testing}: $r = O(\log T)$ commit rounds, each involving a split-fold NTT plus Merkle hashing. Cost: $O(W \cdot T \cdot \log T / \rho)$.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+Components (1) and (3) both require $O(\log T)$ NTT operations over domains of geometrically decreasing size summing to $O(|D|) = O(T/\rho)$ total evaluations per column. Across $W$ columns, this gives $O(W \cdot T/\rho \cdot \log(T/\rho))$. Component (2) is $O(|C_{\textsf{set}}| \cdot T)$, which for RISC Zero's RISC-V constraint set ($|C_{\textsf{set}}|$ is in the thousands but independent of the program) simplifies to $O(T)$ with a large constant factor.
+
+Since $\rho < 1$ (typically $\rho = 1/4$), the NTT-based costs dominate, and the total is $O(W \cdot T \cdot \log T)$ $\mathbb{F}_p$ operations, consistent with standard STARK complexity~\cite{bensasson2018stark}.
+\end{proof}
+
+\begin{corollary}[LDT Dominance]
+\label{cor:ldt-dominance}
+The FRI-based low-degree testing (component 3) and the trace commitment (component 1) together account for approximately $85\%$ of total prover cost, since both are $O(W \cdot T \cdot \log T)$ while constraint evaluation is $O(T)$---a factor of $W \cdot \log T$ smaller.
+\end{corollary}
+
+\begin{corollary}[Arithmetic Mismatch Prover Overhead]
+\label{cor:mismatch-prover}
+Let $T_{\textsf{prover}}^{\textsf{static}}$ be the Aurora prover cost for $\mathcal{R}_{\textsf{ShowVer}}$ under field alignment, and $T_{\textsf{prover}}^{\textsf{zkVM}}$ the RISC Zero prover cost. Then:
+\begin{equation}
+\frac{T_{\textsf{prover}}^{\textsf{zkVM}}}{T_{\textsf{prover}}^{\textsf{static}}} = \Omega\left(\frac{W \cdot \alpha \cdot \log(\alpha \cdot N_C)}{N_C \cdot \log N_C}\right) \cdot \frac{c_p}{c_q}
+\end{equation}
+where $\alpha$ is the trace amplification factor, $N_C$ is the R1CS constraint count, $W$ is the trace width, and $c_p/c_q$ is the ratio of per-operation cost in $\mathbb{F}_p$ versus $\mathbb{F}_q$ (approximately $1/5$ since BabyBear operations are $\sim$5$\times$ cheaper than 128-bit operations).
+
+For BDEC.ShowVer with $N_C \approx 308{,}000$, $\alpha \approx 10$ (assuming BigInt precompile use), and $W \approx 200$, the raw field-operation ratio evaluates to approximately $470\times$. This figure represents an \emph{asymptotic upper bound} on the structural overhead; the actual wall-clock ratio would be substantially smaller because BabyBear 31-bit operations are significantly cheaper per clock cycle than 128-bit field operations, and RISC Zero's NTT implementation benefits from cache-friendly word sizes. The precise wall-clock ratio awaits empirical measurement. We present this calculation to illustrate the \emph{structural scaling} of the overhead, not as a wall-clock prediction.
+\end{corollary}
+
+
+\subsection{The Agility Tax}
+\label{sec:agility-tax}
+
+We have established that arithmetic mismatch imposes a structural overhead on proof complexity when migrating from field-aligned static circuits to general-purpose zkVMs. This overhead manifests at three levels:
+
+\begin{enumerate}
+\item \textbf{Per-operation}: Each $\mathbb{F}_q$ multiplication costs $\Theta(k^2)$ native cycles (software) or $c_{\textsf{pre}}$ cycles (precompile), versus 1 R1CS constraint under alignment. For Loquat-128 on RISC Zero: $k = 4$, $c_{\textsf{pre}} = 10$ (Corollary~\ref{cor:overhead}).
+
+\item \textbf{Per-component}: Griffin hash dominates at $93.5\%$ of constraints, and the lack of a Griffin precompile means this dominant component receives no acceleration in the zkVM. The precompile paradox (Proposition~\ref{prop:precompile-paradox}) means that ``SNARK-friendliness'' can become a liability in the zkVM context.
+
+\item \textbf{End-to-end prover}: The trace amplification factor $\alpha$ propagates through the $O(W \cdot T \cdot \log T)$ STARK prover, where the wide trace ($W > 160$ columns) and power-of-2 rounding further inflate the cost. LDT/FRI verification dominates at $\sim$85\% of prover time in both Aurora and RISC Zero (Corollary~\ref{cor:ldt-dominance}).
+\end{enumerate}
+
+\begin{definition}[Agility Tax]
+\label{def:agility-tax}
+The \emph{Agility Tax} for a relation $\mathcal{R}$ is the multiplicative overhead in prover time incurred by using a general-purpose zkVM instead of a field-aligned static circuit:
+\begin{equation}
+\mathcal{T}_{\textsf{agility}}(\mathcal{R}) = \frac{T_{\textsf{prover}}^{\textsf{zkVM}}(\mathcal{R})}{T_{\textsf{prover}}^{\textsf{static}}(\mathcal{R})}
+\end{equation}
+For BDEC.ShowVer, the theoretical analysis predicts $\mathcal{T}_{\textsf{agility}} = \Omega(k^2) = \Omega(16)$ at the per-operation level, with the end-to-end ratio depending on constant factors that await empirical measurement of the zkVM path.
+\end{definition}
+
+The agility tax buys the architectural property that \emph{any} change to the verification predicate requires only recompiling a standard program binary and propagating a 32-byte imageID, rather than regenerating the entire constraint system and distributing megabyte-scale verification keys. Chapters~\ref{sec:system} and~\ref{sec:evaluation} trace this trade-off through the concrete BDEC.ShowVer relation, and Chapter~\ref{sec:discussion} develops a decision framework for when this tax is justified.

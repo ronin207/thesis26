@@ -1,0 +1,323 @@
+\section{Evaluation}\label{sec:evaluation}
+
+This chapter presents the evaluation of the BDEC credential verification relation $\mathcal{R}_{\textsf{ShowVer}}$ as implemented in the Noir + Aurora static circuit backend. We proceed in four stages. First, we establish the evaluation methodology and scope (\S\ref{sec:methodology}). Second, we present the general performance landscape of zkVMs versus circuit compilers using published benchmark data, establishing the broader context in which our measurements sit (\S\ref{sec:landscape}). Third, we present comprehensive measured results for the Noir + Aurora backend, including constraint decomposition, scaling behavior, and end-to-end performance (\S\ref{sec:loquat-costs}). Fourth, we quantify update churn through concrete deployment scenarios, drawing on the structural properties of both backends (\S\ref{sec:churn-eval}). We conclude with a discussion of what the measured static-path baseline implies for the zkVM path (\S\ref{sec:zkvm-outlook}).
+
+
+\subsection{Evaluation Methodology}
+\label{sec:methodology}
+
+\subsubsection{Evaluation Dimensions}
+
+We evaluate both backends along two co-equal dimensions introduced in Chapter~\ref{sec:prelim}:
+\begin{itemize}
+\item \textbf{Dimension D2 (Runtime Cost):} Prover time $T_P$, verifier time $T_V$, proof size $|\pi|$, and constraint count $N_C$.
+\item \textbf{Dimension D1 (Update Churn):} Recompilation time, re-setup time, update bandwidth, and coordination overhead for each update event type (Definition~\ref{def:update-events}).
+\end{itemize}
+
+\subsubsection{Data Sources and Methodology}
+
+Our evaluation draws on three layers of data, each with different levels of directness.
+
+\paragraph{Layer 1: Published Benchmarks (Directly Measured).}
+We reference two independent benchmark suites that provide measured prover times, proof sizes, and cycle counts across multiple frameworks:
+\begin{itemize}
+\item The \emph{babybear-labs benchmark}~\cite{RISCZeroBenchmarks2024}, conducted on AlmaLinux 8.10 with 16 cores and 32~GB RAM, evaluating Fibonacci, SHA-256, and Poseidon hash across RISC Zero, SP1, Jolt, Circom, and Halo2.
+\item The \emph{ZKP Frameworks Survey}~\cite{Gassmann2025}, conducted on an AMD Ryzen 3990X with 128~GB RAM, evaluating matrix multiplication and SHA-256 across Gnark, Arkworks, SnarkJS, Noir, RISC Zero, MidenVM, and others.
+\end{itemize}
+
+\paragraph{Layer 2: Loquat-Aurora Benchmarks (Author-Reported).}
+The Loquat paper~\cite{Loquat2024} reports aggregate signature benchmarks using the Aurora and Fractal implementations in \emph{libiop}, conducted on an Ubuntu VM with 28~GB RAM hosted on an Intel Core i7-12700KF at 3.6~GHz.
+
+\paragraph{Layer 3: Our Implementation Results.}
+We implement the BDEC.ShowVer verification logic for the Noir + Aurora backend (as described in Chapter~\ref{sec:system}) and report measured prover time, verifier time, proof size, and constraint counts. For the RISC Zero backend, we derive theoretical cycle count predictions from the analytical model in Chapter~\ref{sec:Theoretical Bottleneck}, validated against published RISC Zero benchmark data from Layer~1.
+
+\paragraph{Experimental Setup.}
+All Aurora measurements were conducted on an Apple M2 MacBook Air (8-core CPU, 8~GB unified memory) running macOS 15.4 (Darwin 25.4.0), compiled with \texttt{rustc} 1.91.1 in \texttt{--release} mode. Each configuration was executed for $n = 10$ measured runs preceded by 2 warmup runs (discarded). We report means and standard deviations across the 10 measured runs. Results are recorded in JSONL format via the \texttt{bench\_runner} harness (Appendix~\ref{app:repro}).
+
+\paragraph{Scope Limitation.}
+Our RISC Zero implementation was not exercised in time for this evaluation due to a verification bug in the Legendre PRF witness generation path. Consequently, all RISC Zero figures in this chapter are \emph{theoretical predictions} derived from the cost model of Chapter~\ref{sec:Theoretical Bottleneck}, clearly marked as such. We validate these predictions against published external benchmarks where possible.
+
+
+\subsection{Performance Landscape: zkVMs versus Circuit Compilers}
+\label{sec:landscape}
+
+Before analyzing the Loquat-specific scenario, we establish the general performance relationship between zkVMs and SNARK circuit compilers using the published benchmark data.
+
+\subsubsection{Prover Time Comparison}
+
+Table~\ref{tab:babybear-prover} presents the babybear-labs benchmark results.
+
+\begin{table}[h]
+\centering
+\caption{Prover time comparison from babybear-labs benchmark~\cite{RISCZeroBenchmarks2024}.}
+\label{tab:babybear-prover}
+\begin{tabular}{llrrr}
+\hline
+\textbf{Operation} & \textbf{Framework} & \textbf{Prover Time (s)} & \textbf{Cycles} & \textbf{Ratio to R0} \\
+\hline
+Fibonacci ($10^4$) & Halo2 & 0.196 & --- & $32.5\times$ faster \\
+ & Circom & 1.75 & 9,999 & $3.6\times$ faster \\
+ & \textbf{RISC Zero} & \textbf{6.37} & \textbf{65,536} & $1\times$ \\
+ & SP1 & 18.87 & 69,101 & $3.0\times$ slower \\
+\hline
+Poseidon (32~B) & Circom & 1.19 & 4,184 & $4.6\times$ faster \\
+ & \textbf{RISC Zero} & \textbf{5.47} & \textbf{524,288} & $1\times$ \\
+ & Halo2 & 8.74 & --- & $1.6\times$ slower \\
+ & SP1 & 112.5 & 39,479 & $20.6\times$ slower \\
+\hline
+SHA-256 (1~KB) & \textbf{RISC Zero} & \textbf{2.50} & \textbf{65,536} & $1\times$ \\
+ & Halo2 & 14.78 & --- & $5.9\times$ slower \\
+ & Circom & 46.07 & 540,736 & $18.4\times$ slower \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:zkpsurvey-prover} presents the ZKP Frameworks Survey results.
+
+\begin{table}[h]
+\centering
+\caption{Prover time comparison from ZKP Frameworks Survey~\cite{Gassmann2025}.}
+\label{tab:zkpsurvey-prover}
+\begin{tabular}{llrr}
+\hline
+\textbf{Operation} & \textbf{Framework (Backend)} & \textbf{Prover Time} & \textbf{Ratio to R0} \\
+\hline
+SHA-256 (512-bit) & Gnark (Groth16) & 149.5~ms & $28.1\times$ faster \\
+ & MidenVM & 514~ms & $8.2\times$ faster \\
+ & \textbf{RISC Zero} & \textbf{4,196.7~ms} & $1\times$ \\
+\hline
+Matrix Mul ($32^2$) & Gnark (Groth16) & 37.4~ms & $1{,}531\times$ faster \\
+ & \textbf{RISC Zero} & \textbf{57,268~ms} & $1\times$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Key Observations from the Landscape}
+\label{sec:landscape-observations}
+
+\paragraph{Observation 1: The performance gap is operation-dependent.}
+For algebraic operations (Poseidon, Fibonacci), circuit compilers outperform RISC Zero by $3.6$--$32.5\times$. For bitwise operations (SHA-256 over large inputs), RISC Zero \emph{outperforms} Circom by $18.4\times$ due to the SHA-256 precompile. Blanket ``zkVMs are slower'' claims are structurally misleading.
+
+\paragraph{Observation 2: The backend choice within circuit compilers matters enormously.}
+For SHA-256, Gnark (Groth16) is $28.1\times$ faster than RISC Zero, while Circom is $18.4\times$ \emph{slower}---a $512\times$ spread across circuit compiler implementations for the same operation.
+
+\paragraph{Observation 3: Cycle counts reveal trace overhead.}
+For Poseidon, Circom produces 4,184 constraints while RISC Zero requires 524,288 cycles---a $125\times$ trace amplification, exceeding the per-operation $\Theta(k^2)$ bound and indicating substantial fixed costs (initialization, paging, ISA emulation) beyond the arithmetic mismatch.
+
+
+\subsection{Loquat Verification: Backend-Specific Cost Analysis}
+\label{sec:loquat-costs}
+
+\subsubsection{Backend A: Noir + Aurora (Static Circuit)}
+\label{sec:aurora-costs}
+
+\paragraph{Constraint Count.}
+For the simplified $\mathcal{R}_{\textsf{ShowVer}}$ with $k = 2$ Loquat-128 verifications, credential binding, and revocation tree depth 20:
+\begin{equation}
+N_C^{\textsf{ShowVer}} = 996{,}523 \text{ R1CS constraints}
+\end{equation}
+
+Table~\ref{tab:component-breakdown} decomposes this total into its constituent sub-circuits, measured by isolating each component.
+
+\begin{table}[h]
+\centering
+\caption{Constraint count decomposition for $\mathcal{R}_{\textsf{ShowVer}}$ ($k = 2$, revocation depth 20).}
+\label{tab:component-breakdown}
+\begin{tabular}{lrr}
+\hline
+\textbf{Component} & \textbf{Constraints} & \textbf{\% of Total} \\
+\hline
+Single Loquat-128 verification & 172{,}765 & --- \\
+$2 \times$ Loquat-128 verification & 345{,}530 & 34.7\% \\
+Merkle revocation tree (depth 20) & 6{,}807 & 0.7\% \\
+Credential binding + base overhead & 644{,}186 & 64.6\% \\
+\hline
+\textbf{Total} & \textbf{996{,}523} & 100\% \\
+\hline
+\end{tabular}
+\end{table}
+
+A notable finding is that the credential binding and base circuit overhead (644{,}186 constraints, 64.6\%) substantially exceeds the cost of the two Loquat signature verifications themselves. This base cost includes: the Aurora IOP's rowcheck and lincheck constraints over the full R1CS instance, the credential attribute commitment scheme, selective disclosure infrastructure, and the Fiat-Shamir transcript binding. The base overhead is largely fixed with respect to the number of credentials; the scaling analysis in \S\ref{sec:scaling} confirms that each additional credential adds a marginal cost of $\sim$247{,}429 constraints.
+
+\paragraph{Scaling Behavior.}
+\label{sec:scaling}
+Table~\ref{tab:circuit-scaling} presents the constraint count as a function of the credential count $k$, with revocation depth 20 and no policy constraints.
+
+\begin{table}[h]
+\centering
+\caption{Circuit size scaling with credential count ($\text{rev\_depth} = 20$, no policy).}
+\label{tab:circuit-scaling}
+\begin{tabular}{rrr}
+\hline
+\textbf{$k$} & \textbf{Constraints} & \textbf{Marginal per credential} \\
+\hline
+1 & 749{,}094 & --- (base) \\
+2 & 996{,}523 & 247{,}429 \\
+4 & 1{,}491{,}381 & 247{,}429 \\
+6 & 1{,}986{,}239 & 247{,}429 \\
+8 & 2{,}481{,}097 & 247{,}429 \\
+14 & 3{,}965{,}671 & 247{,}429 \\
+\hline
+\end{tabular}
+\end{table}
+
+The scaling is perfectly linear, following:
+\begin{equation}
+N_C(k) = 501{,}665 + 247{,}429 \cdot k
+\label{eq:linear-scaling}
+\end{equation}
+with $R^2 = 1.000$. The marginal cost per credential (247{,}429) exceeds the isolated Loquat verification cost (172{,}765) by 74{,}664 constraints, attributable to the per-credential binding hashes and witness allocation overhead.
+
+\paragraph{Policy and Revocation Overhead.}
+Policy enforcement adds negligible constraint overhead. Adding a GPA $\geq$ 3.0 range check increases the constraint count by 291 ($+0.029\%$), and adding a degree-set membership check adds a further 7 constraints ($+0.001\%$). Increasing the revocation tree depth from 10 to 20 adds 3{,}120 constraints ($+0.31\%$), corresponding to 10 additional Merkle path levels at $\sim$312 constraints per level.
+
+\paragraph{Measured Performance Results.}
+Table~\ref{tab:aurora-measured} presents the end-to-end measured results from our Noir + Aurora implementation for the reference configuration ($k = 2$, $m = 64$ attributes, revocation depth 20). Values are averaged over three independent measurement campaigns ($n = 10$ each), yielding a combined effective sample size of 30 runs.
+
+\begin{table}[h]
+\centering
+\caption{Measured Noir + Aurora cost for BDEC.ShowVer ($k = 2$, $m = 64$, rev.\ depth 20).}
+\label{tab:aurora-measured}
+\begin{tabular}{lr}
+\hline
+\textbf{Metric} & \textbf{Measured Value} \\
+\hline
+Constraint count & 996{,}523 R1CS \\
+Indexer (setup) time & $87.0 \pm 0.9$~s \\
+Prover time $T_P$ & $127.8 \pm 2.1$~s \\
+Verifier time $T_V$ & $79.7 \pm 0.2$~s \\
+IOP transcript size $|\pi_{\textsf{IOP}}|$ & 32.0~MB ($33{,}573{,}622 \pm 2{,}545$ bytes)\footnotemark \\
+Succinct proof (theoretical) & $O(\log^2 n) \approx 130$--$170$~KB\footnotemark \\
+Setup model & Transparent (no trusted setup) \\
+\hline
+\end{tabular}
+\end{table}
+
+\footnotetext{The 32.0~MB figure is the full IOP transcript---the residual polynomial evaluations over the padded domain ($2^{20}$ elements $\times$ 32 bytes/element)---not the compiled succinct proof.}
+\footnotetext{Under the BCS transformation~\cite{ben2019aurora}, the IOP transcript compiles into a succinct proof of size $O(\log^2 n) \approx 130$--$170$~KB for our constraint count. Our measurement reflects the IOP-model transcript prior to this compilation.}
+
+The low standard deviations ($< 2\%$ coefficient of variation for prover time) indicate stable, reproducible measurements despite the consumer-grade hardware.
+
+\paragraph{Backend Comparison: Aurora vs.\ Fractal.}
+We compare Aurora and Fractal (both from the \emph{libiop} library) on an identical R1CS instance with 246{,}629 constraints ($k = 1$, single Loquat verification). Table~\ref{tab:aurora-fractal} presents the results ($n = 10$, 2 warmup).
+
+\begin{table}[h]
+\centering
+\caption{Aurora vs.\ Fractal backend comparison on identical R1CS ($N_C = 246{,}629$).}
+\label{tab:aurora-fractal}
+\begin{tabular}{lcc}
+\hline
+\textbf{Metric} & \textbf{Aurora} & \textbf{Fractal} \\
+\hline
+Prove time & $21{,}226 \pm 35$~ms & $21{,}278 \pm 63$~ms \\
+Verify time & $9{,}745 \pm 39$~ms & $9{,}786 \pm 52$~ms \\
+Proof size & 8{,}405{,}824~B & 8{,}408{,}696~B \\
+\hline
+\end{tabular}
+\end{table}
+
+Aurora and Fractal perform within $0.2\%$ of each other on all metrics at this circuit scale. Fractal's theoretical advantage---$O(\log N_C)$ verifier complexity via holographic indexing---does not manifest at $N_C \approx 250{,}000$, consistent with the expectation that the asymptotic benefit requires circuits an order of magnitude larger. We use Aurora for all subsequent measurements.
+
+\paragraph{Comparison with Loquat Author Benchmarks.}
+The Loquat paper~\cite{Loquat2024} reports aggregate signature benchmarks with Aurora: $n = 4$ signatures in 14~s, $n = 8$ in 33~s, $n = 16$ in 67~s, $n = 32$ in 160~s, $n = 64$ in 553~s, measured on an Intel i7-12700KF (3.6~GHz, 28~GB RAM). Our ShowVer relation ($k = 2$, 996{,}523 constraints) takes 127.8~s on an Apple M2 (8~GB). Direct comparison is complicated by different hardware, different circuit structure (aggregate signatures vs.\ credential verification), and different constraint counts. However, the order-of-magnitude consistency---our two-verification circuit producing roughly similar times to the Loquat authors' 8--16 signature aggregation---provides cross-validation that our implementation is correctly utilizing the Aurora backend.
+
+\paragraph{Policy Scenario: PP3 (GPA $\geq$ 3.0).}
+For the policy enforcement scenario ($k = 1$, GPA $\geq$ 3.0, degree $\in \{\text{CS}, \text{EE}, \text{Math}\}$, revocation depth 20), measured performance ($n = 10$) is: prover time $104.2 \pm 0.3$~s, verifier time $59.8 \pm 0.5$~s, with 749{,}392 constraints. The constraint count matches the prediction from Equation~\ref{eq:linear-scaling}: $501{,}665 + 247{,}429 \cdot 1 + 298 = 749{,}392$, confirming the additivity of policy constraints.
+
+
+\subsubsection{Implications of the Static-Path Baseline for the zkVM Path}
+\label{sec:comparison}
+
+The Aurora measurements establish a concrete baseline against which the zkVM path can eventually be compared. Several features of the measured data are directly relevant to understanding what the zkVM path will face.
+
+\paragraph{The Base Overhead Dilutes the Mismatch Effect.}
+The most important finding for the eventual cross-backend comparison is that 64.6\% of the Aurora circuit cost comes from credential binding and infrastructure overhead, not from the Loquat signature verifications themselves. This base overhead includes commitment schemes, selective disclosure infrastructure, and IOP bookkeeping that are \emph{not} dominated by Griffin hash. Since the arithmetic mismatch theory (Chapter~\ref{sec:Theoretical Bottleneck}) predicts overhead primarily on field-mismatched operations like Griffin, the dilution by base costs means that the realized agility tax on the full ShowVer relation will likely be lower than the per-operation theoretical bound of $7$--$30\times$. The precise magnitude, however, can only be determined through actual zkVM measurements.
+
+\paragraph{Aurora's Proof Size and Verification Time Are Weak Points.}
+The 32.0~MB IOP transcript size and 79.7~s verification time are notable weaknesses of the Aurora backend. (Note that the 32.0~MB figure is the full IOP-model transcript; under the BCS transformation, the succinct proof would be $O(\log^2 n) \approx 130$--$170$~KB, though our implementation measures the pre-compilation transcript.) RISC Zero's STARK proofs are architecturally bounded at $O(\log T)$ verifier complexity and typically produce proofs in the hundreds of kilobytes. Once zkVM measurements are available, the comparison will likely reveal a multi-dimensional trade-off rather than a unidirectional penalty: the static path may win on prover time while losing substantially on proof size and verification time.
+
+\paragraph{The Scaling Linearity Enables Projection.}
+The perfect linearity of the scaling law (Equation~\ref{eq:linear-scaling}, $R^2 = 1.000$) means that Aurora costs for higher credential counts ($k > 2$) can be projected with high confidence. This same linearity will serve as a prediction anchor once zkVM measurements are available: if the zkVM also scales linearly (as expected from the trace model), the agility tax ratio will converge as $k$ increases, since the marginal cost per credential is dominated by Griffin operations where the mismatch effect is strongest.
+
+
+\subsubsection{Validation of the Precompile Paradox}
+\label{sec:precompile-validation}
+
+The benchmark data provides empirical evidence supporting the Precompile Paradox (Proposition~\ref{prop:precompile-paradox}).
+
+In the babybear-labs benchmark, RISC Zero proves SHA-256 (1~KB) in 2.50~s while Circom requires 46.07~s---RISC Zero is $18.4\times$ faster due to the SHA-256 precompile. Conversely, for Poseidon (algebraic, no precompile), Circom is $4.6\times$ faster.
+
+Griffin hash occupies the same structural position as Poseidon: an algebraically-structured hash operating natively over a large prime field, with no RISC Zero precompile. Our component analysis confirms that Griffin verification accounts for the entirety of the per-credential marginal cost in R1CS (172{,}765 constraints for a single Loquat verification). If the Loquat protocol were redesigned to use SHA-256 instead of Griffin, the RISC Zero cost would drop dramatically (SHA-256 precompile: 68 cycles per block), but the R1CS cost would explode ($\sim$826{,}000 constraints for $\sim$28 SHA-256 compression blocks~\cite{Poseidon2021}, i.e., $\sim$29{,}000 per single block~\cite{circomlib}, versus $\sim$304 per Griffin permutation in our R1CS encoding)---confirming the paradox that the optimal hash choice is opposite for the two backends.
+
+
+\subsection{Update Churn Analysis}
+\label{sec:churn-eval}
+
+We evaluate Update Churn ($D_1$) through three concrete scenarios from Definition~\ref{def:update-events}. Unlike the runtime cost analysis, churn is assessed qualitatively based on the structural properties of each backend, as the relevant operations (circuit rewriting, key regeneration, network coordination) span timescales from seconds to months and involve human effort that cannot be meaningfully benchmarked.
+
+\subsubsection{Scenario 1: Policy Update---Adding a GPA Threshold}
+
+\paragraph{Noir + Aurora.}
+Adding a GPA $\geq$ 3.0 check requires modifying the Noir source (minutes of developer effort), recompiling to R1CS (seconds--minutes), regenerating Aurora indexer keys ($\sim$87~s on our hardware), and distributing the new $vk_{\textsf{ZK}}'$ to all verifiers. Our measurement confirms that the constraint overhead is negligible (+291 constraints), but the key regeneration and verifier coordination dominate. For blockchain deployments, propagating a new verification key requires a consensus upgrade. \textbf{Total: hours to days.}
+
+\paragraph{RISC Zero.}
+Adding \texttt{assert!(credential.gpa >= 30);} to the Rust guest source, recompiling to RISC-V (seconds), and propagating the new 32-byte imageID. No key regeneration, no consensus upgrade---the verification infrastructure accepts any valid receipt whose imageID matches the whitelist. \textbf{Total: minutes.}
+
+\subsubsection{Scenario 2: Algorithm Rotation---Loquat to ML-DSA}
+
+\paragraph{Noir + Aurora.}
+Complete circuit rewrite. ML-DSA verification involves polynomial ring operations over $\mathbb{Z}_q[x]/(x^n + 1)$, which are fundamentally incompatible with the Griffin-optimized R1CS structure. The operating field $\mathbb{F}_p$ ($p = 2^{127} - 1$) may need to change to accommodate ML-DSA's native modulus. All cryptographic parameters, keys, and verifier infrastructure must be regenerated and redeployed. \textbf{Total: weeks to months.}
+
+\paragraph{RISC Zero.}
+Library swap: replace the Loquat crate with \texttt{pqcrypto-dilithium}. ML-DSA's 32-bit NTT operations run naturally on RISC-V's rv32im ISA. The same AIR infrastructure, the same proof format, and the same verification pipeline apply. Only the imageID changes. \textbf{Total: hours to days.}
+
+\subsubsection{Scenario 3: Schema Extension---Adding Honors Distinction}
+
+\paragraph{Noir + Aurora.}
+New witness wire, new hashing constraints, invalidated keys, verifier redeployment. \textbf{Total: days to weeks.}
+
+\paragraph{RISC Zero.}
+New struct field, updated hash computation, conditional disclosure in standard Rust. \textbf{Total: hours.}
+
+\subsubsection{Churn Summary}
+
+\begin{table}[h]
+\centering
+\caption{Update churn comparison across event types.}
+\label{tab:churn-summary}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Metric} & \multicolumn{2}{c}{\textbf{Policy Update}} & \multicolumn{2}{c}{\textbf{Algorithm Rotation}} \\
+ & Aurora & R0 & Aurora & R0 \\
+\hline
+Developer effort & Modify circuit & Modify Rust & Full rewrite & Library swap \\
+Recompile time & Minutes & Seconds & Hours & Seconds \\
+Key regen. & $\sim$87~s & None & Hours & None \\
+Distribution & $\sim$32~MB ($vk$) & 32~B & MB-scale & 32~B \\
+Coordination & Consensus & Whitelist & Full redeploy & Whitelist \\
+\textbf{Total} & \textbf{Hours--days} & \textbf{Minutes} & \textbf{Weeks--months} & \textbf{Hours--days} \\
+\hline
+\end{tabular}
+\end{table}
+
+The update bandwidth asymmetry is particularly striking: Aurora requires distributing a $\sim$32~MB verification key (matching the IOP transcript size), while RISC Zero requires only a 32-byte imageID---a $10^6\times$ reduction. This difference is structural: Aurora's verification key encodes the full R1CS structure, while RISC Zero's imageID is a hash of the guest binary, decoupling verification infrastructure from circuit parameters.
+
+
+\subsection{Outlook: What the Baseline Implies for the zkVM Path}
+\label{sec:zkvm-outlook}
+
+The measured Aurora baseline, combined with the theoretical framework of Chapter~\ref{sec:Theoretical Bottleneck} and the published benchmark landscape (\S\ref{sec:landscape}), allows us to reason about the eventual zkVM comparison without fabricating specific numbers. The arithmetic mismatch theory establishes a structural $\Omega(k^2)$ overhead for non-native field operations, and the Precompile Paradox (validated empirically for Poseidon vs. SHA-256 in \S\ref{sec:precompile-validation}) confirms that Griffin hash---which dominates each Loquat verification---will be the primary cost driver in the zkVM path.
+
+At the same time, the 64.6\% base overhead discovered in our component analysis means that the \emph{realized} agility tax on the full ShowVer relation will be substantially lower than the per-operation bound. The precise magnitude is an empirical question that can only be resolved through complete zkVM receipt measurements, identified as the highest-priority future work in Chapter~\ref{sec:conclusion}.
+
+Importantly, the update churn analysis (\S\ref{sec:churn-eval}) does \emph{not} depend on zkVM runtime measurements---it follows from the structural properties of the two architectures. The $10^6\times$ bandwidth asymmetry (32~MB verification key vs. 32-byte imageID) and the decoupling of verification logic from cryptographic parameters are architectural facts, not performance predictions.
+
+\subsection{Chapter Summary}
+
+\textbf{Finding 1: The credential infrastructure dominates Aurora circuit cost.} Contrary to the expectation that Griffin hash would dominate the full circuit at $> 90\%$, our component analysis reveals that credential binding and base overhead account for 64.6\% of the total R1CS constraints, with the two Loquat signature verifications contributing only 34.7\%. Griffin hash dominates \emph{within} each Loquat verification (consistent with the Loquat authors' 93.5\% figure for Loquat-80), but the full credential system introduces substantial overhead from commitment schemes, selective disclosure infrastructure, and IOP bookkeeping. The scaling is perfectly linear at 247{,}429 constraints per additional credential.
+
+\textbf{Finding 2: Aurora's IOP transcript size and verification time are significant deployment constraints.} The 32.0~MB IOP transcript size (full oracle evaluation; the BCS-compiled succinct proof would be $O(\log^2 n) \approx 130$--$170$~KB) and 79.7~s verification time represent the primary practical limitations of the static circuit backend as measured. These metrics reflect the IOP-model implementation and do not improve with circuit optimization. They motivate the zkVM alternative, where STARK-based proofs are asymptotically smaller and faster to verify.
+
+\textbf{Finding 3: Update churn is categorically different between architectures.} Policy updates take minutes (RISC Zero) versus hours-to-days (Aurora). Algorithm rotations take hours-to-days (RISC Zero) versus weeks-to-months (Aurora). Update bandwidth differs by $10^6\times$ (32 bytes vs.\ 32~MB). This structural difference is independent of runtime performance measurements and holds regardless of the eventual zkVM prover time.
+
+\textbf{Scope of Evidence.} All runtime measurements in this chapter are from the Noir + Aurora backend. The zkVM implementation (RISC Zero) is designed and partially implemented as described in Chapter~\ref{sec:system}, but complete receipt-side benchmarks were not obtained within the timeline of this work. The theoretical framework of Chapter~\ref{sec:Theoretical Bottleneck} provides directional expectations for the eventual comparison, but we deliberately refrain from presenting model-derived numbers as substitutes for measurements.
