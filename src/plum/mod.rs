@@ -24,7 +24,7 @@
 //!
 //! This module is under active construction per
 //! `spec/plum_implementation_plan.md`. As of the last `cargo test plum::`
-//! run (79 unit tests, all passing under `VC_PQC_SKIP_LIBIOP=1`) plus 6
+//! run (97 unit tests, all passing under `VC_PQC_SKIP_LIBIOP=1`) plus 6
 //! `tests/plum_field_primality.rs` integration tests:
 //!
 //!   - **Phase 1** — `Fp192` arithmetic, oracle-tested vs `num_bigint`.
@@ -36,14 +36,20 @@
 //!     (S-box exponent `d = 3`, not Loquat's 5), with permutation counter.
 //!   - **Phase 4** — `hasher` (Griffin + SHA3), `merkle`, and Fiat–Shamir
 //!     `transcript`, all generic over `PlumHasher`.
+//!   - **Phase 6** — `fft` (coset Cooley-Tukey radix-2 over Fp192) and
+//!     `sumcheck` (BCRSVW univariate decomposition `f = g + Z_H · h`
+//!     per Algorithm 4 line 10, paper p. 120), audited by proof-checker
+//!     against Algorithms 3/4/6.
 //!   - **Phase 7** — `setup` materialises `PlumPublicParams` at
 //!     λ ∈ {80, 100, 128}; `keygen` implements Algorithm 2 (paper p. 118)
 //!     with the `{-I_1, ..., -I_L}` exclusion set, audited by the
 //!     proof-checker subagent against the paper PDF directly.
 //!
-//! TODO from the plan: Phase 5 (STIR), Phase 6 (univariate sumcheck),
-//! Phase 8 (sign), Phase 9 (verify), Phase 10 (zkVM).
+//! TODO from the plan: Phase 5 (STIR), Phase 8 (sign), Phase 9 (verify),
+//! Phase 10 (zkVM).
 
+#[cfg(feature = "std")]
+pub mod fft;
 #[cfg(feature = "std")]
 pub mod field_p192;
 #[cfg(feature = "std")]
@@ -58,5 +64,7 @@ pub mod merkle;
 pub mod prf;
 #[cfg(feature = "std")]
 pub mod setup;
+#[cfg(feature = "std")]
+pub mod sumcheck;
 #[cfg(feature = "std")]
 pub mod transcript;
