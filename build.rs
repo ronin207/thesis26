@@ -7,9 +7,27 @@ fn main() {
     let libiop_multicore = multicore_feature || multicore_env;
     let target = std::env::var("TARGET").unwrap_or_default();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    if !has_std || target.contains("riscv32im-risc0-zkvm-elf") || target_os == "zkvm" {
+    // Opt-out for environments that need only the pure-Rust portions of the
+    // crate (e.g. PLUM Fp192 development on machines where libiop's C++
+    // build is broken — known issue on Apple Silicon with -msse4.1).
+    let skip_libiop = std::env::var("VC_PQC_SKIP_LIBIOP")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if !has_std
+        || target.contains("riscv32im-risc0-zkvm-elf")
+        || target_os == "zkvm"
+        || skip_libiop
+    {
+        println!("cargo:rerun-if-env-changed=VC_PQC_SKIP_LIBIOP");
+        if skip_libiop {
+            // Expose the opt-out as a cfg flag so source modules can drop
+            // the FFI bridge when libiop isn't being built.
+            println!("cargo:rustc-cfg=vc_pqc_skip_libiop");
+        }
+        println!("cargo:rustc-check-cfg=cfg(vc_pqc_skip_libiop)");
         return;
     }
+    println!("cargo:rustc-check-cfg=cfg(vc_pqc_skip_libiop)");
     println!("cargo:rerun-if-env-changed=VC_PQC_LIBIOP_MULTICORE");
     println!("cargo:rerun-if-env-changed=VC_PQC_LIBIOP_C_COMPILER");
     println!("cargo:rerun-if-env-changed=VC_PQC_LIBIOP_CXX_COMPILER");

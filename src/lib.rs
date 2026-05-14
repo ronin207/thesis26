@@ -75,6 +75,8 @@ macro_rules! loquat_debug {
 pub mod bdec;
 pub mod loquat;
 #[cfg(feature = "std")]
+pub mod plum;
+#[cfg(feature = "std")]
 pub mod snarks;
 // pub mod anoncreds;
 
