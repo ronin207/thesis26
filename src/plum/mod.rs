@@ -36,6 +36,12 @@
 //!     (S-box exponent `d = 3`, not Loquat's 5), with permutation counter.
 //!   - **Phase 4** — `hasher` (Griffin + SHA3), `merkle`, and Fiat–Shamir
 //!     `transcript`, all generic over `PlumHasher`.
+//!   - **Phase 5 (partial)** — `stir_poly` provides the polynomial
+//!     primitives for STIR (Lagrange interpolation on η-point fibers,
+//!     schoolbook multiplication, quotient by `Π(x − α_i)`, and the
+//!     degree-correction polynomial `t_i`) per Algorithm 5 lines 6,
+//!     12, 13 (paper p. 121). STIR fold and rate correction are
+//!     Phase 5b/c (TODO).
 //!   - **Phase 6** — `fft` (coset Cooley-Tukey radix-2 over Fp192) and
 //!     `sumcheck` (BCRSVW univariate decomposition `f = g + Z_H · h`
 //!     per Algorithm 4 line 10, paper p. 120), audited by proof-checker
@@ -45,8 +51,9 @@
 //!     with the `{-I_1, ..., -I_L}` exclusion set, audited by the
 //!     proof-checker subagent against the paper PDF directly.
 //!
-//! TODO from the plan: Phase 5 (STIR), Phase 8 (sign), Phase 9 (verify),
-//! Phase 10 (zkVM).
+//! TODO from the plan: Phase 5 fold + rate correction + final-polynomial
+//! check (Algorithm 5 lines 4–16), Phase 8 (sign — wire phases together),
+//! Phase 9 (verify), Phase 10 (zkVM).
 
 #[cfg(feature = "std")]
 pub mod fft;
@@ -64,6 +71,8 @@ pub mod merkle;
 pub mod prf;
 #[cfg(feature = "std")]
 pub mod setup;
+#[cfg(feature = "std")]
+pub mod stir_poly;
 #[cfg(feature = "std")]
 pub mod sumcheck;
 #[cfg(feature = "std")]
