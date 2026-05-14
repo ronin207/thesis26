@@ -40,6 +40,21 @@ fn main() {
     cfg.define("BUILD_TESTING", "OFF");
     cfg.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
     cfg.define("MULTICORE", if libiop_multicore { "ON" } else { "OFF" });
+    // libiop's USE_ASM=ON path appends `-mpclmul -msse4.1` to global CXXFLAGS,
+    // which clang rejects on aarch64-apple-darwin (`unsupported option ...
+    // for target 'arm64-apple-macosx'`). Disable the ASM path on aarch64.
+    //
+    // Separately, the CURVE=BN128 path pulls libff's bn128_*.cpp, which link
+    // against the `zm` static lib built from `depends/ate-pairing/src/zm.cpp`.
+    // ate-pairing is x86-only (uses xbyak JIT and references PairingCode/Data
+    // types that don't compile on arm64). Selecting CURVE=EDWARDS matches the
+    // historical CMakeCache that built successfully on this machine and avoids
+    // the dependency entirely. The C API stub does not exercise pairings, so
+    // the curve choice is compile-only.
+    if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("aarch64") {
+        cfg.define("USE_ASM", "OFF");
+        cfg.define("CURVE", "EDWARDS");
+    }
     // We only need the C API bridge + core library for the Rust bindings.
     // Skip libiop's benchmark dependency/targets (cuts build time and avoids toolchain issues).
     cfg.define("LIBIOP_BUILD_BENCHMARKS", "OFF");

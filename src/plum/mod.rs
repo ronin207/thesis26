@@ -23,9 +23,21 @@
 //! ## Status
 //!
 //! This module is under active construction per
-//! `spec/plum_implementation_plan.md`. Phase 1 (field arithmetic) is in
-//! place; Phases 2–11 (PRF, Griffin re-instantiation, Merkle, transcript,
-//! STIR, sumcheck, setup, keygen, sign, verify, zkVM) are TODO.
+//! `spec/plum_implementation_plan.md`. As of the last `cargo test plum::`
+//! run (67 unit tests, all passing under `VC_PQC_SKIP_LIBIOP=1`):
+//!
+//!   - **Phase 1** — `Fp192` arithmetic, oracle-tested vs `num_bigint`.
+//!   - **Phase 2** — `prf` t-th power-residue PRF (Def. 1), with the
+//!     `Z_t` discrete-log table and multiplicative-homomorphism check.
+//!   - **Phase 3** — `griffin` permutation re-instantiated for `Fp192`
+//!     (S-box exponent `d = 3`, not Loquat's 5), with permutation counter.
+//!   - **Phase 4** — `hasher` (Griffin + SHA3), `merkle`, and Fiat–Shamir
+//!     `transcript`, all generic over `PlumHasher`.
+//!   - **Phase 7 (partial)** — `setup` materialises `PlumPublicParams`
+//!     at λ ∈ {80, 100, 128}; keygen (Algorithm 2) is not yet implemented.
+//!
+//! TODO from the plan: Phase 5 (STIR), Phase 6 (univariate sumcheck),
+//! Phase 7 (keygen), Phase 8 (sign), Phase 9 (verify), Phase 10 (zkVM).
 
 #[cfg(feature = "std")]
 pub mod field_p192;
