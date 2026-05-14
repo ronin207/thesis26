@@ -37,7 +37,10 @@
 
 use super::field_p192::Fp192;
 use super::fft::{FftError, interpolate_on_coset};
-use super::stir_poly::{StirPolyError, evaluate, lagrange_interpolate};
+use super::stir_poly::{
+    StirPolyError, degree_correction_polynomial, divide_by_linear_product, evaluate,
+    lagrange_interpolate, multiply,
+};
 
 #[derive(Debug)]
 pub enum StirError {
@@ -46,6 +49,9 @@ pub enum StirError {
     EvaluationsLengthMismatch,
     InterpolationError(StirPolyError),
     FftError(FftError),
+    /// `G_i` (the union of `r_i^out` and the `κ_i` shift challenges) and
+    /// the values vector passed to `rate_correct` must have the same length.
+    RateCorrectLengthMismatch,
 }
 
 impl core::fmt::Display for StirError {
@@ -63,6 +69,10 @@ impl core::fmt::Display for StirError {
             ),
             Self::InterpolationError(e) => write!(f, "Lagrange: {}", e),
             Self::FftError(e) => write!(f, "FFT: {}", e),
+            Self::RateCorrectLengthMismatch => write!(
+                f,
+                "rate_correct: G_i and values must have the same length"
+            ),
         }
     }
 }
@@ -153,6 +163,133 @@ pub fn stir_fold(
     Ok(coeffs)
 }
 
+/// STIR rate correction (Algorithm 5 lines 11–13, paper p. 121).
+///
+/// Given `â_i` in coefficient form, the challenge set
+/// `G_i = (r_i^out, r_{i,1}^shift, …, r_{i,κ}^shift)`, and the
+/// corresponding values `b_i` is supposed to take at those points
+/// (`b_i(r_i^out) = β_i = â_i(r_i^out)`, `b_i(r_{i,j}^shift) =
+/// â_i(r_{i,j}^shift)`), this function:
+///
+///   1. Lagrange-interpolates `b_i(x)` of degree `< |G_i|` through
+///      `(G_i, values)`.
+///   2. Computes `â_i'(x) = (â_i(x) − b_i(x)) / Π_{α ∈ G_i}(x − α)`.
+///      The division is exact by construction: the numerator vanishes
+///      at every `α ∈ G_i` because `(â_i − b_i)(α) = â_i(α) − values[α]
+///      = 0` by the definition of `b_i`.
+///   3. Returns `â_i'`. Caller composes with `t_i` via
+///      `apply_degree_correction` to get `f̂_i`.
+///
+/// Inputs:
+/// - `a_i`: `â_i` in coefficient form.
+/// - `g_i`: the challenge set, ordered `(r_i^out, r_{i,1}^shift, …)`.
+/// - `values`: same length as `g_i`. `values[0] = β_i = â_i(r_i^out)`
+///   in the protocol; `values[1..]` are `â_i(r_{i,j}^shift)`.
+///
+/// The function does NOT re-evaluate `â_i` at the challenge points
+/// itself, because the protocol already provides those evaluations
+/// (β_i is sent before the secondary challenges are derived). For
+/// independent verification, callers can re-evaluate via
+/// `stir_poly::evaluate`.
+///
+/// Preconditions (not all enforced by the type system):
+///   - `g_i` contains pairwise-distinct elements. In PLUM's protocol
+///     this holds with probability `1 − O(|G_i|² / |F_p|)` because
+///     `r_i^out` and `r_{i,j}^shift` come from independent Fiat-Shamir
+///     outputs (Alg 5 lines 10–11). Violation surfaces as
+///     `InterpolationError(InterpolationDomainNotDistinct)`.
+///   - `g_i.len() == values.len()`. Enforced.
+///   - `values[ℓ] == evaluate(a_i, g_i[ℓ])` for every `ℓ`. Violation
+///     surfaces as `InterpolationError(QuotientRemainderNonZero)`.
+pub fn rate_correct(
+    a_i: &[Fp192],
+    g_i: &[Fp192],
+    values: &[Fp192],
+) -> Result<Vec<Fp192>, StirError> {
+    if g_i.len() != values.len() {
+        return Err(StirError::RateCorrectLengthMismatch);
+    }
+    if g_i.is_empty() {
+        // No correction — the protocol-degenerate case where κ = 0
+        // and there's no r_i^out either. Return a_i unchanged.
+        return Ok(a_i.to_vec());
+    }
+    debug_assert!(
+        g_i.len() <= a_i.len() + 1,
+        "rate_correct: |G_i| = {} exceeds deg(â_i) + 1 = {}; check caller wiring",
+        g_i.len(),
+        a_i.len() + 1
+    );
+    let b_i = lagrange_interpolate(g_i, values)?;
+    // Subtract b_i from a_i (coefficient-wise; pad with zeros).
+    let len = a_i.len().max(b_i.len());
+    let mut numerator = vec![Fp192::zero(); len];
+    for (i, c) in a_i.iter().enumerate() {
+        numerator[i] = c.clone();
+    }
+    for (i, c) in b_i.iter().enumerate() {
+        numerator[i] = numerator[i].clone() - c.clone();
+    }
+    // Divide by Π_{α ∈ G_i}(x − α). The division is exact by the
+    // construction of b_i; divide_by_linear_product errors if not.
+    let quotient = divide_by_linear_product(&numerator, g_i)?;
+    Ok(quotient)
+}
+
+/// Compose `â_i'` with the degree-correction polynomial `t_i` to
+/// produce `f̂_i = â_i' · t_i` (Algorithm 5 line 13, paper p. 121).
+///
+/// `t_i` is built from `(r_comb, κ_i)` via `stir_poly::
+/// degree_correction_polynomial`, so the caller need only provide the
+/// scalar parameters. Returns the coefficients of `f̂_i`.
+pub fn apply_degree_correction(
+    a_i_prime: &[Fp192],
+    r_comb: &Fp192,
+    kappa: usize,
+) -> Vec<Fp192> {
+    let t_i = degree_correction_polynomial(r_comb, kappa);
+    multiply(a_i_prime, &t_i)
+}
+
+/// Coefficient-form STIR fold (Algorithm 5 line 14 "the last round
+/// defines coefs that contains < d_R coefficients of a polynomial
+/// f̂_{R+1}, which is defined by folding f̂_R").
+///
+/// Where `stir_fold` takes evaluations on a domain and returns the
+/// interpolated `â_i`, this function takes coefficients directly. The
+/// standard FRI/STIR fold identity is
+///
+///     (fold f)_k = Σ_{r=0}^{η-1} r_fold^r · coeffs[k·η + r].
+///
+/// Derivation: write `f(x) = Σ_{r=0}^{η-1} x^r · f_r(x^η)` with
+/// `f_r(y) := Σ_k c_{kη + r} y^k`. The fold at `α = r_fold` is
+/// `(fold f)(y) = Σ_r α^r · f_r(y)`, whose coefficient at `y^k` is
+/// `Σ_r α^r · c_{kη + r}`. ☐
+///
+/// Returns a vector of length `⌈coeffs.len() / η⌉`. For PLUM-128 with
+/// R = 1 and `d_R = d_stop = 32`, the final `coefs` is bounded by 32
+/// elements per Algorithm 5 line 14 — the caller must ensure
+/// `coeffs.len() ≤ η · d_stop` so the output respects the
+/// `< d_stop` degree bound.
+pub fn fold_coefficients(coeffs: &[Fp192], eta: usize, r_fold: &Fp192) -> Vec<Fp192> {
+    assert!(eta > 0, "stir::fold_coefficients: η must be > 0");
+    if coeffs.is_empty() {
+        return Vec::new();
+    }
+    let n_out = coeffs.len().div_ceil(eta);
+    let mut out = vec![Fp192::zero(); n_out];
+    let mut alpha_r = Fp192::one();
+    for r in 0..eta {
+        let mut k = 0usize;
+        while k * eta + r < coeffs.len() {
+            out[k] = out[k].clone() + alpha_r.clone() * coeffs[k * eta + r].clone();
+            k += 1;
+        }
+        alpha_r = alpha_r * r_fold.clone();
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -171,31 +308,15 @@ mod tests {
         Fp192::rand(&mut rng)
     }
 
-    /// Reference implementation: explicitly compute the fold for a
-    /// polynomial whose coefficients we know. If `f(x) = Σ_i c_i x^i`,
-    /// then writing it as `f(x) = Σ_{r=0}^{η-1} x^r · f_r(x^η)` where
-    /// `f_r(y) = Σ_k c_{kη + r} y^k`, the fold at challenge `α` is
-    /// `(fold f)(y) = Σ_{r=0}^{η-1} α^r · f_r(y)`. This is the
-    /// standard STIR/FRI fold identity. We use it as an oracle.
+    // Reference fold: `fold_coefficients` is the same identity, so
+    // re-export under the historical test name for clarity in the
+    // existing tests below.
     fn naive_fold_from_coefficients(
         coeffs: &[Fp192],
         eta: usize,
         r_fold: &Fp192,
     ) -> Vec<Fp192> {
-        // The result is a polynomial fold(f)(y) of degree < ceil(len/η),
-        // with coeff_k(fold(f)) = Σ_{r=0}^{η-1} α^r · c_{kη + r}.
-        let n_out = coeffs.len().div_ceil(eta);
-        let mut out = vec![Fp192::zero(); n_out];
-        let mut alpha_r = Fp192::one();
-        for r in 0..eta {
-            let mut k = 0usize;
-            while k * eta + r < coeffs.len() {
-                out[k] = out[k].clone() + alpha_r.clone() * coeffs[k * eta + r].clone();
-                k += 1;
-            }
-            alpha_r = alpha_r * r_fold.clone();
-        }
-        out
+        fold_coefficients(coeffs, eta, r_fold)
     }
 
     #[test]
@@ -358,6 +479,149 @@ mod tests {
         let folded = stir_fold(&evaluations, &omega, eta, &r_fold).unwrap();
         assert_eq!(folded.len(), n);
         assert_eq!(folded, coeffs);
+    }
+
+    #[test]
+    fn rate_correct_matches_lagrange_then_division() {
+        // Build â_i randomly, pick a few challenges, set values to
+        // â_i evaluated at those challenges, run rate_correct, and
+        // verify â_i'(x) · Π(x − α) + b_i(x) = â_i(x).
+        let a_i = rand_coeffs(64, 0xB000_0001);
+        // Pick |G_i| = 5 challenges: 1 r_out and 4 shifts (matching
+        // Alg 5 line 12 where |G_i| = κ + 1; using a small κ here).
+        let g_i: Vec<Fp192> = (0..5)
+            .map(|s| fp_from(0xB000_0002 + s as u64))
+            .collect();
+        let values: Vec<Fp192> = g_i.iter().map(|x| evaluate(&a_i, x)).collect();
+        let a_prime = rate_correct(&a_i, &g_i, &values).unwrap();
+        // deg(â_i') ≤ deg(â_i) − |G_i|
+        assert!(a_prime.len() <= a_i.len() - g_i.len() + 1);
+        // â_i(α) − b_i(α) = 0 for α ∈ G_i; outside G_i,
+        // â_i(x) = â_i'(x) · Π(x − α) + b_i(x).
+        let b_i = lagrange_interpolate(&g_i, &values).unwrap();
+        let mut rng = ChaCha20Rng::seed_from_u64(0xB000_0003);
+        for _ in 0..8 {
+            let x = Fp192::rand(&mut rng);
+            let lhs = evaluate(&a_i, &x);
+            // Compute Π(x − α).
+            let mut prod = Fp192::one();
+            for alpha in &g_i {
+                prod = prod * (x.clone() - alpha.clone());
+            }
+            let rhs = evaluate(&a_prime, &x) * prod + evaluate(&b_i, &x);
+            assert_eq!(lhs, rhs);
+        }
+    }
+
+    #[test]
+    fn rate_correct_with_empty_g_i_is_identity() {
+        let a_i = rand_coeffs(8, 0xB000_0010);
+        let out = rate_correct(&a_i, &[], &[]).unwrap();
+        assert_eq!(out, a_i);
+    }
+
+    #[test]
+    fn rate_correct_rejects_length_mismatch() {
+        let a_i = rand_coeffs(8, 0xB000_0020);
+        let g_i = vec![fp_from(0xB000_0021), fp_from(0xB000_0022)];
+        let values = vec![fp_from(0xB000_0023)];
+        assert!(matches!(
+            rate_correct(&a_i, &g_i, &values),
+            Err(StirError::RateCorrectLengthMismatch)
+        ));
+    }
+
+    #[test]
+    fn rate_correct_errors_on_non_root_value() {
+        // If we lie about â_i(α) — pass a value other than what â_i
+        // actually evaluates to — the numerator (â_i − b_i) does NOT
+        // vanish at α, so divide_by_linear_product should reject.
+        let a_i = rand_coeffs(8, 0xB000_0030);
+        let alpha = fp_from(0xB000_0031);
+        let true_value = evaluate(&a_i, &alpha);
+        // Tamper the value.
+        let wrong_value = true_value + Fp192::one();
+        let result = rate_correct(&a_i, &[alpha], &[wrong_value]);
+        assert!(matches!(
+            result,
+            Err(StirError::InterpolationError(
+                StirPolyError::QuotientRemainderNonZero
+            ))
+        ));
+    }
+
+    #[test]
+    fn apply_degree_correction_matches_geometric_series() {
+        // f̂_i = â_i' · t_i where t_i(x) = Σ_{j=0..κ+1} r_comb^j · x^j.
+        // We verify f̂_i(x) = â_i'(x) · t_i(x) at random points.
+        let a_prime = rand_coeffs(20, 0xB000_0040);
+        let r_comb = fp_from(0xB000_0041);
+        let kappa = 5usize;
+        let f_i = apply_degree_correction(&a_prime, &r_comb, kappa);
+        assert_eq!(f_i.len(), a_prime.len() + kappa + 1);
+        let mut rng = ChaCha20Rng::seed_from_u64(0xB000_0042);
+        for _ in 0..8 {
+            let x = Fp192::rand(&mut rng);
+            let lhs = evaluate(&f_i, &x);
+            // t_i(x) directly:
+            let mut t_x = Fp192::zero();
+            let mut power = Fp192::one();
+            for _ in 0..(kappa + 2) {
+                t_x = t_x + power.clone();
+                power = power * r_comb.clone() * x.clone();
+            }
+            let rhs = evaluate(&a_prime, &x) * t_x;
+            assert_eq!(lhs, rhs);
+        }
+    }
+
+    #[test]
+    fn fold_coefficients_matches_evaluations_fold_on_subgroup() {
+        // The two folds — stir_fold (from evaluations) and
+        // fold_coefficients (from coefficients) — must produce the
+        // same polynomial.
+        let pp = plum_setup(128).unwrap();
+        let n = 16usize;
+        let eta = 4usize;
+        let omega = pp.u_generator.pow_u128((pp.u_size / n) as u128);
+        let coeffs = rand_coeffs(n, 0xB000_0050);
+        let evaluations: Vec<Fp192> = (0..n)
+            .map(|j| evaluate(&coeffs, &omega.pow_u128(j as u128)))
+            .collect();
+        let r_fold = fp_from(0xB000_0051);
+        let from_evals = stir_fold(&evaluations, &omega, eta, &r_fold).unwrap();
+        let from_coeffs = fold_coefficients(&coeffs, eta, &r_fold);
+        // Both should evaluate identically on ⟨ω^η⟩.
+        let omega_eta = omega.pow_u128(eta as u128);
+        for k in 0..(n / eta) {
+            let y = omega_eta.pow_u128(k as u128);
+            assert_eq!(evaluate(&from_evals, &y), evaluate(&from_coeffs, &y));
+        }
+    }
+
+    #[test]
+    fn fold_coefficients_handles_non_multiple_length() {
+        // Length not divisible by η: the last partial block contributes
+        // a shorter geometric sum.
+        let coeffs = rand_coeffs(9, 0xB000_0060);
+        let eta = 4usize;
+        let r_fold = fp_from(0xB000_0061);
+        let folded = fold_coefficients(&coeffs, eta, &r_fold);
+        assert_eq!(folded.len(), 9usize.div_ceil(eta));
+        // Spot-check: out[0] = c_0 + α·c_1 + α²·c_2 + α³·c_3.
+        let expected_0 = coeffs[0].clone()
+            + r_fold.clone() * coeffs[1].clone()
+            + r_fold.clone() * r_fold.clone() * coeffs[2].clone()
+            + r_fold.clone() * r_fold.clone() * r_fold.clone() * coeffs[3].clone();
+        assert_eq!(folded[0], expected_0);
+        // out[2] = c_8 only (since c_9, c_10, c_11 don't exist).
+        assert_eq!(folded[2], coeffs[8]);
+    }
+
+    #[test]
+    fn fold_coefficients_empty_input_returns_empty() {
+        let folded = fold_coefficients(&[], 4, &Fp192::one());
+        assert!(folded.is_empty());
     }
 
     #[test]

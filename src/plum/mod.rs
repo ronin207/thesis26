@@ -36,14 +36,18 @@
 //!     (S-box exponent `d = 3`, not Loquat's 5), with permutation counter.
 //!   - **Phase 4** — `hasher` (Griffin + SHA3), `merkle`, and Fiat–Shamir
 //!     `transcript`, all generic over `PlumHasher`.
-//!   - **Phase 5 (partial)** — `stir_poly` provides the polynomial
-//!     primitives for STIR (Lagrange interpolation on η-point fibers,
-//!     schoolbook multiplication, quotient by `Π(x − α_i)`, and the
-//!     degree-correction polynomial `t_i`) per Algorithm 5 lines 6,
-//!     12, 13 (paper p. 121). `stir::stir_fold` implements one fold
-//!     round (Algorithm 5 lines 4–8). Rate correction (lines 9–13),
-//!     final-polynomial check (lines 14–15), and the protocol-level
-//!     Merkle commitments are Phase 5c (TODO).
+//!   - **Phase 5** — STIR prover polynomial layer.
+//!     `stir_poly` provides the polynomial primitives (Lagrange
+//!     interpolation, schoolbook multiplication, quotient by
+//!     `Π(x − α_i)`, degree-correction polynomial `t_i`) per
+//!     Algorithm 5 lines 6, 12, 13 (paper p. 121). `stir` exposes
+//!     the four prover-side operations of Algorithm 5: `stir_fold`
+//!     (one fold round, lines 4–8), `rate_correct` (line 12),
+//!     `apply_degree_correction` (line 13 second half), and
+//!     `fold_coefficients` (line 14 final-poly fold). All proof-
+//!     checker–audited against the paper PDF directly. The
+//!     protocol-level Merkle commitments and Fiat–Shamir orchestration
+//!     wiring this all together live in Phase 8 (sign).
 //!   - **Phase 6** — `fft` (coset Cooley-Tukey radix-2 over Fp192) and
 //!     `sumcheck` (BCRSVW univariate decomposition `f = g + Z_H · h`
 //!     per Algorithm 4 line 10, paper p. 120), audited by proof-checker
@@ -53,9 +57,8 @@
 //!     with the `{-I_1, ..., -I_L}` exclusion set, audited by the
 //!     proof-checker subagent against the paper PDF directly.
 //!
-//! TODO from the plan: Phase 5 fold + rate correction + final-polynomial
-//! check (Algorithm 5 lines 4–16), Phase 8 (sign — wire phases together),
-//! Phase 9 (verify), Phase 10 (zkVM).
+//! TODO from the plan: Phase 8 (sign — wire phases together), Phase 9
+//! (verify), Phase 10 (zkVM).
 
 #[cfg(feature = "std")]
 pub mod fft;
