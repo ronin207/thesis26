@@ -72,6 +72,88 @@ impl<H: PlumHasher> PlumMerkleTree<H> {
         }
     }
 
+    /// Build a tree directly over pre-computed leaf digests. Used by
+    /// Sign Phase 1, where each leaf is a hash of `n` polynomial
+    /// evaluations on `U` (Algorithm 3 line 9, paper p. 119:
+    /// `leaf_e = H_c(ĉ'_1(U[e]), ..., ĉ'_n(U[e]))`). The leaf-value
+    /// path (`PlumMerkleProof.leaf`) is unused for digest-leaved trees;
+    /// callers verify openings with `verify_digest_leaf`.
+    pub fn commit_digests(leaf_digests: Vec<[u8; PLUM_DIGEST_BYTES]>) -> Self {
+        assert!(
+            !leaf_digests.is_empty(),
+            "PLUM Merkle: cannot commit to empty vector"
+        );
+        let n = leaf_digests.len();
+        let n_padded = n.next_power_of_two();
+
+        let mut current = leaf_digests.clone();
+        let zero_digest = H::hash_bytes(&Fp192::zero().to_bytes_le());
+        while current.len() < n_padded {
+            current.push(zero_digest);
+        }
+
+        let mut levels: Vec<Vec<[u8; PLUM_DIGEST_BYTES]>> = vec![current];
+        while levels.last().unwrap().len() > 1 {
+            let lower = levels.last().unwrap();
+            let mut next: Vec<[u8; PLUM_DIGEST_BYTES]> = Vec::with_capacity(lower.len() / 2);
+            for chunk in lower.chunks(2) {
+                next.push(H::compress_pair(&chunk[0], &chunk[1]));
+            }
+            levels.push(next);
+        }
+
+        // For digest-leaved trees the `leaves: Vec<Fp192>` field isn't
+        // meaningful; we store an empty vector and let callers track
+        // their leaf data separately. `len_padded` and `root` work
+        // normally.
+        Self {
+            levels,
+            leaves: Vec::new(),
+            n_leaves_padded: n_padded,
+            _hasher: PhantomData,
+        }
+    }
+
+    /// Open the authentication path for a digest leaf at `index`.
+    /// Returns the sibling chain only (the leaf digest itself is the
+    /// caller's responsibility because it was the caller that hashed
+    /// the underlying row).
+    pub fn open_digest(&self, index: usize) -> Vec<[u8; PLUM_DIGEST_BYTES]> {
+        assert!(
+            index < self.levels[0].len(),
+            "PLUM Merkle: open_digest index out of range"
+        );
+        let mut siblings: Vec<[u8; PLUM_DIGEST_BYTES]> = Vec::new();
+        let mut idx = index;
+        for level in &self.levels[..self.levels.len() - 1] {
+            siblings.push(level[idx ^ 1]);
+            idx /= 2;
+        }
+        siblings
+    }
+
+    /// Verify a digest-leaved opening. Caller supplies the leaf digest
+    /// they computed and the sibling chain returned by `open_digest`.
+    pub fn verify_digest_leaf(
+        root: &[u8; PLUM_DIGEST_BYTES],
+        leaf_index: usize,
+        leaf_digest: &[u8; PLUM_DIGEST_BYTES],
+        siblings: &[[u8; PLUM_DIGEST_BYTES]],
+    ) -> bool {
+        let mut digest = *leaf_digest;
+        let mut idx = leaf_index;
+        for sibling in siblings {
+            let (left, right) = if idx & 1 == 0 {
+                (digest, *sibling)
+            } else {
+                (*sibling, digest)
+            };
+            digest = H::compress_pair(&left, &right);
+            idx /= 2;
+        }
+        *root == digest
+    }
+
     pub fn root(&self) -> [u8; PLUM_DIGEST_BYTES] {
         *self.levels.last().unwrap().first().unwrap()
     }

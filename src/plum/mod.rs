@@ -77,6 +77,8 @@ pub mod prf;
 #[cfg(feature = "std")]
 pub mod setup;
 #[cfg(feature = "std")]
+pub mod sign;
+#[cfg(feature = "std")]
 pub mod stir;
 #[cfg(feature = "std")]
 pub mod stir_poly;
