@@ -57,8 +57,24 @@
 //!     with the `{-I_1, ..., -I_L}` exclusion set, audited by the
 //!     proof-checker subagent against the paper PDF directly.
 //!
-//! TODO from the plan: Phase 8 (sign — wire phases together), Phase 9
-//! (verify), Phase 10 (zkVM).
+//!   - **Phase 8** — `sign` implements Algorithms 3–5 (6 protocol
+//!     phases) wiring sumcheck, STIR, Merkle, and Fiat–Shamir
+//!     together. `PlumSignature` carries `(root_c, T, o, root_s, S,
+//!     root_h, stir_roots, stir_betas, final_coefs)`. Query openings
+//!     for the BCRSVW sumcheck identity and the STIR-fold consistency
+//!     are NOT YET in the signature struct — tracked in code.
+//!   - **Phase 9 (partial)** — `verify` implements Algorithm 6 Step 1
+//!     (FS replay) and the residuosity portion of Step 3 (Alg 6 line
+//!     21). The Merkle / sumcheck identity / STIR-fold portions
+//!     require signature openings still to be added. Per the proof-
+//!     checker audit, the partial verify is a structural smoke test
+//!     and NOT a meaningful security check — see `verify.rs` module
+//!     doc-comment for details.
+//!
+//! TODO from the plan: extend `PlumSignature` with Merkle query
+//! openings (`ĉ'_j`, `ŝ`, `ĥ`, per-round `â_i`); complete Algorithm 6
+//! Steps 2-3; Phase 10 (zkVM); Phase 11 (three-level attribution
+//! measurement).
 
 #[cfg(feature = "std")]
 pub mod fft;
@@ -86,3 +102,5 @@ pub mod stir_poly;
 pub mod sumcheck;
 #[cfg(feature = "std")]
 pub mod transcript;
+#[cfg(feature = "std")]
+pub mod verify;
