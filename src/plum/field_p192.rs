@@ -1,38 +1,47 @@
 //! Custom field implementation for PLUM's prime.
 //!
-//! From Zhang, Fu, Steinfeld, Liu, Yuen, Au (ProvSec 2025) §3.3 the prime
-//! has the form
+//! From Zhang, Fu, Steinfeld, Liu, Yuen, Au (ProvSec 2025) §3.3 (p. 123)
+//! the prime has the form
 //!
 //!     p = 2^64 · p_0 + 1
 //!
-//! with `p_0` a "128-bit prime" (the displayed decimal is actually 135 bits,
-//! so the paper's "192-bit" label refers to the order of magnitude rather
-//! than the strict bit length). Two issues with the paper's literal decimal:
+//! with `p_0` described in §3.1 as "a 128-bit prime". The paper's printed
+//! decimal value of `p_0` (LNCS 16172, p. 123) is:
 //!
-//!   1. As printed, the value is **not prime** (factors as 7·5879·21871·…),
-//!      so signature arithmetic with it is incorrect — Fermat fails and
-//!      `pow(a, p-1) != 1`. This is almost certainly a copy/OCR error in
-//!      the paper draft.
-//!   2. The displayed value is 135-bit, contradicting the in-text "128-bit
-//!      prime" remark. The 199-bit total then disagrees with the section
-//!      header "192-bit smooth prime field". We treat the bit-width labels
-//!      as approximate.
+//!     paper p_0 = 25955366385296571073907086806836816173771
 //!
-//! For this implementation we use the **closest larger value such that
-//! both `p_0` and `2^64 · p_0 + 1` are prime, and `p ≡ 1 mod 256`** (so
-//! the t=256 power residue PRF is well-defined and the multiplicative
-//! group has the 2^64 smooth subgroup PLUM/STIR rely on):
+//! Two issues with that literal decimal:
 //!
-//!     p_0 = 25953665385296571073907086806836816188273
-//!     p   = 478760623137260249020079243151463163776858757630613067399169
+//!   1. **It is composite.** The smallest prime factor is **97** (verified
+//!      by trial division in `tests/plum_field_primality.rs`; the same
+//!      file also runs Miller-Rabin which independently confirms
+//!      compositeness). Signature arithmetic with this value is broken:
+//!      Fermat fails and some elements of `F_p` lack inverses. The
+//!      mismatch with the paper's "128-bit prime" claim is almost
+//!      certainly a typo in the published manuscript — the paper's
+//!      construction symbolically requires `p_0` prime.
+//!   2. The displayed `p_0` is 135-bit, contradicting the in-text "128-bit
+//!      prime" remark. The 199-bit total similarly disagrees with the
+//!      section heading "192-bit smooth prime field". Treat the
+//!      bit-width labels as approximate.
 //!
-//! Both verified prime by `sympy.isprime` (Miller–Rabin); difference from
-//! paper value is +14502. This substitution does not affect the
-//! field-size class (199-bit, smooth-subgroup, non-Mersenne) which is
-//! what the thesis cycle-attribution measurement is sensitive to. When
-//! the STIR/PLUM authors are reached for the canonical value, swap the
-//! constants in `MODULUS_LIMBS` and rerun the tests — no other code
-//! changes needed.
+//! Pending direct confirmation from the authors of the canonical value,
+//! we use a nearby smooth prime that satisfies the constraints of PLUM's
+//! construction (`p_0` prime, `2^64 · p_0 + 1` prime, `t = 256 | p − 1`,
+//! 2-adicity ≥ 64):
+//!
+//!     substitute p_0 = 25953665385296571073907086806836816188273
+//!     substitute p   = 478760623137260249020079243151463163776858757630613067399169
+//!
+//! Both primality and the three independent transcriptions (decimal, hex,
+//! `MODULUS_LIMBS`) are verified by `tests/plum_field_primality.rs`. The
+//! substitute is **not** "the closest" prime — finding the closest prime
+//! larger than the paper's value would require an exhaustive scan we have
+//! not run. The substitution is sufficient for the thesis's cycle-
+//! attribution measurement (199-bit, smooth, non-Mersenne — the
+//! attributes the measurement is sensitive to). For interoperability or
+//! security-bit-accurate concrete claims, contact the authors and swap
+//! the constants in `MODULUS_LIMBS`; no other code changes needed.
 //!
 //! Properties:
 //!   - bit length 199
