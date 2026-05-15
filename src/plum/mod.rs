@@ -68,16 +68,22 @@
 //!     (Merkle path verification + BCRSVW sumcheck identity check
 //!     `Σ_{a ∈ H} g̃(a) = z·µ + S` via Lagrange interpolation from
 //!     query points), and Step 3 residuosity check (Alg 6 line 21).
-//!     The STIR-fold consistency portion of Step 3 requires per-round
-//!     `â_i` openings (TODO, follow-up commit). Per the proof-checker
-//!     audit, the EUF-KO reduction does NOT close until STIR
-//!     proximity testing is added — see `verify.rs` module doc-comment
-//!     for the security caveat.
+//!     Queries to `f̂_0` are now structured as `κ_shift × η` fibers in
+//!     `U_0` (rather than random); the verifier reconstructs `f̂_0(s)`
+//!     at every query via Alg 4 line 16 (using the BCRSVW `p̂(s)`
+//!     formula at line 11) and folds each fiber to recover
+//!     `â_1(y_j)` for `y_j ∈ U_0^η`. The fold-on-fiber arithmetic is
+//!     exercised on every successful verify but the per-round
+//!     `â_i|_{U_i}` consistency check (Alg 6 lines 13–18) requires
+//!     additional Merkle openings still to be added. The EUF-KO
+//!     reduction does NOT close until STIR proximity testing is
+//!     added — see `verify.rs` module doc-comment for the security
+//!     caveat.
 //!
 //! TODO from the plan: extend `PlumSignature` with per-round STIR
-//! Merkle openings; implement Alg 6 lines 13–18 (STIR fold
-//! consistency); Phase 10 (zkVM); Phase 11 (three-level attribution
-//! measurement).
+//! Merkle openings; wire reconstructed `â_1` through Alg 6 lines
+//! 13–18 (STIR fold consistency); Phase 10 (zkVM); Phase 11
+//! (three-level attribution measurement).
 
 #[cfg(feature = "std")]
 pub mod fft;

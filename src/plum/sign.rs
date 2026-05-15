@@ -328,18 +328,33 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     let r_phase5 = transcript.challenge_field(b"phase5/r");
     let r0_fold = transcript.challenge_field(b"phase5/r0_fold");
 
-    // FS-derive κ_0 query indices into U_0 for the initial-codeword
-    // proximity check (Alg 6 line 9 + Alg 5 line 16). These are bound
-    // here, AFTER root_h has been absorbed and AFTER the rate-
-    // correction parameters are derived, so the prover cannot grind.
-    // FS-derived; not re-absorbed because the indices are
-    // deterministic from the transcript (challenge_indices' output is
-    // a pure function of the prior absorbs). Re-absorbing would force
-    // the verifier to mirror it, and any asymmetry there would break
-    // the STIR-FS chain in a future Phase 10. See proof-checker Q2
-    // audit, 2026-05-15.
-    let query_indices: Vec<usize> =
-        transcript.challenge_indices(b"queries/U_0", pp.kappa_0, pp.u_size);
+    // FS-derive query indices into U_0, structured as fibers above
+    // shift points in U_0^η. This shape (rather than κ_0 random
+    // indices) is what STIR fold consistency needs at Phase 9c —
+    // each shift y has the η fiber {x ∈ U_0 : x^η = y} as a queryable
+    // unit, and the verifier reconstructs â_1(y) by Lagrange-on-fiber
+    // + evaluate-at-r_0^fold.
+    //
+    // Indices are bound after root_h + (r_phase5, r0_fold) so the
+    // prover cannot grind. Not re-absorbed because they are FS-
+    // deterministic (challenge_indices' output is a pure function of
+    // the prior transcript state).
+    let kappa_shift = pp.kappa_0.div_ceil(pp.eta);
+    let u_over_eta = pp.u_size / pp.eta;
+    let shift_base_indices: Vec<usize> = transcript.challenge_indices(
+        b"queries/U_0/shift_bases",
+        kappa_shift,
+        u_over_eta,
+    );
+    // Each shift base b ∈ [0, |U_0|/η) defines a fiber in U_0 at
+    // {b, b + |U_0|/η, b + 2·|U_0|/η, …, b + (η−1)·|U_0|/η}. These
+    // are the points x where x^η = ω^{b·η} ∈ U_0^η.
+    let mut query_indices: Vec<usize> = Vec::with_capacity(kappa_shift * pp.eta);
+    for &base in &shift_base_indices {
+        for t in 0..pp.eta {
+            query_indices.push(base + t * u_over_eta);
+        }
+    }
 
     // Record the per-query openings of ĉ'_j, ŝ, ĥ. The Merkle commits
     // were built earlier; we just open them at the FS-derived indices.
