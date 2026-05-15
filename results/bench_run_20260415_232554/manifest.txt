@@ -1,0 +1,22 @@
+# run_benchmarks.sh — mode=snark tiny=0 runs_override=<config> ts=20260415_232554
+# cwd: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis
+# out: results/bench_run_20260415_232554
+
+=== benchmark cells (mode=snark only=/B8_/) ===
+  [ 1] snark  B8_libiop_l80_nozk               -> cell_B8_libiop_l80_nozk
+  [ 2] snark  B8_libiop_l128_nozk              -> cell_B8_libiop_l128_nozk
+  [ 3] snark  B8_libiop_l128_zk                -> cell_B8_libiop_l128_zk
+  [ 4] snark  B8_libiop_l128_corrupt           -> cell_B8_libiop_l128_corrupt
+=== total: 4 cells ===
+
+=== execution log ===
+[23:25:54] >>> B8_libiop_l80_nozk (snark) — log: results/bench_run_20260415_232554/bench_B8_libiop_l80_nozk.log
+[23:26:05] PASS (11s)
+[23:26:05] >>> B8_libiop_l128_nozk (snark) — log: results/bench_run_20260415_232554/bench_B8_libiop_l128_nozk.log
+[23:26:06] PASS (1s)
+[23:26:06] >>> B8_libiop_l128_zk (snark) — log: results/bench_run_20260415_232554/bench_B8_libiop_l128_zk.log
+[00:16:51] FAIL (rc=5, 3045s) — see results/bench_run_20260415_232554/bench_B8_libiop_l128_zk.log
+[00:16:51] >>> B8_libiop_l128_corrupt (snark) — log: results/bench_run_20260415_232554/bench_B8_libiop_l128_corrupt.log
+[00:16:51] FAIL (rc=1, 0s) — see results/bench_run_20260415_232554/bench_B8_libiop_l128_corrupt.log
+
+=== summary: 2 passed, 2 failed, results/bench_run_20260415_232554 ===

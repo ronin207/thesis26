@@ -247,15 +247,19 @@ impl EufCmaAdversary for TranscriptSpliceAdversary {
     }
 }
 
-fn assert_no_forgery<A: EufCmaAdversary + Default>(trials: usize) {
+fn assert_no_forgery_at_level<A: EufCmaAdversary + Default>(lambda: usize, trials: usize) {
     let adversary = A::default();
-    let intrinsic_label = adversary.label();
-    let stats = run_trials(128, trials, adversary);
+    let label = adversary.label();
+    let stats = run_trials(lambda, trials, adversary);
     assert_eq!(
         stats.successes, 0,
-        "{} adversary forged {} out of {} attempts",
-        intrinsic_label, stats.successes, stats.attempts
+        "{} adversary at λ={} forged {} out of {} attempts",
+        label, lambda, stats.successes, stats.attempts
     );
+}
+
+fn assert_no_forgery<A: EufCmaAdversary + Default>(trials: usize) {
+    assert_no_forgery_at_level::<A>(128, trials);
 }
 
 #[test]
@@ -263,4 +267,131 @@ fn euf_cma_adversaries_fail_to_forge() {
     assert_no_forgery::<ReplayAdversary>(8);
     assert_no_forgery::<SumcheckSwapAdversary>(8);
     assert_no_forgery::<TranscriptSpliceAdversary>(8);
+}
+
+// ── Security level sweep ──────────────────────────────────────────────────────
+
+#[test]
+fn euf_cma_adversaries_fail_at_level_80() {
+    assert_no_forgery_at_level::<ReplayAdversary>(80, 4);
+    assert_no_forgery_at_level::<SumcheckSwapAdversary>(80, 4);
+    assert_no_forgery_at_level::<TranscriptSpliceAdversary>(80, 4);
+}
+
+#[test]
+fn euf_cma_adversaries_fail_at_level_100() {
+    assert_no_forgery_at_level::<ReplayAdversary>(100, 4);
+    assert_no_forgery_at_level::<SumcheckSwapAdversary>(100, 4);
+    assert_no_forgery_at_level::<TranscriptSpliceAdversary>(100, 4);
+}
+
+// ── root_c corruption adversary ───────────────────────────────────────────────
+//
+// Corrupts the Merkle root of LDT codewords (root_c) and attempts to forge a
+// signature on a new message.  The LDT commitment is the first Fiat-Shamir
+// commitment in the protocol, so any corruption must propagate through the
+// challenge derivation and break all subsequent transcript bindings.
+
+#[derive(Default)]
+struct RootCCorruptionAdversary;
+
+impl EufCmaAdversary for RootCCorruptionAdversary {
+    fn label(&self) -> &'static str { "root-c-corruption" }
+    fn signing_budget(&self) -> usize { 1 }
+
+    fn attempt(
+        &mut self,
+        ctx: &ExperimentContext,
+        oracle: &mut SigningOracle,
+        _random_oracle: &mut RandomOracle,
+    ) -> Option<(Vec<u8>, LoquatSignature)> {
+        let mut forged = oracle.sign(b"root-c-anchor");
+        // Flip every bit in root_c.  A valid signature's LDT Merkle root cannot
+        // remain consistent with the LDT query openings after this mutation.
+        for byte in forged.root_c.iter_mut() {
+            *byte ^= 0xff;
+        }
+        let forged_message =
+            format!("root-c-target-λ{}", ctx.security_level).into_bytes();
+        Some((forged_message, forged))
+    }
+}
+
+#[test]
+fn root_c_corruption_adversary_fails_to_forge() {
+    assert_no_forgery::<RootCCorruptionAdversary>(8);
+}
+
+#[test]
+fn root_c_corruption_adversary_fails_at_level_80() {
+    assert_no_forgery_at_level::<RootCCorruptionAdversary>(80, 4);
+}
+
+// ── Multi-key adversary ───────────────────────────────────────────────────────
+//
+// The adversary observes signatures from *two independent keypairs* and attempts
+// a cross-key forgery: use components from σ_A (signed under pk_A) to forge a
+// valid signature on a fresh message that verifies under pk_B.
+//
+// Because Loquat binds the public key implicitly through the quadratic-residuosity
+// witnesses (the t/o matrices depend on the key values via the IOP key-ID step),
+// a signature produced under pk_A should not satisfy the verification equation for
+// pk_B.
+
+fn run_multi_key_forgery_trial(lambda: usize) -> bool {
+    let params_a = loquat_setup(lambda).expect("params A");
+    let keypair_a = keygen_with_params(&params_a).expect("keygen A");
+    let params_b = loquat_setup(lambda).expect("params B");
+    let keypair_b = keygen_with_params(&params_b).expect("keygen B");
+
+    // Obtain one signature from each key.
+    let sigma_a = loquat_sign(b"multi-key-source-A", &keypair_a, &params_a)
+        .expect("sign A");
+    let sigma_b = loquat_sign(b"multi-key-source-B", &keypair_b, &params_b)
+        .expect("sign B");
+
+    // Attempt 1: splice σ_A's sumcheck proof into σ_B and target keypair_b's params.
+    let mut attempt_ab = sigma_b.clone();
+    attempt_ab.pi_us = sigma_a.pi_us.clone();
+    let target_ab = b"multi-key-forged-ab".to_vec();
+    let verified_ab = loquat_verify(&target_ab, &attempt_ab, &keypair_b.public_key, &params_b)
+        .unwrap_or(false);
+
+    // Attempt 2: take σ_B's t/o matrices but σ_A's root_c.
+    let mut attempt_ba = sigma_a.clone();
+    attempt_ba.t_values = sigma_b.t_values.clone();
+    attempt_ba.o_values = sigma_b.o_values.clone();
+    let target_ba = b"multi-key-forged-ba".to_vec();
+    let verified_ba = loquat_verify(&target_ba, &attempt_ba, &keypair_a.public_key, &params_a)
+        .unwrap_or(false);
+
+    // Either forgery succeeding constitutes a break.
+    verified_ab || verified_ba
+}
+
+#[test]
+fn multi_key_adversary_fails_cross_key_forgery() {
+    let mut successes = 0usize;
+    let trials = 4;
+    for _ in 0..trials {
+        if run_multi_key_forgery_trial(128) {
+            successes += 1;
+        }
+    }
+    assert_eq!(
+        successes, 0,
+        "multi-key cross-key forgery succeeded {} out of {} trials",
+        successes, trials
+    );
+}
+
+#[test]
+fn multi_key_adversary_fails_at_level_80() {
+    let mut successes = 0usize;
+    for _ in 0..4 {
+        if run_multi_key_forgery_trial(80) {
+            successes += 1;
+        }
+    }
+    assert_eq!(successes, 0, "multi-key forgery at λ=80 must not succeed");
 }

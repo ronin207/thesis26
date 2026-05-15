@@ -1,0 +1,11 @@
+results_dir=/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/results/anchor_20260511_030057
+started=2026-05-10T18:00:57Z
+host=TakuminoMacBook-Pro-2.local
+uname=Darwin TakuminoMacBook-Pro-2.local 25.3.0 Darwin Kernel Version 25.3.0: Wed Jan 28 20:54:38 PST 2026; root:xnu-12377.91.3~2/RELEASE_ARM64_T6050 arm64
+ulimit_v_kb=unlimited
+RISC0_SEGMENT_PO2=20
+config=lambda80_k1_s1_m16
+nice=5
+ended=2026-05-11T14:59:58Z
+elapsed_s=75541
+exit_code=0

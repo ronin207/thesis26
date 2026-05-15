@@ -1,0 +1,18 @@
+# run_benchmarks.sh — mode=snark tiny=0 runs_override=<config> ts=20260416_012800
+# cwd: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis
+# out: results/bench_run_20260416_012800
+
+=== benchmark cells (mode=snark) ===
+  [ 1] snark  B1_noir                          -> cell_B1_noir
+  [ 2] snark  B2_r1cs_compare                  -> cell_B2_r1cs_compare
+  [ 3] snark  B3_circuit_scale                 -> cell_B3_circuit_scale
+  [ 4] snark  B4_backend                       -> cell_B4_backend
+  [ 5] snark  B5_griffin                       -> cell_B5_griffin
+  [ 6] snark  B7_aurora_rerun                  -> cell_B7_aurora_rerun
+  [ 7] snark  B9_pp3_policy                    -> cell_B9_pp3_policy
+  [ 8] snark  B8_libiop_l80_nozk               -> cell_B8_libiop_l80_nozk
+  [ 9] snark  B8_libiop_l128_nozk              -> cell_B8_libiop_l128_nozk
+  [10] snark  B8_libiop_l128_zk                -> cell_B8_libiop_l128_zk
+  [11] snark  B8_libiop_l128_corrupt           -> cell_B8_libiop_l128_corrupt
+=== total: 11 cells ===
+[dry-run] not executing

@@ -1,0 +1,13 @@
+# run_benchmarks.sh — mode=snark tiny=0 runs_override=<config> ts=20260416_004806
+# cwd: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis
+# out: results/bench_run_20260416_004806
+
+=== benchmark cells (mode=snark only=/B8_libiop_l128_corrupt/) ===
+  [ 1] snark  B8_libiop_l128_corrupt           -> cell_B8_libiop_l128_corrupt
+=== total: 1 cells ===
+
+=== execution log ===
+[00:48:06] >>> B8_libiop_l128_corrupt (snark) — log: results/bench_run_20260416_004806/bench_B8_libiop_l128_corrupt.log
+[00:50:12] PASS (126s)
+
+=== summary: 1 passed, 0 failed, results/bench_run_20260416_004806 ===

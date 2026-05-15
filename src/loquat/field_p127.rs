@@ -11,6 +11,22 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 // The prime modulus p = 2^127 - 1
 const MODULUS: u128 = (1 << 127) - 1;
 
+/// Global counter incremented on every Fp127::mul invocation. Used by
+/// attribution measurements in the RISC0 guest. ~10 rv32im cycles of
+/// overhead per increment vs ~243 cycles per multiplication (~4%).
+pub static FP127_MUL_COUNT: core::sync::atomic::AtomicU64 =
+    core::sync::atomic::AtomicU64::new(0);
+
+/// Global counters for Fp2 (quadratic extension over Mersenne-127)
+/// operations, used to attribute FRI polynomial-reconstruction work
+/// that is NOT captured by FP127_MUL_COUNT (e.g. Fp2 addition).
+pub static FP2_ADD_COUNT: core::sync::atomic::AtomicU64 =
+    core::sync::atomic::AtomicU64::new(0);
+pub static FP2_SUB_COUNT: core::sync::atomic::AtomicU64 =
+    core::sync::atomic::AtomicU64::new(0);
+pub static FP2_MUL_COUNT: core::sync::atomic::AtomicU64 =
+    core::sync::atomic::AtomicU64::new(0);
+
 /// Represents an element in the prime field F_p where p = 2^127 - 1.
 #[derive(Copy, Clone, PartialEq, Eq, Default, Hash)] // ADDED Hash
 pub struct Fp127(pub u128);
@@ -45,6 +61,7 @@ impl Sub for Fp127 {
 impl Mul for Fp127 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
+        FP127_MUL_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
         // Stable 128-bit multiplication
         let a = self.0;
         let b = rhs.0;
@@ -308,6 +325,7 @@ impl Fp2 {
 impl Add for Fp2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
+        FP2_ADD_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
         Self::new(self.c0 + rhs.c0, self.c1 + rhs.c1)
     }
 }
@@ -315,6 +333,7 @@ impl Add for Fp2 {
 impl Sub for Fp2 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
+        FP2_SUB_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
         Self::new(self.c0 - rhs.c0, self.c1 - rhs.c1)
     }
 }
@@ -322,6 +341,7 @@ impl Sub for Fp2 {
 impl Mul for Fp2 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
+        FP2_MUL_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
         let ac = self.c0 * rhs.c0;
         let bd = self.c1 * rhs.c1;
         let ad_plus_bc = (self.c0 + self.c1) * (rhs.c0 + rhs.c1) - ac - bd;

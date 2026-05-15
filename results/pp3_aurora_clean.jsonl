@@ -1,0 +1,2 @@
+{"status":"ok","label":"policy_v1","k":2,"lr_size":0,"revocation_depth":20,"exec_only":false,"constraint_count":813338,"t_I_s":86.432941,"t_P_s":127.150439,"t_V_s":79.952433,"instance_rebuild_s":0.372213,"proof_verify_s":39.865952,"proof_bytes":33575952,"signature_bytes":39488,"phases":[]}
+{"status":"ok","label":"policy_v2","k":2,"lr_size":0,"revocation_depth":20,"exec_only":false,"constraint_count":813343,"t_I_s":85.561050,"t_P_s":127.029761,"t_V_s":81.783295,"instance_rebuild_s":0.407117,"proof_verify_s":40.012378,"proof_bytes":33575120,"signature_bytes":39488,"phases":[]}

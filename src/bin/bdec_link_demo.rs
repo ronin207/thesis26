@@ -1,4 +1,7 @@
-use vc_pqc::{bdec_link_pseudonyms, bdec_nym_key, bdec_prigen, bdec_revoke, bdec_setup, bdec_verify_link_proof};
+use vc_pqc::{
+    bdec_link_pseudonyms, bdec_nym_key, bdec_prigen, bdec_revoke, bdec_setup,
+    bdec_verify_link_proof,
+};
 
 fn main() -> vc_pqc::LoquatResult<()> {
     println!("[bdec_link_demo] setup...");
@@ -29,18 +32,3 @@ fn main() -> vc_pqc::LoquatResult<()> {
 
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

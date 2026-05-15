@@ -1,0 +1,9 @@
+vc-pqc run summary — Wed Mar 25 03:26:37 +08 2026
+Results directory: /Users/takumiotsuka/Desktop/Projects/research/thesis/results/run_20260325_002120
+
+Suite                     Est.    Status
+-----                     ----    ------
+bench_runner              ~180 m  done:0
+
+OVERALL: all suites passed
+Total wall time: 3h 5m 17s

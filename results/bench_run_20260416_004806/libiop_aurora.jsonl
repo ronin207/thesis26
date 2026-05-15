@@ -1,0 +1,1 @@
+{"file":"target/aurora_bdec_s128.corrupt.bdec-r1cs","result":"REJECT","zk":false,"cs_satisfied":false,"sanity_check_skipped":true,"num_variables_incl_const1":262144,"num_inputs":0,"num_constraints":262144,"t_P_ms":105168,"t_V_ms":20446.3,"proof_bytes":640448,"suite":"B8","label":"B8_libiop_l128_corrupt","ts":"20260416_004806","runner_rc":1}

@@ -1,0 +1,308 @@
+]0;vc-pqc | zkvm_full
+--------------------------------------------------------------------
+  vc-pqc thesis -- suite: zkvm_full
+  zkVM parameter sweep — full STARK proving
+  Started : 2026-05-07 01:30:56
+  Log     : /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/results/run_20260506_224202/logs/zkvm_full.log
+--------------------------------------------------------------------
+
+   Compiling methods v0.1.0 (/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/zkvm/methods)
+warning: unused import: `super::encoding`
+ --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/loquat/verify.rs:1:5
+  |
+1 | use super::encoding;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::string::ToString`
+  --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/loquat/verify.rs:14:5
+   |
+14 | use std::string::ToString;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `full_prove_ms`
+  --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/bench/griffin.rs:29:28
+   |
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                            ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_prove_ms`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `full_verify_ms`
+  --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/bench/griffin.rs:29:43
+   |
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                                           ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_verify_ms`
+
+warning: unused variable: `full_proof_bytes`
+  --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/bench/griffin.rs:29:59
+   |
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                                                           ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_proof_bytes`
+
+warning: unused variable: `mu_var`
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:2951:9
+     |
+2951 |     let mu_var = F2Var {
+     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_mu_var`
+
+warning: function `hex_encode_sample` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/bdec/mod.rs:2446:4
+     |
+2446 | fn hex_encode_sample(bytes: &[u8]) -> String {
+     |    ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `flatten_field2_matrix` is never used
+   --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/loquat/sign.rs:185:4
+    |
+185 | fn flatten_field2_matrix(matrix: &[Vec<F2>], out: &mut Vec<u8>) {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `flatten_two_nested_field2` is never used
+   --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/loquat/sign.rs:206:4
+    |
+206 | fn flatten_two_nested_field2(blocks: &[Vec<Vec<F2>>], out: &mut Vec<u8>) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `verify_ldt` is never used
+   --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/loquat/verify.rs:699:8
+    |
+552 | impl<'a> Algorithm7Verifier<'a> {
+    | ------------------------------- method in this implementation
+...
+699 |     fn verify_ldt(&mut self) -> LoquatResult<()> {
+    |        ^^^^^^^^^^
+
+warning: function `merkle_path_opening` is never used
+ --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:1:4
+  |
+1 | fn merkle_path_opening(
+  |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_path_opening_fields` is never used
+  --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:90:4
+   |
+90 | fn merkle_path_opening_fields(
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `digest_bytes_to_field_vars` is never used
+   --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:270:4
+    |
+270 | fn digest_bytes_to_field_vars(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_cap_root_from_nodes` is never used
+   --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:289:4
+    |
+289 | fn merkle_cap_root_from_nodes(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_field_digest_equals_bytes` is never used
+   --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:360:4
+    |
+360 | fn enforce_field_digest_equals_bytes(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `field_mul_const` is never used
+   --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:922:4
+    |
+922 | fn field_mul_const(builder: &mut R1csBuilder, var: FieldVar, constant: F) -> FieldVar {
+    |    ^^^^^^^^^^^^^^^
+
+warning: method `to_dense` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:1014:8
+     |
+ 974 | impl SparseLC {
+     | ------------- method in this implementation
+...
+1014 |     fn to_dense(&self, num_variables: usize) -> Vec<F> {
+     |        ^^^^^^^^
+
+warning: methods `enforce_f2_sum_equals_unit`, `enforce_f2_sum_equals_const`, `xor3_bits`, `majority_bits`, and `choice_bits` are never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:1176:8
+     |
+1069 | impl R1csBuilder {
+     | ---------------- methods in this implementation
+...
+1176 |     fn enforce_f2_sum_equals_unit(&mut self, vars: &[F2Var], target: F2Var) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1202 |     fn enforce_f2_sum_equals_const(&mut self, vars: &[F2Var], constant: F2) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1283 |     fn xor3_bits(
+     |        ^^^^^^^^^
+...
+1304 |     fn majority_bits(
+     |        ^^^^^^^^^^^^^
+...
+1320 |     fn choice_bits(
+     |        ^^^^^^^^^^^
+
+warning: function `enforce_qr_witness_constraint` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:3694:4
+     |
+3694 | fn enforce_qr_witness_constraint(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_expected_relation` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:3747:4
+     |
+3747 | fn enforce_expected_relation(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `alloc_f2` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:3836:4
+     |
+3836 | fn alloc_f2(builder: &mut R1csBuilder, value: F2) -> F2Var {
+     |    ^^^^^^^^
+
+warning: function `enforce_f2_add_eq` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:3840:4
+     |
+3840 | fn enforce_f2_add_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+     |    ^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_f2_sub_eq` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:3844:4
+     |
+3844 | fn enforce_f2_sub_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+     |    ^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_f0_linear_combination` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:3954:4
+     |
+3954 | fn enforce_f0_linear_combination(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_byte_equality` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:3992:4
+     |
+3992 | fn enforce_byte_equality(builder: &mut R1csBuilder, left: &Byte, right: &Byte) {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `bytes_from_f2` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:4886:4
+     |
+4886 | fn bytes_from_f2(builder: &mut R1csBuilder, var: F2Var, value: F2) -> Vec<Byte> {
+     |    ^^^^^^^^^^^^^
+
+warning: function `serialize_field_matrix_bytes` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:4892:4
+     |
+4892 | fn serialize_field_matrix_bytes(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `TranscriptCircuit` is never constructed
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:4920:8
+     |
+4920 | struct TranscriptCircuit {
+     |        ^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `append_message`, and `challenge` are never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:4926:8
+     |
+4925 | impl TranscriptCircuit {
+     | ---------------------- associated items in this implementation
+4926 |     fn new(builder: &mut R1csBuilder, label: &[u8]) -> Self {
+     |        ^^^
+...
+4936 |     fn append_message(&mut self, builder: &mut R1csBuilder, label: &[u8], data: &[Byte]) {
+     |        ^^^^^^^^^^^^^^
+...
+4949 |     fn challenge(&mut self, builder: &mut R1csBuilder, label: &[u8]) -> Vec<Byte> {
+     |        ^^^^^^^^^
+
+warning: method `append_digest32_as_fields` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5002:8
+     |
+4981 | impl FieldTranscriptCircuit {
+     | --------------------------- method in this implementation
+...
+5002 |     fn append_digest32_as_fields(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_field_matches_digest` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5106:4
+     |
+5106 | fn enforce_field_matches_digest(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_digest_equals_bytes` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5505:4
+     |
+5505 | fn enforce_digest_equals_bytes(builder: &mut R1csBuilder, digest: &[Byte], expected: &[u8; 32]) {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_leaves` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5512:4
+     |
+5512 | fn merkle_root_from_leaves(builder: &mut R1csBuilder, leaves: &[Vec<Byte>]) -> Vec<Byte> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_fri_layer_leaves` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5535:4
+     |
+5535 | fn build_fri_layer_leaves(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `collect_f2_field_vars` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5661:4
+     |
+5661 | fn collect_f2_field_vars(vars: &[F2Var], values: &[F2]) -> Vec<FieldVar> {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `griffin_hash_f2_chunk` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5673:4
+     |
+5673 | fn griffin_hash_f2_chunk(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hash_chunked_f2_vector` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5682:4
+     |
+5682 | fn hash_chunked_f2_vector(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hash_chunked_c_columns` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5700:4
+     |
+5700 | fn hash_chunked_c_columns(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_field_digests` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5749:4
+     |
+5749 | fn merkle_root_from_field_digests(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_f2_vector` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5772:4
+     |
+5772 | fn merkle_root_from_f2_vector(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_c_matrix` is never used
+    --> /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/src/snarks/loquat_r1cs.rs:5783:4
+     |
+5783 | fn merkle_root_from_c_matrix(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `vc-pqc` (lib) generated 41 warnings (run `cargo fix --lib -p vc-pqc` to apply 6 suggestions)
+   Compiling host v0.1.0 (/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/zkvm/host)
+    Finished `release` profile [optimized + debuginfo] target(s) in 1m 04s
+warning: the following packages contain code that will be rejected by a future version of Rust: num-bigint-dig v0.8.4
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running `target/release/host --json`
+[2m2026-05-07T02:09:25.565913Z[0m [31mERROR[0m [2mhost[0m[2m:[0m host execution failed: CryptoError { operation: "prove_execution", details: "verify segment" }
+
+--------------------------------------------------------------------
+  RESULT : FAILED (exit 1)
+  Finished: 2026-05-07 11:09:25
+  Log     : /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/results/run_20260506_224202/logs/zkvm_full.log
+--------------------------------------------------------------------
+
+Press Enter to close this window...

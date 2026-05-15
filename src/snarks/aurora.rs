@@ -94,6 +94,15 @@ pub fn aurora_prove_with_options(
 ) -> LoquatResult<AuroraProof> {
     witness.validate(instance)?;
     let mut explicit = options.explicit_witness_queries.clone();
+    // Phase 6: automatically include public-input positions (1..=num_inputs) in
+    // the explicit witness queries. The verifier (with public_inputs supplied)
+    // checks each PI opening's value matches the expected PI vector and the
+    // Merkle path verifies against the committed witness root. This is what
+    // gives the public-input section cryptographic enforcement (was structural
+    // only before Phase 6).
+    for i in 1..=instance.num_inputs {
+        explicit.push(i);
+    }
     explicit.sort_unstable();
     explicit.dedup();
     for &index in &explicit {
@@ -337,6 +346,60 @@ pub fn aurora_verify(
     Ok(Some(AuroraVerificationResult {
         opened_witness_values: opened_witness,
     }))
+}
+
+/// Phase 6: Aurora verifier with public-input enforcement.
+///
+/// Performs the standard Aurora verification (delegating to [`aurora_verify`])
+/// and additionally checks that:
+///   1. The proof's explicit witness queries include positions `1..=num_inputs`
+///      (where 1 is the first witness slot after the implicit constant-1 var,
+///      so PI occupies indices `1..=num_inputs` of the assignment vector).
+///   2. The Merkle openings at those positions verify against `proof.witness_root`
+///      (already done by `aurora_verify`).
+///   3. Each opened value matches `public_inputs[i - 1]` for i ∈ [1, num_inputs].
+///
+/// This gives the public-input section *cryptographic* enforcement: a malicious
+/// prover cannot put incorrect values at PI positions because the witness
+/// Merkle root commits to all values, and the verifier checks the committed
+/// values at PI positions match the supplied public-input vector.
+///
+/// `public_inputs` should be a slice of length `instance.num_inputs` holding
+/// the verifier-supplied public-input values in canonical order. If
+/// `instance.num_inputs == 0`, this function behaves identically to
+/// `aurora_verify` (the public-inputs slice may be empty).
+pub fn aurora_verify_with_public_inputs(
+    instance: &R1csInstance,
+    proof: &AuroraProof,
+    params: &AuroraParams,
+    hints: Option<&AuroraVerificationHints>,
+    public_inputs: &[F],
+) -> LoquatResult<Option<AuroraVerificationResult>> {
+    if public_inputs.len() != instance.num_inputs {
+        return Err(LoquatError::invalid_parameters(
+            "public_inputs length must match instance.num_inputs",
+        ));
+    }
+    let result = match aurora_verify(instance, proof, params, hints)? {
+        Some(r) => r,
+        None => return Ok(None),
+    };
+    // Phase 6: verify PI positions are present and values match.
+    for (offset, &expected_value) in public_inputs.iter().enumerate() {
+        let position = offset + 1; // PI[0] is at assignment index 1 (after implicit constant-1)
+        match result.opened(position) {
+            Some(opened_value) => {
+                if opened_value != expected_value {
+                    return Ok(None);
+                }
+            }
+            None => {
+                // PI position not in opened witness — proof is malformed.
+                return Ok(None);
+            }
+        }
+    }
+    Ok(Some(result))
 }
 
 pub fn aurora_digest(proof: &AuroraProof) -> LoquatResult<[u8; 32]> {
@@ -622,5 +685,52 @@ mod tests {
         proof.residual_evals[0] = F2::one();
         let result = aurora_verify(&instance, &proof, &params, None).unwrap();
         assert!(result.is_none());
+    }
+
+    /// Phase 6: build a R1CS with `num_inputs = 2` (x and y as public inputs;
+    /// z = x · y as private witness). Prove and verify with matching PI →
+    /// accept; verify with mismatched PI → reject.
+    #[test]
+    fn aurora_public_input_enforcement() {
+        let params = AuroraParams::default();
+        // Same constraint x · y = z as `multiplication_instance`, but mark x and y
+        // as public inputs.
+        let num_variables = 4;
+        let mut a = vec![F::zero(); num_variables];
+        a[1] = F::one();
+        let mut b = vec![F::zero(); num_variables];
+        b[2] = F::one();
+        let mut c = vec![F::zero(); num_variables];
+        c[3] = F::one();
+        let constraint = R1csConstraint::new(a, b, c);
+        let mut instance = R1csInstance::new(num_variables, vec![constraint]).unwrap();
+        instance.num_inputs = 2; // x, y are public inputs
+        let witness = R1csWitness::new(vec![F::new(3), F::new(5), F::new(15)]);
+
+        let proof = aurora_prove(&instance, &witness, &params).unwrap();
+
+        // Matching PI: accept.
+        let public_inputs = [F::new(3), F::new(5)];
+        let ok = aurora_verify_with_public_inputs(&instance, &proof, &params, None, &public_inputs)
+            .unwrap();
+        assert!(ok.is_some(), "PI-matching verification should accept");
+
+        // Mismatched PI: reject.
+        let bad_public_inputs = [F::new(7), F::new(5)]; // x lied
+        let bad =
+            aurora_verify_with_public_inputs(&instance, &proof, &params, None, &bad_public_inputs)
+                .unwrap();
+        assert!(bad.is_none(), "PI-mismatching verification must reject");
+
+        // Wrong PI count: error.
+        let wrong_count_pi = [F::new(3)];
+        let err = aurora_verify_with_public_inputs(
+            &instance,
+            &proof,
+            &params,
+            None,
+            &wrong_count_pi,
+        );
+        assert!(err.is_err(), "PI count mismatch should be a parameter error");
     }
 }

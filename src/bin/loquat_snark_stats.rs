@@ -3,7 +3,7 @@ use std::{env, time::Duration, time::Instant};
 use bincode::serialize;
 use serde::{Deserialize, Serialize};
 use vc_pqc::snarks::{
-    AuroraParams, AuroraProverOptions, aurora_prove_with_options, aurora_verify, build_loquat_r1cs,
+    AuroraParams, AuroraProverOptions, aurora_prove_with_options, aurora_verify, build_loquat_r1cs_pk_witness,
 };
 use vc_pqc::{
     LoquatSignature, LoquatSignatureArtifact, LoquatSigningTranscript, keygen_with_params,
@@ -403,7 +403,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let query_count = config.aurora_queries.unwrap_or(8);
     let (instance, witness) =
-        build_loquat_r1cs(&message, &signature, &keypair.public_key, &params)?;
+        build_loquat_r1cs_pk_witness(&message, &signature, &keypair.public_key, &params)?;
     if !quiet {
         println!("\n--- R1CS stats ---");
         println!("  variables:            {}", instance.num_variables);

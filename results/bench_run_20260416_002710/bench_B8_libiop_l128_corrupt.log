@@ -1,0 +1,372 @@
+[B8] B8_libiop_l128_corrupt: running target/aurora_bdec_s128.corrupt.bdec-r1cs with env=SKIP_SATISFIED_CHECK=1
+[runner] libiop.a = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/libiop/libiop.a
+[runner] libff.a  = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/depends/libff/libff/libff.a
+[runner] running on target/aurora_bdec_s128.corrupt.bdec-r1cs ...
+[runner] loading target/aurora_bdec_s128.corrupt.bdec-r1cs ...
+Reset time counters for profiling
+[runner] wire: num_vars=262144 (incl const-1), num_inputs=0, num_constraints=262144
+[runner] make_zk=false RS_extra_dimensions=5
+[runner] Aurora prover ...
+(enter) Aurora SNARK prover                	[             ]	(0.1284s x1.00 from start)
+  
+Aurora SNARK parameters
+  * security parameter (bits) = 128
+  * RS extra dimensions = 5
+  * LDT reducer soundness type = proven
+  * FRI soundness type = heuristic
+  * zero-knowledge = false
+  * domain type = multiplicative coset
+
+Aurora IOP parameters
+  * target security parameter = 128
+  * achieved security parameter = 108.0
+  * RS extra dimensions = 5
+  * codeword domain dim = 23
+  * constraint domain dim = 18
+  * variable domain dim = 18
+  * query bound = 0
+  * make zk = false
+  * domain type = multiplicative coset
+
+Multi lincheck parameters
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 235.0
+  * interactive repetitions = 1
+  * constraint domain dim = 18
+  * make zk = false
+  * domain type = multiplicative coset
+
+LDT instance reducer parameters
+  * soundness type = proven
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 230.0
+  * codeword domain dim = 23
+  * max tested degree bound = 262144
+  * max constraint degree bound = 524287
+  * absolute proximity parameter = 2708820
+  * fractional proximity parameter = 0.322917
+  * num output LDT instances = 1
+
+FRI parameters
+  * soundness type = heuristic
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 253.0
+  * target query soundness error (bits) = 108
+  * achieved query soundness error (bits) = 108.0
+  * codeword domain dim = 23
+  * effective proximity parameter = 0.322917
+  * number of interactive repetitions = 1
+  * number of query repetitions = 192
+  * localization parameter array = { 1 2 2 2 2 2 2 2 2 }
+  * number of reductions = 9
+
+BCS parameters
+  * digest_len (bytes) = 32
+  * digest_len (bits) = 256
+  * hash_type = blake2b
+  (enter) Submit witness oracles             	[             ]	(0.1432s x1.00 from start)
+    (enter) Compute randomized f_w             	[             ]	(0.1432s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(0.1432s x1.00 from start)
+        * Vector size: 1
+        * Coset size: 1
+      (leave) Call to multiplicative_IFFT_wrapper	[0.0000s x0.84]	(0.1432s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(0.1432s x1.00 from start)
+        * Vector size: 1
+        * Subgroup size: 262144
+      (leave) Call to multiplicative_FFT_wrapper 	[0.0221s x1.00]	(0.1653s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(0.1693s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4333s x1.00]	(0.6027s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(0.6360s x1.00 from start)
+        * Vector size: 262143
+        * Subgroup size: 8388608
+      (leave) Call to multiplicative_FFT_wrapper 	[8.6511s x1.00]	(9.2872s x1.00 from start)
+    (leave) Compute randomized f_w             	[9.1440s x1.00]	(9.2872s x1.00 from start)
+    (enter) Compute A/B/Cz                     	[             ]	(9.2872s x1.00 from start)
+    (leave) Compute A/B/Cz                     	[0.0599s x1.00]	(9.3471s x1.00 from start)
+    (enter) Compute f_{A/B/Cz} over codeword domain	[             ]	(9.3471s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(9.3476s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4290s x1.00]	(9.7767s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(9.7770s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4286s x1.00]	(10.2056s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(10.2060s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4285s x1.00]	(10.6344s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(10.6348s x1.00 from start)
+        * Vector size: 262144
+        * Subgroup size: 8388608
+      (leave) Call to multiplicative_FFT_wrapper 	[7.9573s x1.00]	(18.5921s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(18.5923s x1.00 from start)
+        * Vector size: 262144
+        * Subgroup size: 8388608
+      (leave) Call to multiplicative_FFT_wrapper 	[7.9594s x1.00]	(26.5516s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(26.5518s x1.00 from start)
+        * Vector size: 262144
+        * Subgroup size: 8388608
+      (leave) Call to multiplicative_FFT_wrapper 	[7.9359s x1.00]	(34.4877s x1.00 from start)
+    (leave) Compute f_{A/B/Cz} over codeword domain	[25.1406s x1.00]	(34.4877s x1.00 from start)
+    (enter) Call IOP oracle submission routines	[             ]	(34.4877s x1.00 from start)
+    (leave) Call IOP oracle submission routines	[0.0000s x0.81]	(34.4877s x1.00 from start)
+  (leave) Submit witness oracles             	[34.3445s x1.00]	(34.4877s x1.00 from start)
+  (enter) LDT Reducer: Submit masking polynomial	[             ]	(34.4877s x1.00 from start)
+  (leave) LDT Reducer: Submit masking polynomial	[0.0000s x1.41]	(34.4877s x1.00 from start)
+  (enter) Finish prover round                	[             ]	(34.4877s x1.00 from start)
+    (enter) Construct Merkle tree              	[             ]	(34.4877s x1.00 from start)
+    (leave) Construct Merkle tree              	[1.6106s x1.00]	(36.0983s x1.00 from start)
+  (leave) Finish prover round                	[1.6106s x1.00]	(36.0983s x1.00 from start)
+  (enter) pow                                	[             ]	(36.0983s x1.00 from start)
+  (leave) pow                                	[0.0000s x1.12]	(36.0983s x1.00 from start)
+  (enter) multi_lincheck: Calculate and submit proof	[             ]	(36.0983s x1.00 from start)
+    (enter) multi_lincheck compute alpha powers	[             ]	(36.0983s x1.00 from start)
+    (leave) multi_lincheck compute alpha powers	[0.0207s x1.00]	(36.1190s x1.00 from start)
+    (enter) multi_lincheck compute p_alpha_prime	[             ]	(36.1190s x1.00 from start)
+    (leave) multi_lincheck compute p_alpha_prime	[0.0032s x1.00]	(36.1222s x1.00 from start)
+    (enter) multi_lincheck compute p_alpha_ABC 	[             ]	(36.1222s x1.00 from start)
+    (leave) multi_lincheck compute p_alpha_ABC 	[0.1665s x1.00]	(36.2887s x1.00 from start)
+    (enter) multi_lincheck IFFT p_alphas       	[             ]	(36.2887s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(36.2888s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4326s x1.00]	(36.7214s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(36.7216s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4332s x1.00]	(37.1547s x1.00 from start)
+    (leave) multi_lincheck IFFT p_alphas       	[0.8660s x1.00]	(37.1547s x1.00 from start)
+    (enter) fz evaluated contents              	[             ]	(37.1548s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(37.8706s x1.00 from start)
+        * Vector size: 1
+        * Coset size: 1
+      (leave) Call to multiplicative_IFFT_wrapper	[0.0000s x0.97]	(37.8707s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(37.8707s x1.00 from start)
+        * Vector size: 1
+        * Subgroup size: 8388608
+      (leave) Call to multiplicative_FFT_wrapper 	[0.0155s x1.00]	(37.8862s x1.00 from start)
+    (leave) fz evaluated contents              	[1.4612s x1.00]	(38.6160s x1.00 from start)
+    (enter) multi_lincheck evaluated contents  	[             ]	(38.6160s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(38.6162s x1.00 from start)
+        * Vector size: 262144
+        * Subgroup size: 8388608
+      (leave) Call to multiplicative_FFT_wrapper 	[7.9960s x1.00]	(46.6121s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(46.6123s x1.00 from start)
+        * Vector size: 262144
+        * Subgroup size: 8388608
+      (leave) Call to multiplicative_FFT_wrapper 	[8.0081s x1.00]	(54.6204s x1.00 from start)
+    (leave) multi_lincheck evaluated contents  	[19.7736s x1.00]	(58.3896s x1.00 from start)
+    (enter) Call to multiplicative_IFFT_wrapper	[             ]	(59.0591s x1.00 from start)
+      * Vector size: 524288
+      * Coset size: 524288
+    (leave) Call to multiplicative_IFFT_wrapper	[1.0143s x1.00]	(60.0735s x1.00 from start)
+    (enter) Call to multiplicative_FFT_wrapper 	[             ]	(60.1071s x1.00 from start)
+      * Vector size: 262143
+      * Subgroup size: 8388608
+    (leave) Call to multiplicative_FFT_wrapper 	[7.9699s x1.00]	(68.0770s x1.00 from start)
+  (leave) multi_lincheck: Calculate and submit proof	[31.9787s x1.00]	(68.0770s x1.00 from start)
+  (enter) Finish prover round                	[             ]	(68.0770s x1.00 from start)
+    (enter) Construct Merkle tree              	[             ]	(68.0770s x1.00 from start)
+    (leave) Construct Merkle tree              	[1.1976s x1.00]	(69.2747s x1.00 from start)
+  (leave) Finish prover round                	[1.1976s x1.00]	(69.2747s x1.00 from start)
+  (enter) pow                                	[             ]	(69.2747s x1.00 from start)
+  (leave) pow                                	[0.0000s x0.67]	(69.2747s x1.00 from start)
+  (enter) LDT Reducer: Calculate and submit proof	[             ]	(69.2747s x1.00 from start)
+    (enter) Sumcheck: g evaluated contents     	[             ]	(69.2747s x1.00 from start)
+    (leave) Sumcheck: g evaluated contents     	[2.1730s x1.00]	(71.4477s x1.00 from start)
+    (enter) rowcheck evaluated contents        	[             ]	(71.4478s x1.00 from start)
+    (leave) rowcheck evaluated contents        	[1.4538s x1.00]	(72.9015s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(81.1376s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[3.9620s x1.00]	(85.0996s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(85.1045s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(85.1045s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(85.1045s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.3171s x1.00]	(85.4216s x1.00 from start)
+      (leave) Finish prover round                	[0.3171s x1.00]	(85.4216s x1.00 from start)
+      (enter) pow                                	[             ]	(85.4217s x1.00 from start)
+      (leave) pow                                	[0.0000s x1.04]	(85.4217s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.3172s x1.00]	(85.4217s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(85.4217s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[1.7321s x1.00]	(87.1537s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.1547s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.1547s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(87.1547s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.0791s x1.00]	(87.2338s x1.00 from start)
+      (leave) Finish prover round                	[0.0791s x1.00]	(87.2338s x1.00 from start)
+      (enter) pow                                	[             ]	(87.2338s x1.00 from start)
+      (leave) pow                                	[0.0000s x1.50]	(87.2338s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.0791s x1.00]	(87.2339s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(87.2339s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[0.4338s x1.00]	(87.6676s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.6679s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.6679s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(87.6679s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.0200s x1.00]	(87.6879s x1.00 from start)
+      (leave) Finish prover round                	[0.0200s x1.00]	(87.6879s x1.00 from start)
+      (enter) pow                                	[             ]	(87.6879s x1.00 from start)
+      (leave) pow                                	[0.0000s x1.20]	(87.6879s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.0200s x1.00]	(87.6879s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(87.6879s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[0.1075s x1.00]	(87.7954s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.7954s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.7954s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(87.7954s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.0049s x1.00]	(87.8003s x1.00 from start)
+      (leave) Finish prover round                	[0.0049s x1.00]	(87.8003s x1.00 from start)
+      (enter) pow                                	[             ]	(87.8003s x1.00 from start)
+      (leave) pow                                	[0.0000s x1.37]	(87.8003s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.0049s x1.00]	(87.8003s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(87.8003s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[0.0271s x1.00]	(87.8274s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.8274s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.8274s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(87.8274s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.0013s x1.00]	(87.8287s x1.00 from start)
+      (leave) Finish prover round                	[0.0013s x1.00]	(87.8287s x1.00 from start)
+      (enter) pow                                	[             ]	(87.8287s x1.00 from start)
+      (leave) pow                                	[0.0000s x1.41]	(87.8287s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.0013s x1.00]	(87.8287s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(87.8287s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[0.0069s x1.00]	(87.8356s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.8356s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.8356s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(87.8356s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.0003s x1.00]	(87.8359s x1.00 from start)
+      (leave) Finish prover round                	[0.0003s x1.00]	(87.8359s x1.00 from start)
+      (enter) pow                                	[             ]	(87.8359s x1.00 from start)
+      (leave) pow                                	[0.0000s x0.71]	(87.8359s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.0003s x1.00]	(87.8359s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(87.8359s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[0.0017s x1.00]	(87.8376s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.8376s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.8376s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(87.8376s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.0001s x1.01]	(87.8377s x1.00 from start)
+      (leave) Finish prover round                	[0.0001s x1.00]	(87.8377s x1.00 from start)
+      (enter) pow                                	[             ]	(87.8377s x1.00 from start)
+      (leave) pow                                	[0.0000s x1.04]	(87.8377s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.0001s x1.00]	(87.8377s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(87.8377s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[0.0004s x1.00]	(87.8381s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.8381s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.8381s x1.00 from start)
+        (enter) Construct Merkle tree              	[             ]	(87.8381s x1.00 from start)
+        (leave) Construct Merkle tree              	[0.0000s x1.01]	(87.8382s x1.00 from start)
+      (leave) Finish prover round                	[0.0000s x1.00]	(87.8382s x1.00 from start)
+      (enter) pow                                	[             ]	(87.8382s x1.00 from start)
+      (leave) pow                                	[0.0000s x1.50]	(87.8382s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.0001s x0.99]	(87.8382s x1.00 from start)
+    (enter) evaluating next FRI codeword       	[             ]	(87.8382s x1.00 from start)
+    (leave) evaluating next FRI codeword       	[0.0001s x0.99]	(87.8383s x1.00 from start)
+    (enter) Call to multiplicative_IFFT_wrapper	[             ]	(87.8383s x1.00 from start)
+      * Vector size: 64
+      * Coset size: 64
+    (leave) Call to multiplicative_IFFT_wrapper	[0.0001s x1.00]	(87.8384s x1.00 from start)
+    (enter) LDT signal prover round done       	[             ]	(87.8384s x1.00 from start)
+      (enter) Finish prover round                	[             ]	(87.8384s x1.00 from start)
+      (leave) Finish prover round                	[0.0000s x1.00]	(87.8384s x1.00 from start)
+      (enter) pow                                	[             ]	(87.8384s x1.00 from start)
+      (leave) pow                                	[0.3034s x1.00]	(88.1418s x1.00 from start)
+    (leave) LDT signal prover round done       	[0.3034s x1.00]	(88.1418s x1.00 from start)
+  (leave) LDT Reducer: Calculate and submit proof	[18.8671s x1.00]	(88.1418s x1.00 from start)
+  (enter) Obtain transcript                  	[             ]	(88.1418s x1.00 from start)
+  (leave) Obtain transcript                  	[19.4118s x1.00]	(107.5536s x1.00 from start)
+  * Total size of proof oracles (bytes): 1521131520
+  * Total size of Merkle tree (bytes): 626347712
+  * Total size of prover state (bytes): 2147479232
+(leave) Aurora SNARK prover                	[107.4252s x1.00]	(107.5536s x1.00 from start)
+[runner] Aurora verifier ...
+(enter) Aurora SNARK verifier              	[             ]	(107.7391s x1.00 from start)
+  
+Aurora SNARK parameters
+  * security parameter (bits) = 128
+  * RS extra dimensions = 5
+  * LDT reducer soundness type = proven
+  * FRI soundness type = heuristic
+  * zero-knowledge = false
+  * domain type = multiplicative coset
+
+Aurora IOP parameters
+  * target security parameter = 128
+  * achieved security parameter = 108.0
+  * RS extra dimensions = 5
+  * codeword domain dim = 23
+  * constraint domain dim = 18
+  * variable domain dim = 18
+  * query bound = 0
+  * make zk = false
+  * domain type = multiplicative coset
+
+Multi lincheck parameters
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 235.0
+  * interactive repetitions = 1
+  * constraint domain dim = 18
+  * make zk = false
+  * domain type = multiplicative coset
+
+LDT instance reducer parameters
+  * soundness type = proven
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 230.0
+  * codeword domain dim = 23
+  * max tested degree bound = 262144
+  * max constraint degree bound = 524287
+  * absolute proximity parameter = 2708820
+  * fractional proximity parameter = 0.322917
+  * num output LDT instances = 1
+
+FRI parameters
+  * soundness type = heuristic
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 253.0
+  * target query soundness error (bits) = 108
+  * achieved query soundness error (bits) = 108.0
+  * codeword domain dim = 23
+  * effective proximity parameter = 0.322917
+  * number of interactive repetitions = 1
+  * number of query repetitions = 192
+  * localization parameter array = { 1 2 2 2 2 2 2 2 2 }
+  * number of reductions = 9
+
+BCS parameters
+  * digest_len (bytes) = 32
+  * digest_len (bits) = 256
+  * hash_type = blake2b
+  (enter) Aurora IOP protocol initialization and registration	[             ]	(107.7394s x1.00 from start)
+    (enter) verifier_seal_interaction_registrations	[             ]	(107.7516s x1.00 from start)
+    (leave) verifier_seal_interaction_registrations	[0.0036s x1.00]	(107.7553s x1.00 from start)
+  (leave) Aurora IOP protocol initialization and registration	[0.0165s x1.00]	(107.7559s x1.00 from start)
+  (enter) Check semantic validity of IOP transcript	[             ]	(107.7559s x1.00 from start)
+  (leave) Check semantic validity of IOP transcript	[0.0000s x0.59]	(107.7559s x1.00 from start)
+  (enter) Construct R1CS verifier state      	[             ]	(107.7559s x1.00 from start)
+    (enter) multi_lincheck compute alpha powers	[             ]	(107.7559s x1.00 from start)
+    (leave) multi_lincheck compute alpha powers	[0.0207s x1.00]	(107.7766s x1.00 from start)
+    (enter) multi_lincheck compute p_alpha_prime	[             ]	(107.7766s x1.00 from start)
+    (leave) multi_lincheck compute p_alpha_prime	[0.0031s x1.00]	(107.7797s x1.00 from start)
+    (enter) multi_lincheck compute p_alpha_ABC 	[             ]	(107.7797s x1.00 from start)
+    (leave) multi_lincheck compute p_alpha_ABC 	[0.1627s x1.00]	(107.9424s x1.00 from start)
+    (enter) multi_lincheck IFFT p_alphas       	[             ]	(107.9424s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(107.9425s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4330s x1.00]	(108.3755s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(108.3759s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4331s x1.00]	(108.8090s x1.00 from start)
+    (leave) multi_lincheck IFFT p_alphas       	[0.8666s x1.00]	(108.8090s x1.00 from start)
+  (leave) Construct R1CS verifier state      	[1.0532s x1.00]	(108.8090s x1.00 from start)
+  (enter) Check LDT verifier predicate       	[             ]	(108.8090s x1.00 from start)
+    * Number of FRI interactions: 1
+    * Number of FRI query sets per interaction: 192
+    * Total number of FRI queries over all query sets (incl. repeated queries): 6528
+  (leave) Check LDT verifier predicate       	[19.3962s x1.00]	(128.2052s x1.00 from start)
+  * IOP transcript valid: true
+  * Full protocol decision predicate satisfied: true
+(leave) Aurora SNARK verifier              	[20.4661s x1.00]	(128.2053s x1.00 from start)
+{"file":"target/aurora_bdec_s128.corrupt.bdec-r1cs","result":"ACCEPT","zk":false,"cs_satisfied":true,"sanity_check_skipped":true,"num_variables_incl_const1":262144,"num_inputs":0,"num_constraints":262144,"t_P_ms":107610,"t_V_ms":20477.9,"proof_bytes":640448}
+[B8] corrupt: FAIL rc=0 (expected rc=1 = REJECT)

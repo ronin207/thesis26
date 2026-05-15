@@ -9,7 +9,7 @@
 //! - It's more efficient in zero-knowledge proof systems
 
 use super::field_utils::{self, F};
-use super::griffin::{griffin_permutation_raw, GRIFFIN_STATE_WIDTH};
+use super::griffin::{GRIFFIN_STATE_WIDTH, griffin_permutation_raw};
 #[cfg(not(feature = "std"))]
 use alloc::vec;
 #[cfg(not(feature = "std"))]
@@ -219,16 +219,14 @@ impl MerkleTree {
         config: MerkleConfig,
     ) -> bool {
         let _ = config; // reserved for potential arity-aware path checks
-        let mut current_hash = compress_leaf_single_permutation(std::slice::from_ref(&leaf));
+        let mut current_hash = compress_leaf_single_permutation(core::slice::from_ref(&leaf));
         let mut current_index_in_level = leaf_index;
 
         for sibling_hash in path {
             if current_index_in_level % 2 == 0 {
-                current_hash =
-                    compress_internal_single_permutation(&current_hash, sibling_hash);
+                current_hash = compress_internal_single_permutation(&current_hash, sibling_hash);
             } else {
-                current_hash =
-                    compress_internal_single_permutation(sibling_hash, &current_hash);
+                current_hash = compress_internal_single_permutation(sibling_hash, &current_hash);
             }
             current_index_in_level /= 2;
         }
@@ -263,7 +261,7 @@ impl MerkleTree {
         }
 
         // 2) Recompute the cap node for this leaf using the truncated path.
-        let mut current_hash = compress_leaf_single_permutation(std::slice::from_ref(&leaf));
+        let mut current_hash = compress_leaf_single_permutation(core::slice::from_ref(&leaf));
         let mut current_index_in_level = leaf_index;
         for sibling_hash in path {
             if current_index_in_level % 2 == 0 {

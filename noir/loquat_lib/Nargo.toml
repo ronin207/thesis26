@@ -1,0 +1,7 @@
+[package]
+name = "loquat_lib"
+type = "lib"
+authors = ["takumiotsuka"]
+description = "Loquat helper types and foreign function declarations for Noir circuits"
+
+[dependencies]

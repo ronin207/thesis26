@@ -1,0 +1,18 @@
+[bench_runner] starting 6 suite(s) → results/bench_1776145971.jsonl
+[bench_runner] ── suite: aurora-rerun ──
+[bench_runner] suite aurora-rerun FAILED after 6.1s: Parameter validation failed: Parameter validation failed: libiop aurora_prove: LibiopError(InternalError): aurora_prove: aurora_snark.tcc missing from libiop checkout
+[bench_runner] ── suite: griffin ──
+[bench_runner] suite griffin FAILED after 5.7s: Parameter validation failed: Parameter validation failed: libiop aurora_prove: LibiopError(InternalError): aurora_prove: aurora_snark.tcc missing from libiop checkout
+[bench_runner] ── suite: circuit-scale ──
+[bench_runner] suite circuit-scale FAILED after 6.3s: Parameter validation failed: Parameter validation failed: libiop aurora_prove: LibiopError(InternalError): aurora_prove: aurora_snark.tcc missing from libiop checkout
+[bench_runner] ── suite: backend ──
+[bench_runner] suite backend FAILED after 2.0s: Parameter validation failed: libiop aurora_prove: LibiopError(InternalError): aurora_prove: aurora_snark.tcc missing from libiop checkout
+[bench_runner] ── suite: r1cs-compare ──
+[B2] Noir R1CS load failed (noir/bdec_showver/target/bdec_showver.json): Parameter validation failed: ACIR missing `current_witness_index`.
+[B2] nargo info fallback: acir_opcodes=2866, brillig_opcodes=0
+[bench_runner] suite r1cs-compare done in 0.2s
+[bench_runner] ── suite: noir ──
+[B1] ACIR artefact at noir/bdec_showver/target/bdec_showver.json is not JSON (nargo >= 1.0.0-beta.17 uses binary format); falling back to `nargo info` for constraint count
+[B1] nargo info --json: acir_opcodes=2866
+[bench_runner] suite noir done in 1.4s
+[bench_runner] all suites done in 21.6s (42 JSONL records written) → results/bench_1776145971.jsonl

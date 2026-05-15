@@ -305,10 +305,8 @@ fn verify_ldt_proof(
     for round in 0..params.r {
         folding_challenges.push(transcript_challenge_f2(transcript));
         if round + 1 < ldt_proof.commitments.len() {
-            transcript.append_digest32_as_fields(
-                b"merkle_commitment",
-                &ldt_proof.commitments[round + 1],
-            );
+            transcript
+                .append_digest32_as_fields(b"merkle_commitment", &ldt_proof.commitments[round + 1]);
         }
     }
     if signature.fri_challenges != folding_challenges {
@@ -434,8 +432,9 @@ fn verify_ldt_proof(
             let z_h = x.pow(h_order) - z_h_constant;
 
             // p(x) = (|H|·f'(x) − |H|·Z_H(x)·h(x) − (z·μ + S)) / (|H|·x)
-            let numerator =
-                h_size_scalar * f_prime - h_size_scalar * z_h * query_opening.h_chunk[offset] - z_mu_plus_s;
+            let numerator = h_size_scalar * f_prime
+                - h_size_scalar * z_h * query_opening.h_chunk[offset]
+                - z_mu_plus_s;
             let denom = h_size_scalar * x;
             let denom_inv = denom.inverse().ok_or_else(|| {
                 LoquatError::invalid_parameters("Encountered zero denominator in p(x) computation")
@@ -453,22 +452,31 @@ fn verify_ldt_proof(
                 params
                     .rho_star_num
                     .checked_sub(params.rho_numerators[0])
-                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_1"))? as u128,
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_1"))?
+                    as u128,
                 params
                     .rho_star_num
                     .checked_sub(params.rho_numerators[1])
-                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_2"))? as u128,
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_2"))?
+                    as u128,
                 params
                     .rho_star_num
                     .checked_sub(params.rho_numerators[2])
-                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_3"))? as u128,
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_3"))?
+                    as u128,
                 params
                     .rho_star_num
                     .checked_sub(params.rho_numerators[3])
-                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_4"))? as u128,
+                    .ok_or_else(|| LoquatError::invalid_parameters("ρ* < ρ_4"))?
+                    as u128,
             ];
 
-            let base = [c_sum, query_opening.s_chunk[offset], query_opening.h_chunk[offset], p_val];
+            let base = [
+                c_sum,
+                query_opening.s_chunk[offset],
+                query_opening.h_chunk[offset],
+                p_val,
+            ];
             let mut f0 = F2::zero();
             for row_idx in 0..4 {
                 f0 += signature.e_vector[row_idx] * base[row_idx];
@@ -489,7 +497,8 @@ fn verify_ldt_proof(
                 return Ok(false);
             }
 
-            let leaf_bytes = field_utils::serialize_field2_slice(&ldt_opening.codeword_chunks[round]);
+            let leaf_bytes =
+                field_utils::serialize_field2_slice(&ldt_opening.codeword_chunks[round]);
             let leaf_index = fold_index / chunk_size;
             if !super::merkle::MerkleTree::verify_auth_path_with_cap(
                 &ldt_proof.commitments[round],
@@ -698,7 +707,9 @@ impl<'a> Algorithm7Verifier<'a> {
         epsilons: &[F2],
     ) -> LoquatResult<()> {
         if self.signature.e_vector.len() != 8 {
-            return Err(LoquatError::verification_failure("e-vector length mismatch"));
+            return Err(LoquatError::verification_failure(
+                "e-vector length mismatch",
+            ));
         }
         if !verify_ldt_proof(
             self.signature,
@@ -961,6 +972,55 @@ pub fn loquat_verify(
 ) -> LoquatResult<bool> {
     let verifier = Algorithm7Verifier::new(message, signature, public_key, params);
     match verifier.run() {
+        Ok(()) => Ok(true),
+        Err(LoquatError::VerificationFailure { .. }) => Ok(false),
+        Err(err) => Err(err),
+    }
+}
+
+/// Phased verifier: behaviorally identical to `loquat_verify`, but invokes
+/// `hook(name)` immediately before each Algorithm-7 sub-phase begins.
+/// Intended for cycle-count instrumentation inside the RISC0 guest.
+/// Phase names (in order): `message_commitment`, `absorb_sigma1`,
+/// `absorb_sigma2`, `legendre_constraints`, `sumcheck`,
+/// `absorb_sigma3_sigma4`, `ldt_openings`, `done`.
+pub fn loquat_verify_phased<H>(
+    message: &[u8],
+    signature: &LoquatSignature,
+    public_key: &Vec<F>,
+    params: &LoquatPublicParams,
+    mut hook: H,
+) -> LoquatResult<bool>
+where
+    H: FnMut(&'static str),
+{
+    fn inner<H: FnMut(&'static str)>(
+        message: &[u8],
+        signature: &LoquatSignature,
+        public_key: &Vec<F>,
+        params: &LoquatPublicParams,
+        hook: &mut H,
+    ) -> LoquatResult<()> {
+        let mut verifier = Algorithm7Verifier::new(message, signature, public_key, params);
+        hook("message_commitment");
+        verifier.verify_message_commitment()?;
+        hook("absorb_sigma1");
+        let indices = verifier.absorb_sigma1()?;
+        hook("absorb_sigma2");
+        let (lambdas, epsilons) = verifier.absorb_sigma2()?;
+        hook("legendre_constraints");
+        verifier.verify_legendre_constraints(&indices, &lambdas, &epsilons)?;
+        hook("sumcheck");
+        verifier.verify_sumcheck()?;
+        hook("absorb_sigma3_sigma4");
+        verifier.absorb_sigma3_sigma4()?;
+        hook("ldt_openings");
+        verifier.verify_ldt_openings(&indices, &lambdas, &epsilons)?;
+        hook("done");
+        Ok(())
+    }
+
+    match inner(message, signature, public_key, params, &mut hook) {
         Ok(()) => Ok(true),
         Err(LoquatError::VerificationFailure { .. }) => Ok(false),
         Err(err) => Err(err),

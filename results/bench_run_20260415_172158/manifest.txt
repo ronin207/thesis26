@@ -1,0 +1,40 @@
+# run_benchmarks.sh — mode=snark tiny=0 runs_override=<config> ts=20260415_172158
+# cwd: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis
+# out: results/bench_run_20260415_172158
+
+=== benchmark cells (mode=snark) ===
+  [ 1] snark  B1_noir                          cargo run --release --bin bench_runner -- --suite noir --output results/bench_ru...
+  [ 2] snark  B2_r1cs_compare                  cargo run --release --bin bench_runner -- --suite r1cs-compare --output results/...
+  [ 3] snark  B3_circuit_scale                 cargo run --release --bin bench_runner -- --suite circuit-scale --output results...
+  [ 4] snark  B4_backend                       cargo run --release --bin bench_runner -- --suite backend --output results/bench...
+  [ 5] snark  B5_griffin                       cargo run --release --bin bench_runner -- --suite griffin --output results/bench...
+  [ 6] snark  B7_aurora_rerun                  cargo run --release --bin bench_runner -- --suite aurora-rerun --output results/...
+  [ 7] snark  B8_libiop_l80_nozk               set -e...
+  [ 8] snark  B8_libiop_l128_nozk              set -e...
+  [ 9] snark  B8_libiop_l128_zk                set -e...
+  [10] snark  B8_libiop_l128_corrupt           set -e...
+=== total: 10 cells ===
+
+=== execution log ===
+[17:21:58] >>> B1_noir (snark) — log: results/bench_run_20260415_172158/bench_B1_noir.log
+[17:22:01] PASS (3s)
+[17:22:01] >>> B2_r1cs_compare (snark) — log: results/bench_run_20260415_172158/bench_B2_r1cs_compare.log
+[17:22:02] PASS (1s)
+[17:22:02] >>> B3_circuit_scale (snark) — log: results/bench_run_20260415_172158/bench_B3_circuit_scale.log
+[17:39:14] PASS (1032s)
+[17:39:14] >>> B4_backend (snark) — log: results/bench_run_20260415_172158/bench_B4_backend.log
+[17:47:27] PASS (493s)
+[17:47:27] >>> B5_griffin (snark) — log: results/bench_run_20260415_172158/bench_B5_griffin.log
+[18:35:06] PASS (2859s)
+[18:35:06] >>> B7_aurora_rerun (snark) — log: results/bench_run_20260415_172158/bench_B7_aurora_rerun.log
+[20:36:26] PASS (7280s)
+[20:36:26] >>> B8_libiop_l80_nozk (snark) — log: results/bench_run_20260415_172158/bench_B8_libiop_l80_nozk.log
+[20:36:26] PASS (0s)
+[20:36:26] >>> B8_libiop_l128_nozk (snark) — log: results/bench_run_20260415_172158/bench_B8_libiop_l128_nozk.log
+[20:36:26] PASS (0s)
+[20:36:26] >>> B8_libiop_l128_zk (snark) — log: results/bench_run_20260415_172158/bench_B8_libiop_l128_zk.log
+[20:36:26] PASS (0s)
+[20:36:26] >>> B8_libiop_l128_corrupt (snark) — log: results/bench_run_20260415_172158/bench_B8_libiop_l128_corrupt.log
+[20:36:26] FAIL (unexpected ACCEPT on corrupted wire, 0s)
+
+=== summary: 9 passed, 1 failed, results/bench_run_20260415_172158 ===

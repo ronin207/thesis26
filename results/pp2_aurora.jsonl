@@ -1,0 +1,239 @@
+   Compiling vc-pqc v0.1.0 (/Users/takumiotsuka/Desktop/Projects/research/thesis)
+warning: unused import: `super::encoding`
+ --> src/loquat/verify.rs:1:5
+  |
+1 | use super::encoding;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::string::ToString`
+  --> src/loquat/verify.rs:14:5
+   |
+14 | use std::string::ToString;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hex_encode_sample` is never used
+    --> src/bdec/mod.rs:2253:4
+     |
+2253 | fn hex_encode_sample(bytes: &[u8]) -> String {
+     |    ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `flatten_field2_matrix` is never used
+   --> src/loquat/sign.rs:185:4
+    |
+185 | fn flatten_field2_matrix(matrix: &[Vec<F2>], out: &mut Vec<u8>) {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `flatten_two_nested_field2` is never used
+   --> src/loquat/sign.rs:206:4
+    |
+206 | fn flatten_two_nested_field2(blocks: &[Vec<Vec<F2>>], out: &mut Vec<u8>) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `verify_ldt` is never used
+   --> src/loquat/verify.rs:699:8
+    |
+552 | impl<'a> Algorithm7Verifier<'a> {
+    | ------------------------------- method in this implementation
+...
+699 |     fn verify_ldt(&mut self) -> LoquatResult<()> {
+    |        ^^^^^^^^^^
+
+warning: function `merkle_path_opening` is never used
+ --> src/snarks/loquat_r1cs.rs:1:4
+  |
+1 | fn merkle_path_opening(
+  |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `field_mul_const` is never used
+   --> src/snarks/loquat_r1cs.rs:273:4
+    |
+273 | fn field_mul_const(builder: &mut R1csBuilder, var: FieldVar, constant: F) -> FieldVar {
+    |    ^^^^^^^^^^^^^^^
+
+warning: method `to_dense` is never used
+   --> src/snarks/loquat_r1cs.rs:365:8
+    |
+325 | impl SparseLC {
+    | ------------- method in this implementation
+...
+365 |     fn to_dense(&self, num_variables: usize) -> Vec<F> {
+    |        ^^^^^^^^
+
+warning: methods `enforce_f2_sum_equals_unit`, `enforce_f2_sum_equals_const`, `xor3_bits`, `majority_bits`, and `choice_bits` are never used
+   --> src/snarks/loquat_r1cs.rs:481:8
+    |
+411 | impl R1csBuilder {
+    | ---------------- methods in this implementation
+...
+481 |     fn enforce_f2_sum_equals_unit(&mut self, vars: &[F2Var], target: F2Var) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+507 |     fn enforce_f2_sum_equals_const(&mut self, vars: &[F2Var], constant: F2) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+588 |     fn xor3_bits(
+    |        ^^^^^^^^^
+...
+609 |     fn majority_bits(
+    |        ^^^^^^^^^^^^^
+...
+625 |     fn choice_bits(
+    |        ^^^^^^^^^^^
+
+warning: function `alloc_f2` is never used
+    --> src/snarks/loquat_r1cs.rs:2623:4
+     |
+2623 | fn alloc_f2(builder: &mut R1csBuilder, value: F2) -> F2Var {
+     |    ^^^^^^^^
+
+warning: function `enforce_f2_add_eq` is never used
+    --> src/snarks/loquat_r1cs.rs:2627:4
+     |
+2627 | fn enforce_f2_add_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+     |    ^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_f2_sub_eq` is never used
+    --> src/snarks/loquat_r1cs.rs:2631:4
+     |
+2631 | fn enforce_f2_sub_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+     |    ^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_f0_linear_combination` is never used
+    --> src/snarks/loquat_r1cs.rs:2741:4
+     |
+2741 | fn enforce_f0_linear_combination(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `bytes_from_f2` is never used
+    --> src/snarks/loquat_r1cs.rs:3215:4
+     |
+3215 | fn bytes_from_f2(builder: &mut R1csBuilder, var: F2Var, value: F2) -> Vec<Byte> {
+     |    ^^^^^^^^^^^^^
+
+warning: function `serialize_field_matrix_bytes` is never used
+    --> src/snarks/loquat_r1cs.rs:3221:4
+     |
+3221 | fn serialize_field_matrix_bytes(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `TranscriptCircuit` is never constructed
+    --> src/snarks/loquat_r1cs.rs:3249:8
+     |
+3249 | struct TranscriptCircuit {
+     |        ^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `append_message`, and `challenge` are never used
+    --> src/snarks/loquat_r1cs.rs:3255:8
+     |
+3254 | impl TranscriptCircuit {
+     | ---------------------- associated items in this implementation
+3255 |     fn new(builder: &mut R1csBuilder, label: &[u8]) -> Self {
+     |        ^^^
+...
+3265 |     fn append_message(&mut self, builder: &mut R1csBuilder, label: &[u8], data: &[Byte]) {
+     |        ^^^^^^^^^^^^^^
+...
+3278 |     fn challenge(&mut self, builder: &mut R1csBuilder, label: &[u8]) -> Vec<Byte> {
+     |        ^^^^^^^^^
+
+warning: function `enforce_field_matches_digest` is never used
+    --> src/snarks/loquat_r1cs.rs:3411:4
+     |
+3411 | fn enforce_field_matches_digest(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_leaves` is never used
+    --> src/snarks/loquat_r1cs.rs:3705:4
+     |
+3705 | fn merkle_root_from_leaves(builder: &mut R1csBuilder, leaves: &[Vec<Byte>]) -> Vec<Byte> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_fri_layer_leaves` is never used
+    --> src/snarks/loquat_r1cs.rs:3728:4
+     |
+3728 | fn build_fri_layer_leaves(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `collect_f2_field_vars` is never used
+    --> src/snarks/loquat_r1cs.rs:3854:4
+     |
+3854 | fn collect_f2_field_vars(vars: &[F2Var], values: &[F2]) -> Vec<FieldVar> {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `griffin_hash_f2_chunk` is never used
+    --> src/snarks/loquat_r1cs.rs:3866:4
+     |
+3866 | fn griffin_hash_f2_chunk(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hash_chunked_f2_vector` is never used
+    --> src/snarks/loquat_r1cs.rs:3875:4
+     |
+3875 | fn hash_chunked_f2_vector(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hash_chunked_c_columns` is never used
+    --> src/snarks/loquat_r1cs.rs:3893:4
+     |
+3893 | fn hash_chunked_c_columns(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_field_digests` is never used
+    --> src/snarks/loquat_r1cs.rs:3942:4
+     |
+3942 | fn merkle_root_from_field_digests(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_f2_vector` is never used
+    --> src/snarks/loquat_r1cs.rs:3965:4
+     |
+3965 | fn merkle_root_from_f2_vector(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_c_matrix` is never used
+    --> src/snarks/loquat_r1cs.rs:3976:4
+     |
+3976 | fn merkle_root_from_c_matrix(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `vc-pqc` (lib) generated 28 warnings (run `cargo fix --lib -p vc-pqc` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 8.64s
+     Running `target/release/bdec_showcre_benchmark --k=2 --tiny --json`
+aurora_prove: constraint_count=403056, log_size=19, eval_len=524288, residual_evals_len=524288
+aurora_prove: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_prove: witness_root [b1, aa, 80, 9f, b0, 6a, db, a7, b7, 64, 07, 8e, 1f, 4f, 5b, 7c, 2e, 0d, c5, 93, d6, 11, 4c, fc, 86, 90, a4, 35, 80, 69, ce, 6b], residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_prove: constraint_count=403056, log_size=19, eval_len=524288, residual_evals_len=524288
+aurora_prove: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_prove: witness_root [59, 14, 3e, 45, 9a, f3, 37, ea, 05, be, 0d, de, 5b, 83, e3, 59, 2d, 00, 42, ca, 44, f7, 93, 0d, 91, 35, 11, 73, ca, a8, 0c, 41], residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: constraint_count=403056, expected_log=19, proof_log=19, expected_len=524288, residual_evals_len=524288
+aurora_verify: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_verify: witness_root [b1, aa, 80, 9f, b0, 6a, db, a7, b7, 64, 07, 8e, 1f, 4f, 5b, 7c, 2e, 0d, c5, 93, d6, 11, 4c, fc, 86, 90, a4, 35, 80, 69, ce, 6b], claimed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: recomputed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: constraint_count=403056, expected_log=19, proof_log=19, expected_len=524288, residual_evals_len=524288
+aurora_verify: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_verify: witness_root [59, 14, 3e, 45, 9a, f3, 37, ea, 05, be, 0d, de, 5b, 83, e3, 59, 2d, 00, 42, ca, 44, f7, 93, 0d, 91, 35, 11, 73, ca, a8, 0c, 41], claimed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: recomputed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_prove: constraint_count=813143, log_size=20, eval_len=1048576, residual_evals_len=1048576
+aurora_prove: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_prove: witness_root [ac, 77, 13, a4, ed, af, 42, f2, a4, a1, 4f, fa, 35, 9e, 92, 7c, 01, 2e, ef, 5a, b9, 86, c1, 17, 5b, 12, 1c, 9c, 58, 68, 32, 7c], residual_root [01, 83, 22, 7c, f0, e1, 57, 95, d3, 1e, 6e, b7, b5, 25, 6c, 0d, b8, 78, 16, 5a, cc, 11, 50, 34, a9, b1, a6, 7e, 7d, 7e, 77, 5e]
+aurora_verify: constraint_count=813143, expected_log=20, proof_log=20, expected_len=1048576, residual_evals_len=1048576
+aurora_verify: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_verify: witness_root [ac, 77, 13, a4, ed, af, 42, f2, a4, a1, 4f, fa, 35, 9e, 92, 7c, 01, 2e, ef, 5a, b9, 86, c1, 17, 5b, 12, 1c, 9c, 58, 68, 32, 7c], claimed residual_root [01, 83, 22, 7c, f0, e1, 57, 95, d3, 1e, 6e, b7, b5, 25, 6c, 0d, b8, 78, 16, 5a, cc, 11, 50, 34, a9, b1, a6, 7e, 7d, 7e, 77, 5e]
+aurora_verify: recomputed residual_root [01, 83, 22, 7c, f0, e1, 57, 95, d3, 1e, 6e, b7, b5, 25, 6c, 0d, b8, 78, 16, 5a, cc, 11, 50, 34, a9, b1, a6, 7e, 7d, 7e, 77, 5e]
+aurora_verify: constraint_count=403056, expected_log=19, proof_log=19, expected_len=524288, residual_evals_len=524288
+aurora_verify: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_verify: witness_root [b1, aa, 80, 9f, b0, 6a, db, a7, b7, 64, 07, 8e, 1f, 4f, 5b, 7c, 2e, 0d, c5, 93, d6, 11, 4c, fc, 86, 90, a4, 35, 80, 69, ce, 6b], claimed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: recomputed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: constraint_count=403056, expected_log=19, proof_log=19, expected_len=524288, residual_evals_len=524288
+aurora_verify: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_verify: witness_root [59, 14, 3e, 45, 9a, f3, 37, ea, 05, be, 0d, de, 5b, 83, e3, 59, 2d, 00, 42, ca, 44, f7, 93, 0d, 91, 35, 11, 73, ca, a8, 0c, 41], claimed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: recomputed residual_root [bb, 17, 41, 25, 7c, be, c4, 7a, 81, 9f, c9, a5, 32, b5, b6, 04, 9c, f4, 8d, 06, 86, 4b, 1a, c6, c2, 01, 2c, b1, 01, 79, 99, 34]
+aurora_verify: constraint_count=813143, expected_log=20, proof_log=20, expected_len=1048576, residual_evals_len=1048576
+aurora_verify: residual sample (4 entries) [Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0)), Fp2(Fp127(0x0), Fp127(0x0))]
+aurora_verify: witness_root [ac, 77, 13, a4, ed, af, 42, f2, a4, a1, 4f, fa, 35, 9e, 92, 7c, 01, 2e, ef, 5a, b9, 86, c1, 17, 5b, 12, 1c, 9c, 58, 68, 32, 7c], claimed residual_root [01, 83, 22, 7c, f0, e1, 57, 95, d3, 1e, 6e, b7, b5, 25, 6c, 0d, b8, 78, 16, 5a, cc, 11, 50, 34, a9, b1, a6, 7e, 7d, 7e, 77, 5e]
+aurora_verify: recomputed residual_root [01, 83, 22, 7c, f0, e1, 57, 95, d3, 1e, 6e, b7, b5, 25, 6c, 0d, b8, 78, 16, 5a, cc, 11, 50, 34, a9, b1, a6, 7e, 7d, 7e, 77, 5e]
+{"status":"ok","k":2,"lr_size":0,"revocation_depth":20,"exec_only":false,"constraint_count":813143,"t_I_s":87.719507,"t_P_s":127.507079,"t_V_s":81.165689,"instance_rebuild_s":0.415684,"proof_verify_s":39.892362,"proof_bytes":33575120,"signature_bytes":39488,"phases":[{"name":"setup","duration":{"secs":0,"nanos":1470375}},{"name":"prigen","duration":{"secs":0,"nanos":1370708}},{"name":"populate_revocation","duration":{"secs":0,"nanos":166}},{"name":"indexer","duration":{"secs":87,"nanos":719507334}},{"name":"prove","duration":{"secs":127,"nanos":507078833}},{"name":"instance_rebuild","duration":{"secs":0,"nanos":415683625}},{"name":"proof_verify","duration":{"secs":39,"nanos":892362084}},{"name":"verify","duration":{"secs":81,"nanos":165689042}}]}

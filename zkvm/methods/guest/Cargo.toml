@@ -11,6 +11,9 @@ edition = "2021"
 risc0-zkvm = { version = "^3.0.3", default-features = false, features = ["std"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 sha2 = { version = "0.10", default-features = false }
+bincode = "1.3"
+# vc-pqc: keep both "guest" (Loquat side) and "std" (PLUM side
+# needs std::collections for HashMap/HashSet in plum::*).
 vc-pqc = { path = "../../..", default-features = false, features = ["guest", "std"] }
 
 # PLUM guest binary (Phase 10 — runs plum_verify inside risc0 and
