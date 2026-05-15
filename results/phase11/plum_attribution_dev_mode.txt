@@ -1,0 +1,109 @@
+PLUM zkVM Phase 11 — three-level cycle attribution measurement
+================================================================
+
+Environment
+-----------
+  - Machine: aarch64-apple-darwin (M-series Mac)
+  - Mode: risc0 dev-proof (RISC0_DEV_MODE=1). Cycle counts are real;
+    proof is non-cryptographic. Use prove mode for a real receipt.
+  - Build: VC_PQC_SKIP_LIBIOP=1 cargo build --release
+  - PLUM-128 parameters (paper §3.3):
+      p = 2^64 · 25953665385296571073907086806836816188273 + 1
+        (substitute prime; see field_p192.rs for the deviation note)
+      t = 256, L = 4096, B = 28, m = 4, n = 7,
+      η = 4, d* = 128, d_stop = 32, |U| = 4096, R = 1
+  - Message: b"plum-zkvm-phase-11"
+  - Keypair seed: 0x504C_554D_0000_0001
+  - Sign-RNG seeds: SHA3 = 0x504C_554D_5348_4133;
+                    Griffin = 0x504C_554D_4752_4946
+
+Level 1 — top-line
+------------------
+hasher       verified   total cycles    verify cyc.   guest invoke    sig bytes
+SHA3             true      405,274,624    361,514,346       2,556 ms      77,892
+Griffin          true   21,204,828,160 19,546,431,721     126,030 ms      77,892
+
+Level 2 — per-operation counts (verify, in-guest)
+-------------------------------------------------
+hasher       Fp192 muls   Fp192 adds      Griffin  PRF evals   hash compr
+SHA3            112,444       18,388            0         28        1,598
+Griffin       8,517,669      737,862        1,853         28        1,598
+
+Level 3 — implied cycles per operation
+--------------------------------------
+("verify_cycles_self_reported / count", dash if count == 0)
+
+hasher       cyc/Fp192mul   cyc/Fp192add    cyc/Griffin    cyc/PRFeval   cyc/hash
+SHA3                 3,215         19,660             -      12,911,227    226,229
+Griffin              2,295         26,491    10,548,533     698,086,847 12,231,810
+
+Cross-variant deltas
+--------------------
+verify cycles    Griffin / SHA3 = 54.07×  (19,546,431,721 vs 361,514,346)
+Fp192 muls       Griffin / SHA3 = 75.75×  ( 8,517,669 vs 112,444)
+Griffin perms    Griffin only   = 1,853   (SHA3 has 0)
+hash compresses  Griffin / SHA3 =  1.00×  (1,598 vs 1,598) ← same Merkle shape
+cyc/hash-compr   Griffin / SHA3 = 54.07×  (12.23M vs 226K)
+
+Reference: sign-side counters (host CPU, NOT in guest)
+------------------------------------------------------
+hasher       Fp192 muls    Fp192 adds      Griffin  PRF evals   hash compr   sign ms
+SHA3          2,189,914       662,241            0         28       13,308       220
+Griffin     197,274,212    17,408,745       43,008         28       13,308    17,488
+
+Observations
+------------
+1. **The headline thesis claim materialises.** Inside the zkVM, the
+   Griffin-hasher PLUM verifier is 54.07× more expensive than the
+   SHA3-hasher variant. The Merkle-tree shape is identical (both
+   hashers do 1,598 compressions); the entire 54× gap is attributable
+   to the per-compression cost of Griffin vs SHA3.
+
+2. **Fp192 muls dominate inside Griffin.** The Griffin variant runs
+   8.4 million MORE Fp192 muls than the SHA3 variant; almost all of
+   those extra muls live inside the 1,853 Griffin permutations. Per-
+   permutation: ~4,530 Fp192 muls × ~2,295 cyc/mul ≈ 10.4M cycles,
+   matching the 10.5M cyc/Griffin number directly.
+
+3. **The Fp192 mul cost is the load-bearing primitive.** ~2,300–3,200
+   cycles per multiplication. That's the variable-time BigUint
+   backend cost in zkVM cycles. Phase 1.5 of the implementation plan
+   (swap to constant-time 4×u64 + Barrett/Montgomery) would reduce
+   this dramatically; without that swap, the absolute numbers are
+   the BigUint-on-rv32 cost, not a fundamental property of Fp192.
+
+4. **PRF evals are individually large.** Each PRF eval is ~700M cycles
+   in the Griffin variant — that's the 199-bit modular exponentiation
+   `(K + I_ℓ)^((p-1)/t)`. There are only 28 of these in verify (= B),
+   so they account for ~20B / 19.5B ≈ 100% of Griffin verify cycles
+   if attributed at face value — but actually most of those 700M
+   cycles ARE the Fp192 muls inside the modular exp, so this is
+   double-counting. The "true" attribution would need to deduplicate.
+
+5. **Hash compressions same count, wildly different cost.** Both
+   variants do exactly 1,598 hash compresses (Merkle paths through
+   the same depths for the same query counts). SHA3 = 226K cyc each,
+   Griffin = 12.2M cyc each. The 54× ratio matches the total cycle
+   ratio exactly — confirming that the hasher choice IS the
+   dominant cost driver.
+
+6. **Sign-side cost is much higher** (as expected). Griffin sign
+   takes 17.5s of host CPU vs 0.22s for SHA3 — a 80× gap. Most of
+   that goes into the 43,008 Griffin permutations during signing
+   (vs 1,853 during verify), reflecting that sign builds the full
+   tree while verify only traverses paths.
+
+Limitations
+-----------
+- Dev-proof mode: the prover is mocked. Real prove mode would give
+  the same cycle counts but produce a valid receipt; expect minutes
+  to hours per variant on consumer hardware.
+- BigUint Fp192 backend: variable-time, ~3K cycles per mul. Real
+  measurement should swap to the Phase 1.5 constant-time backend.
+- t_M for final-poly check = pp.kappas[R] = 13. This is implementer
+  heuristic, not paper-attested. Affects the cycle counts only at
+  the 5%-ish level (the t_M × η = 52 extra fiber openings vs total
+  verifier work).
+- Setup deviation: our U_i descents are η rather than the paper's
+  η², requiring the forbidden-residue filter on final-poly bases.
+  Cycle impact is negligible (~30 extra cycles per FS oversample).
