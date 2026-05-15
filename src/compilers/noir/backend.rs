@@ -1,6 +1,6 @@
 use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
 use crate::signatures::loquat::field_utils::F;
-use crate::noir_backend::{AcirR1csBuild, compile_acir_json_to_r1cs};
+use crate::compilers::noir::{AcirR1csBuild, compile_acir_json_to_r1cs};
 use crate::snarks::{AuroraParams, AuroraProof, R1csInstance, aurora_prove, aurora_verify};
 use std::collections::HashMap;
 

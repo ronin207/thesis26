@@ -11,7 +11,7 @@
 //!        → MessagePack-encoded ACIR Program
 //! ```
 //!
-//! We don't try to reconstruct the full [`crate::noir_backend::AcirProgram`]
+//! We don't try to reconstruct the full [`crate::compilers::noir::AcirProgram`]
 //! structure (opcode variants differ from the 0.x JSON schema), but we do walk
 //! the MessagePack tree and count opcodes by category. That's enough to power
 //! B1's timing / opcode-breakdown story.

@@ -2,10 +2,10 @@ use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
 use crate::signatures::loquat::field_utils::{F, field_to_u128};
 use crate::signatures::loquat::griffin::griffin_hash;
 use crate::signatures::loquat::{LoquatPublicParams, LoquatSignature};
-use crate::noir_backend::acir_parser::{
+use crate::compilers::noir::acir_parser::{
     AcirOpcode, AcirProgram, AssertZeroOpcode, BlackBoxFuncCallOpcode,
 };
-use crate::noir_backend::black_box::{NoirBlackBoxOp, ensure_supported_black_box};
+use crate::compilers::noir::black_box::{NoirBlackBoxOp, ensure_supported_black_box};
 use crate::snarks::{
     R1csConstraint, R1csInstance, R1csWitness, build_loquat_r1cs_pk_witness,
     build_loquat_r1cs_pk_witness_instance, build_revocation_r1cs_pk_witness,
@@ -46,7 +46,7 @@ pub fn compile_acir_json_to_r1cs(
     acir_json: &str,
     witness_inputs: Option<&HashMap<usize, F>>,
 ) -> LoquatResult<AcirR1csBuild> {
-    let program = crate::noir_backend::parse_acir_json(acir_json)?;
+    let program = crate::compilers::noir::parse_acir_json(acir_json)?;
     convert_acir_to_r1cs(&program, witness_inputs)
 }
 
@@ -1031,7 +1031,7 @@ fn u8_from_field(value: F) -> LoquatResult<u8> {
 mod tests {
     use super::*;
     use crate::anoncreds::bdec::BdecRevocationAccumulator;
-    use crate::noir_backend::parse_acir_json;
+    use crate::compilers::noir::parse_acir_json;
     use serde_json::json;
 
     #[test]

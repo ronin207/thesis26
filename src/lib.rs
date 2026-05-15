@@ -76,7 +76,7 @@ pub mod anoncreds;
 #[cfg(feature = "std")]
 pub mod bench;
 #[cfg(feature = "std")]
-pub mod noir_backend;
+pub mod compilers;
 pub mod primitives;
 pub mod signatures;
 #[cfg(feature = "std")]
@@ -125,7 +125,7 @@ pub use loquat::{
 #[cfg(feature = "std")]
 pub use loquat::{loquat_setup, loquat_setup_tiny, loquat_sign};
 #[cfg(feature = "std")]
-pub use noir_backend::{
+pub use compilers::noir::{
     AcirR1csBuild, NoirAuroraBackend, compile_acir_json_to_r1cs, convert_acir_to_r1cs,
 };
 
