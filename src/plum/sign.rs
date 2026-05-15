@@ -374,9 +374,7 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     //
     // For the thesis cycle-attribution measurement, the bulk of work is
     // already in the polynomial mults; we follow the formula literally.
-    let p_hat = compute_p_hat(
-        &f_hat, &h_hat, &z, &s_sum, &pp.h_shift, pp.h_size, pp.m,
-    );
+    let p_hat = compute_p_hat(&f_hat, &s_hat, &h_hat, &z, &pp.h_shift, pp.h_size);
     let d_star = pp.d_star;
     let kappa_eta = pp.kappa_0 * pp.eta;
     // Degree slacks (Alg 4 line 16):
@@ -576,64 +574,63 @@ fn poly_add_many(polys: &[Vec<Fp192>]) -> Vec<Fp192> {
 /// is exact.
 fn compute_p_hat(
     f_hat: &[Fp192],
+    s_hat: &[Fp192],
     h_hat: &[Fp192],
     z: &Fp192,
-    s_sum: &Fp192,
     h_shift: &Fp192,
     h_size: usize,
-    _m: usize,
 ) -> Vec<Fp192> {
-    // µ = Σ_{a ∈ H} f̂(a). For deg(f̂) < n · h_size (true at PLUM-128:
-    // n=7, h_size=8, so deg(f̂) < 56·something — actually f̂ has degree
-    // up to 4m + κ·η, so n*h_size of 56 doesn't bound it but
-    // sum_over_coset's general formula handles any length).
+    // µ = Σ_{a ∈ H} f̂(a) and S = Σ_{a ∈ H} ŝ(a).
     let mu = sum_over_coset(f_hat, h_size, h_shift);
+    let s_sum = sum_over_coset(s_hat, h_size, h_shift);
+    let target = z.clone() * mu + s_sum;
     let h_size_field = Fp192::from_u64(h_size as u64);
+    let h_size_inv = h_size_field
+        .clone()
+        .inverse()
+        .expect("|H| nonzero in F_p");
 
-    // Numerator: |H| · (z f̂(x) + ŝ(x) is f̂'(x); subtract |H| · Z_H · ĥ
-    // and (zµ + S)). At x = 0 this vanishes per the docstring.
-    //
-    // Strategy: compute numerator = |H| · f̂'(x) − |H| · Z_H · ĥ
-    // − (zµ + S), then synthetic-divide by x (which is just dropping
-    // the constant term).
-    //
-    // Build f̂' = z · f̂ + (s in here is just symbolic; for the
-    // identity we need the EXACT f̂' used in Phase 4). We rebuild it
-    // here from z, f̂, and the convention that f̂' = z·f̂ + ŝ — but
-    // we don't have ŝ in this scope, so instead use the
-    // identity at the *coefficient* level: |H| · f̂' = |H| · ĝ
-    // + |H| · Z_H · ĥ. So
-    //     numerator = |H| · ĝ − (zµ + S).
-    //
-    // Hence p̂(x) = (|H| · ĝ(x) − (zµ + S)) / (|H| · x).
-    //
-    // At x=0 this is (|H| · ĝ(0) − (zµ+S))/0 — well-defined by the
-    // sumcheck identity which gives |H| · ĝ(0) − (zµ+S) = 0. The
-    // coefficient division by x is just shifting indices down by 1
-    // and dividing the rest by |H|.
-    //
-    // We don't actually have ĝ in scope either. The caller can build
-    // p̂ via the full numerator route given access to f̂', ĝ, ĥ. To
-    // keep this helper general we return a *placeholder* of degree
-    // `< 2m − 1` filled with the analytically-correct coefficients —
-    // this is correct iff the sumcheck identity holds, which it does
-    // by construction.
+    // f̂'(x) = z · f̂(x) + ŝ(x).
+    let f_prime_len = f_hat.len().max(s_hat.len());
+    let mut f_prime = vec![Fp192::zero(); f_prime_len];
+    for (k, c) in f_hat.iter().enumerate() {
+        f_prime[k] = f_prime[k].clone() + z.clone() * c.clone();
+    }
+    for (k, c) in s_hat.iter().enumerate() {
+        f_prime[k] = f_prime[k].clone() + c.clone();
+    }
 
-    // Simpler and correct: p̂ ≡ 0 if we made f̂' so the sumcheck
-    // identity holds exactly. We return an empty polynomial here for
-    // the FIRST PASS implementation, which makes the rate-correction
-    // term4 vanish. Verifier will recompute p̂ from its own queries.
-    //
-    // Per Algorithm 6 line 11 the verifier reconstructs p̂(s) from
-    // (f̂(s), s, ĥ(s), zµ+S) so the prover does NOT need to commit
-    // p̂ — only its evaluations are queried via the other commitments.
-    // Returning empty here keeps f̂* well-defined for the prover-side
-    // FFT.
-    //
-    // TODO(Phase 9 audit): cross-check that the verifier path
-    // genuinely doesn't need a separate p̂ commitment from the prover.
-    let _ = (mu, h_size_field, z, s_sum, h_hat);
-    Vec::new()
+    // Z_H(x) = x^|H| − h_shift^|H| (closed form for `H = h_shift · ⟨ω⟩`).
+    let h_shift_pow_h = h_shift.pow_u128(h_size as u128);
+    let mut z_h = vec![Fp192::zero(); h_size + 1];
+    z_h[0] = Fp192::zero() - h_shift_pow_h;
+    z_h[h_size] = Fp192::one();
+    let z_h_times_h = multiply(&z_h, h_hat);
+
+    // numerator(x) = |H| · f̂'(x) − |H| · Z_H(x) · ĥ(x) − target
+    let len = f_prime.len().max(z_h_times_h.len()).max(1);
+    let mut numerator = vec![Fp192::zero(); len];
+    for (k, c) in f_prime.iter().enumerate() {
+        numerator[k] = numerator[k].clone() + h_size_field.clone() * c.clone();
+    }
+    for (k, c) in z_h_times_h.iter().enumerate() {
+        numerator[k] = numerator[k].clone() - h_size_field.clone() * c.clone();
+    }
+    numerator[0] = numerator[0].clone() - target;
+
+    // numerator(0) must be zero by the BCRSVW sumcheck identity. If it
+    // ever is not, the protocol's structural invariants are broken.
+    debug_assert!(
+        numerator[0].is_zero(),
+        "compute_p_hat: numerator(0) ≠ 0 — sumcheck identity broken"
+    );
+
+    // p̂(x) = numerator(x) / (|H| · x). Division by x = drop constant
+    // term and shift down by one. Division by |H| = scale.
+    numerator[1..]
+        .iter()
+        .map(|c| c.clone() * h_size_inv.clone())
+        .collect()
 }
 
 #[cfg(test)]
