@@ -16,7 +16,10 @@ pub fn loquat_verify_guest(
 ) -> LoquatResult<bool> {
     #[cfg(feature = "std")]
     {
-        super::verify::loquat_verify(message, signature, public_key, params)
+        // `loquat_verify` currently takes `&Vec<F>`; the guest path
+        // operates on slices, so allocate once for the call. Cheap
+        // at PLUM-relevant sizes (L = 2^12 elements).
+        super::verify::loquat_verify(message, signature, &public_key.to_vec(), params)
     }
 
     #[cfg(not(feature = "std"))]

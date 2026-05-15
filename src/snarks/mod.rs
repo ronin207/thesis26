@@ -18,6 +18,7 @@ compile_error!("The SNARK prototypes require the `std` feature.");
 
 pub mod aurora;
 pub mod fractal;
+#[cfg(not(vc_pqc_skip_libiop))]
 pub mod libiop_bridge;
 pub mod loquat_r1cs;
 pub mod r1cs;
