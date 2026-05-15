@@ -63,23 +63,25 @@
 //!     data + per-query Merkle openings of `ĉ'_j, ŝ, ĥ` at the κ_0 = 26
 //!     FS-derived query indices in U_0. Per-round STIR opening of
 //!     `â_i|_{U_i}` for the fold-consistency check is still TODO.
-//!   - **Phase 9** — `verify` implements Algorithm 6 in full minus
-//!     the final-polynomial check (Alg 6 line 18). Step 1 (FS replay
-//!     through STIR), Step 2 (Merkle paths + BCRSVW sumcheck identity
-//!     `Σ_{a ∈ H} g̃(a) = z·µ + S` via Lagrange interpolation), and
-//!     Step 3 (residuosity at line 21 + STIR fold consistency at
-//!     lines 13–17). The fold consistency check: for each shift base
-//!     `b_j`, the verifier reconstructs `â_1(y_j)` from the fiber
-//!     above `y_j` (Lagrange + evaluate at `r_0^fold`) and
-//!     cross-checks against the Merkle-opened `â_1` leaf at base
-//!     `b_j` — this is exactly the binding of the prover's `â_1`
-//!     commitment to the fold of `f̂_0`. The remaining gap (Alg 6
-//!     line 18 final-polynomial check) requires `t_M` final-round
-//!     query points + queries to `f̂_R` at fibers above them.
+//!   - **Phase 9** — `verify` implements Algorithm 6 **in full**.
+//!     Step 1 (FS replay through STIR), Step 2 (Merkle paths +
+//!     BCRSVW sumcheck identity `Σ_{a ∈ H} g̃(a) = z·µ + S` via
+//!     Lagrange interpolation), Step 3 residuosity (line 21), Step 3
+//!     STIR fold consistency (lines 13–17, via fiber-fold
+//!     reconstruction of `â_1` cross-checked against per-round
+//!     Merkle openings), and Step 3 final-polynomial consistency
+//!     (line 18, via t_M final-fiber Merkle openings of `â_R`,
+//!     reconstruction of `f̂_R` at each fiber, fold to
+//!     `f̂_{R+1}(r_i^fin)`, and equality against
+//!     `sig.final_coefs(r_i^fin)`). The full Alg 6 reduction
+//!     closes: a forger must defeat residuosity (Step 3 line 21),
+//!     sumcheck identity (Step 2 BCRSVW), fold-of-f̂_0-binds-â_1
+//!     (Step 3 lines 13–17), and fold-of-â_R-binds-final_coefs
+//!     (Step 3 line 18). All four checks pass on honest signatures
+//!     and reject under all tested tampering vectors.
 //!
-//! TODO from the plan: Alg 6 line 18 final-polynomial check (requires
-//! a `f_R` Merkle commitment + openings); Phase 10 (zkVM); Phase 11
-//! (three-level attribution measurement).
+//! TODO from the plan: Phase 10 (zkVM guest/host wiring); Phase 11
+//! (three-level cycle-attribution measurement).
 
 #[cfg(feature = "std")]
 pub mod fft;

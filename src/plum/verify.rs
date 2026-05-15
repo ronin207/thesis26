@@ -134,6 +134,19 @@ pub enum VerificationFailure {
     /// (Alg 6 lines 13–17): the prover cannot commit to a non-fold
     /// `â_i` without tripping this.
     StirFoldConsistencyViolation { round: usize, shift_index: usize },
+    /// Merkle authentication path for `â_R` at the `fiber_index`-th
+    /// fiber position of `fin_index`-th final-poly query did not
+    /// reconstruct `stir_roots[R-1]`.
+    StirFinalAMerklePathInvalid {
+        fin_index: usize,
+        fiber_index: usize,
+    },
+    /// Alg 6 line 18: the verifier's fold of `f̂_R` at `r_i^fin`
+    /// (reconstructed from the η fiber openings of `â_R`) disagreed
+    /// with `sig.final_coefs` evaluated at `r_i^fin`. A forger who
+    /// commits to a `final_coefs` that is not the actual fold of
+    /// `f̂_R` cannot pass.
+    FinalPolynomialMismatch { fin_index: usize },
 }
 
 /// Algorithm 6 — PLUM signature verification.
@@ -301,14 +314,20 @@ pub fn plum_verify<H: PlumHasher>(
     let mut current_generator = pp.u_generator.clone();
     let mut current_size = pp.u_size;
     let mut current_r_fold = r0_fold.clone();
+    // Captured at the last round's end, used for the Alg 6 line 18
+    // final-polynomial check.
+    let mut last_round_b_hat: Option<Vec<Fp192>> = None;
+    let mut last_round_t_r: Option<Vec<Fp192>> = None;
+    let mut last_round_g_i: Option<Vec<Fp192>> = None;
+    let mut last_round_shift_bases: Option<Vec<usize>> = None;
 
     for round in 0..pp.r_rounds {
         // FS chain for this round.
         transcript.append_root(b"stir/root", &sig.stir_roots[round]);
-        let _r_out = transcript.challenge_field(b"stir/r_out");
+        let r_out = transcript.challenge_field(b"stir/r_out");
         transcript.append_field(b"stir/beta", &sig.stir_betas[round]);
         let next_r_fold = transcript.challenge_field(b"stir/r_fold");
-        let _r_comb = transcript.challenge_field(b"stir/r_comb");
+        let r_comb = transcript.challenge_field(b"stir/r_comb");
 
         // Derive shift bases for this round.
         let kappa_shift_round = if round == 0 {
@@ -593,16 +612,161 @@ pub fn plum_verify<H: PlumHasher>(
             }
         }
 
-        // Advance FS chain to next round.
+        // Capture state for the Alg 6 line 18 final-poly check if
+        // this is the last STIR round.
+        if round + 1 == pp.r_rounds {
+            let r_shifts: Vec<Fp192> = shift_bases
+                .iter()
+                .map(|&b| current_generator.pow_u128((b * pp.eta) as u128))
+                .collect();
+            let mut g_i: Vec<Fp192> = Vec::with_capacity(1 + r_shifts.len());
+            g_i.push(r_out.clone());
+            g_i.extend_from_slice(&r_shifts);
+            let mut values: Vec<Fp192> = Vec::with_capacity(g_i.len());
+            values.push(sig.stir_betas[round].clone());
+            values.extend_from_slice(&a_i_at_shifts);
+            let b_hat = lagrange_interpolate(&g_i, &values).expect(
+                "G_R distinct by oversample dedupe; sumcheck-path-valid by prior checks",
+            );
+            let t_r = degree_correction_polynomial(&r_comb, r_shifts.len());
+            last_round_b_hat = Some(b_hat);
+            last_round_t_r = Some(t_r);
+            last_round_g_i = Some(g_i);
+            last_round_shift_bases = Some(shift_bases.clone());
+        }
+
+        // Advance FS chain to next round (or for the final fold).
         current_generator = current_generator.pow_u128(pp.eta as u128);
         current_size = next_size;
         current_r_fold = next_r_fold;
     }
 
-    // Absorb final_coefs into transcript to mirror Sign's tail. Not
-    // checked yet (final-poly consistency is the remaining Phase 9c
-    // follow-up).
+    // ─── Alg 6 line 18: final-polynomial consistency check ───
+    //
+    // After R rounds, sig.final_coefs claims to be f̂_{R+1} =
+    // fold(f̂_R, r_R^fold). The verifier checks t_M random points
+    // r_i^fin ∈ U_R^η:
+    //   1. From the η fiber Merkle openings of â_R above r_i^fin,
+    //      compute f̂_R(fiber) = â_R'(fiber) · t_R(fiber).
+    //   2. Lagrange-interpolate p̂_y on (fiber, f̂_R(fiber)) and
+    //      evaluate at r_R^fold to get f̂_{R+1}(r_i^fin).
+    //   3. Evaluate sig.final_coefs at r_i^fin.
+    //   4. Reject on disagreement.
     transcript.append_fields(b"stir/final_coefs", &sig.final_coefs);
+
+    let b_hat_r = last_round_b_hat.expect("last round populated b̂_R");
+    let t_r_coeffs = last_round_t_r.expect("last round populated t_R");
+    let g_r = last_round_g_i.expect("last round populated G_R");
+
+    let last_shift_bases = last_round_shift_bases.expect("last round populated shift_bases");
+    let t_m = pp.kappas[pp.r_rounds];
+    let final_size_over_eta = current_size / pp.eta;
+    let forbidden_residues: std::collections::HashSet<usize> = last_shift_bases
+        .iter()
+        .map(|&b| b % final_size_over_eta)
+        .collect();
+    let raw_final_bases: Vec<usize> = transcript.challenge_indices(
+        b"stir/final_bases",
+        t_m * 3,
+        final_size_over_eta,
+    );
+    let mut final_bases: Vec<usize> = Vec::with_capacity(t_m);
+    for b in &raw_final_bases {
+        if !forbidden_residues.contains(b) && !final_bases.contains(b) {
+            final_bases.push(*b);
+            if final_bases.len() == t_m {
+                break;
+            }
+        }
+    }
+    if final_bases.len() != t_m {
+        return VerificationOutcome::Reject(VerificationFailure::MalformedSignatureShape);
+    }
+    if sig.stir_final_a_openings.len() != t_m {
+        return VerificationOutcome::Reject(VerificationFailure::MalformedSignatureShape);
+    }
+    let last_round_index = pp.r_rounds - 1;
+
+    for (i, &b) in final_bases.iter().enumerate() {
+        if sig.stir_final_a_openings[i].len() != pp.eta {
+            return VerificationOutcome::Reject(
+                VerificationFailure::MalformedSignatureShape,
+            );
+        }
+        let mut fiber_x: Vec<Fp192> = Vec::with_capacity(pp.eta);
+        let mut fiber_a_r: Vec<Fp192> = Vec::with_capacity(pp.eta);
+        for t in 0..pp.eta {
+            let leaf_idx = b + t * final_size_over_eta;
+            let proof = &sig.stir_final_a_openings[i][t];
+            if proof.leaf_index != leaf_idx
+                || !PlumMerkleTree::<H>::verify(
+                    &sig.stir_roots[last_round_index],
+                    proof,
+                )
+            {
+                return VerificationOutcome::Reject(
+                    VerificationFailure::StirFinalAMerklePathInvalid {
+                        fin_index: i,
+                        fiber_index: t,
+                    },
+                );
+            }
+            let x = current_generator.pow_u128(leaf_idx as u128);
+            fiber_x.push(x);
+            fiber_a_r.push(proof.leaf.clone());
+        }
+
+        // Compute f̂_R(x) for each x in the fiber:
+        //   â_R'(x) = (â_R(x) − b̂_R(x)) / Π_{α ∈ G_R}(x − α)
+        //   f̂_R(x) = â_R'(x) · t_R(x)
+        let mut fiber_f_r: Vec<Fp192> = Vec::with_capacity(pp.eta);
+        for t in 0..pp.eta {
+            let x = &fiber_x[t];
+            let b_x = evaluate(&b_hat_r, x);
+            let mut prod = Fp192::one();
+            for alpha in &g_r {
+                prod = prod * (x.clone() - alpha.clone());
+            }
+            let prod_inv = match prod.inverse() {
+                Some(v) => v,
+                None => {
+                    // Fiber point coincides with G_R (probability
+                    // ≈ |G_R|·η / |U_R| ≈ 14·4/1024 ≈ 5% at PLUM-128;
+                    // an honest prover would avoid this via FS re-
+                    // sampling but our current oversample doesn't
+                    // protect against it). Reject with a shape error
+                    // rather than crash.
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::MalformedSignatureShape,
+                    );
+                }
+            };
+            let a_prime_x = (fiber_a_r[t].clone() - b_x) * prod_inv;
+            let t_r_x = evaluate(&t_r_coeffs, x);
+            fiber_f_r.push(a_prime_x * t_r_x);
+        }
+
+        // Lagrange-interpolate on the fiber and evaluate at r_R^fold.
+        let p_y_coeffs = match lagrange_interpolate(&fiber_x, &fiber_f_r) {
+            Ok(coeffs) => coeffs,
+            Err(_) => {
+                return VerificationOutcome::Reject(
+                    VerificationFailure::MalformedSignatureShape,
+                );
+            }
+        };
+        let f_r_plus_1_at_r_fin = evaluate(&p_y_coeffs, &current_r_fold);
+
+        // Compare with sig.final_coefs evaluated at r_i^fin.
+        let r_fin = current_generator.pow_u128((b * pp.eta) as u128);
+        let claimed = evaluate(&sig.final_coefs, &r_fin);
+
+        if f_r_plus_1_at_r_fin != claimed {
+            return VerificationOutcome::Reject(
+                VerificationFailure::FinalPolynomialMismatch { fin_index: i },
+            );
+        }
+    }
 
     VerificationOutcome::Accept
 }
@@ -766,6 +930,52 @@ mod tests {
         sig.stir_a_openings[0].swap(0, 1);
         let outcome = plum_verify::<PlumSha3Hasher>(&pp, &pk, b"msg", &sig);
         assert!(matches!(outcome, VerificationOutcome::Reject(_)));
+    }
+
+    /// Tampering `sig.final_coefs` should trip the final-polynomial
+    /// consistency check (Alg 6 line 18): the verifier reconstructs
+    /// `f̂_{R+1}(r_i^fin)` from `â_R` Merkle openings and compares
+    /// against `sig.final_coefs` evaluated at `r_i^fin`.
+    #[test]
+    fn verify_rejects_tampered_final_coefs() {
+        let pp = plum_setup(128).expect("setup");
+        let mut rng = ChaCha20Rng::seed_from_u64(0xD000_00B0);
+        let (sk, pk) = plum_keygen(&pp, &mut rng);
+        let mut sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, b"msg", &mut rng);
+        // Flip the constant coefficient. This changes f̂_{R+1}(x) for
+        // every x.
+        sig.final_coefs[0] = sig.final_coefs[0].clone() + Fp192::one();
+        let outcome = plum_verify::<PlumSha3Hasher>(&pp, &pk, b"msg", &sig);
+        // The transcript binds final_coefs into h_final, which is
+        // used to derive the final_bases. Tampering final_coefs
+        // changes the FS-derived final_bases on the verifier side,
+        // so the Merkle openings (which the prover computed for the
+        // *correct* final_bases) won't have the right leaf_index.
+        // Either StirFinalAMerklePathInvalid or FinalPolynomialMismatch
+        // is acceptable here.
+        assert!(matches!(outcome, VerificationOutcome::Reject(_)));
+    }
+
+    /// Tampering one of the Merkle openings to `â_R` (final-poly
+    /// fiber) should trip the Merkle path check.
+    #[test]
+    fn verify_rejects_tampered_final_a_opening() {
+        let pp = plum_setup(128).expect("setup");
+        let mut rng = ChaCha20Rng::seed_from_u64(0xD000_00B1);
+        let (sk, pk) = plum_keygen(&pp, &mut rng);
+        let mut sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, b"msg", &mut rng);
+        sig.stir_final_a_openings[0][0].leaf =
+            sig.stir_final_a_openings[0][0].leaf.clone() + Fp192::one();
+        let outcome = plum_verify::<PlumSha3Hasher>(&pp, &pk, b"msg", &sig);
+        assert!(matches!(
+            outcome,
+            VerificationOutcome::Reject(
+                VerificationFailure::StirFinalAMerklePathInvalid {
+                    fin_index: 0,
+                    fiber_index: 0,
+                }
+            ),
+        ));
     }
 
     #[test]

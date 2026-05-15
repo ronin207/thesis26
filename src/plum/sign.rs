@@ -88,6 +88,12 @@ pub struct PlumSignature {
     /// inner `Vec<PlumMerkleProof>` has length `κ_shift` (the per-round
     /// shift count) and `openings[j].leaf` is `â_{i+1}(ω_{i}^{b_j · η})`.
     pub stir_a_openings: Vec<Vec<PlumMerkleProof>>,
+    /// Final-polynomial query openings (paper Alg 5 lines 15–16): for
+    /// each `r_i^fin ∈ U_R^η`, the η Merkle openings to `â_R` at the
+    /// fiber `{ω_{U_R}^{b_i + t · |U_R|/η}}_{t<η}`. Outer length is
+    /// `t_M`; inner length is `η`. Used in Alg 6 line 18 to check
+    /// `f̂_{R+1}(r_i^fin) = sig.final_coefs(r_i^fin)`.
+    pub stir_final_a_openings: Vec<Vec<PlumMerkleProof>>,
     /// Coefficients of the final-round polynomial `f̂_{R+1}` (Alg 5
     /// line 14), length `< d_R = d_stop`.
     pub final_coefs: Vec<Fp192>,
@@ -392,6 +398,11 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     let mut current_size = pp.u_size;
     let mut current_r_fold = r0_fold;
     let mut last_round_coeffs: Option<Vec<Fp192>> = None;
+    // Captured at the end of the last STIR round, used for the
+    // final-polynomial check (Alg 6 line 18). For R = 1, this is
+    // round 0's state.
+    let mut last_round_merkle_a: Option<PlumMerkleTree<H>> = None;
+    let mut last_round_shift_bases: Option<Vec<usize>> = None;
 
     // f̂_0 query openings are populated when round 0 runs.
     let mut query_indices: Vec<usize> = Vec::new();
@@ -517,21 +528,76 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
 
         if round + 1 == r_rounds {
             last_round_coeffs = Some(f_i);
+            last_round_merkle_a = Some(merkle_a);
+            last_round_shift_bases = Some(shift_bases.clone());
         } else {
             let mut f_i_padded = f_i.clone();
             f_i_padded.resize(next_size, Fp192::zero());
             current_evals = evaluate_on_coset(&f_i_padded, &Fp192::one(), &next_gen)
                 .expect("FFT for f̂_i on next domain");
-            current_generator = next_gen;
-            current_size = next_size;
-            current_r_fold = next_r_fold;
         }
+        // Always advance the FS/domain state for the final fold or
+        // the next round.
+        current_generator = next_gen;
+        current_size = next_size;
+        current_r_fold = next_r_fold;
     }
 
-    // Final-poly: fold f̂_R one more time (Alg 5 line 14).
+    // Final-poly: fold f̂_R one more time (Alg 5 line 14). After the
+    // loop, current_r_fold = r_R^fold (the r_fold derived inside the
+    // last round, which is the input to the final fold).
     let f_r = last_round_coeffs.expect("STIR loop produced no rounds");
     let final_coefs = fold_coefficients(&f_r, pp.eta, &current_r_fold);
     transcript.append_fields(b"stir/final_coefs", &final_coefs);
+
+    // Final-poly query openings (Alg 5 line 15-16). FS-derive t_M
+    // base indices in [0, |U_R|/η). Each base b defines η fiber
+    // points in U_R at indices {b, b + |U_R|/η, ..., b + (η−1)·|U_R|/η}.
+    // We open â_R (= last round's merkle_a, committed on U_R of size
+    // current_size) at those fiber points.
+    let last_merkle_a = last_round_merkle_a.expect("STIR loop produced merkle_a");
+    let last_shift_bases =
+        last_round_shift_bases.expect("STIR loop populated shift_bases");
+    let t_m = pp.kappas[pp.r_rounds];
+    let final_size_over_eta = current_size / pp.eta;
+    // Filter: a final base b ∈ [0, final_size_over_eta) produces η
+    // fiber indices {b + t · final_size_over_eta : t ∈ [0, η)} in
+    // U_R's commitment indexing. Any of these coinciding with a
+    // shift base in U_R's space would make â_R(fiber) ≡ â_R(shift)
+    // = b̂_R(shift), so Π(fiber − α∈G_R) would be zero — division by
+    // zero in the f̂_R reconstruction. Excluding these residue classes
+    // up-front keeps the verifier deterministic and well-defined.
+    let forbidden_residues: std::collections::HashSet<usize> = last_shift_bases
+        .iter()
+        .map(|&b| b % final_size_over_eta)
+        .collect();
+    let raw_final_bases: Vec<usize> = transcript.challenge_indices(
+        b"stir/final_bases",
+        t_m * 3,
+        final_size_over_eta,
+    );
+    let mut final_bases: Vec<usize> = Vec::with_capacity(t_m);
+    for b in &raw_final_bases {
+        if !forbidden_residues.contains(b) && !final_bases.contains(b) {
+            final_bases.push(*b);
+            if final_bases.len() == t_m {
+                break;
+            }
+        }
+    }
+    assert_eq!(
+        final_bases.len(),
+        t_m,
+        "FS sampling failed to produce {} distinct, non-forbidden final bases from 3x oversample",
+        t_m
+    );
+    let mut stir_final_a_openings: Vec<Vec<PlumMerkleProof>> = Vec::with_capacity(t_m);
+    for &b in &final_bases {
+        let fiber: Vec<PlumMerkleProof> = (0..pp.eta)
+            .map(|t| last_merkle_a.open(b + t * final_size_over_eta))
+            .collect();
+        stir_final_a_openings.push(fiber);
+    }
 
     PlumSignature {
         root_c,
@@ -543,6 +609,7 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
         stir_roots,
         stir_betas,
         stir_a_openings,
+        stir_final_a_openings,
         final_coefs,
         query_indices,
         c_prime_openings,
