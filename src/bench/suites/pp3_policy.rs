@@ -26,7 +26,7 @@
 //! policies, 10 runs each, bounded runtime.
 
 use crate::bench::{BenchWriter, Pp3PolicyConfig, RunnerConfig, SampleRecord, emit_summaries};
-use crate::evaluation::{
+use crate::bench::{
     PolicyInput, PolicyPredicate, run_pp2_aurora_single_opts, run_pp3_aurora_single_opts,
 };
 use crate::LoquatError;

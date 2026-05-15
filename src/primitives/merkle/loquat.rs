@@ -8,8 +8,8 @@
 //! - It operates natively over prime fields
 //! - It's more efficient in zero-knowledge proof systems
 
-use super::field_utils::{self, F};
-use super::griffin::{GRIFFIN_STATE_WIDTH, griffin_permutation_raw};
+use crate::signatures::loquat::field_utils::{self, F};
+use crate::primitives::hash::griffin_p127::{GRIFFIN_STATE_WIDTH, griffin_permutation_raw};
 #[cfg(not(feature = "std"))]
 use alloc::vec;
 #[cfg(not(feature = "std"))]

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 
-use crate::evaluation::instrument::PhaseTimer;
+use crate::bench::instrument::PhaseTimer;
 
 use crate::anoncreds::bdec::{
     BdecCredential, bdec_build_showver_instance_with_policy_paper, bdec_issue_credential,
@@ -18,7 +18,7 @@ use crate::anoncreds::bdec::{
     bdec_synthetic_public_key_with_prefix, bdec_verify_show_proof_paper,
     bdec_verify_shown_credential_with_policy_paper,
 };
-use crate::evaluation::metrics::{D1ChurnEntry, D2CostMetrics};
+use crate::bench::metrics::{D1ChurnEntry, D2CostMetrics};
 use crate::{BdecSystem, LoquatKeyPair};
 use bincode::serialize;
 

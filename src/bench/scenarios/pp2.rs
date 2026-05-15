@@ -7,8 +7,8 @@ use crate::anoncreds::bdec::{
     bdec_show_credential_paper_constraint_count, bdec_synthetic_public_key_with_prefix,
     bdec_verify_show_proof_paper, bdec_verify_shown_credential_paper,
 };
-use crate::evaluation::instrument::PhaseTimer;
-use crate::evaluation::metrics::D2CostMetrics;
+use crate::bench::instrument::PhaseTimer;
+use crate::bench::metrics::D2CostMetrics;
 use crate::{BdecSystem, LoquatKeyPair};
 use bincode::serialize;
 use serde::{Deserialize, Serialize};

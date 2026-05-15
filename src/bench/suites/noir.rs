@@ -18,7 +18,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use crate::bench::{BenchWriter, NoirConfig, RunnerConfig, SampleRecord, emit_summaries};
-use crate::noir_backend::{
+use crate::compilers::noir::{
     convert_acir_to_r1cs, extract_bytecode_from_json_wrapper, parse_acir_binary_bytecode,
     parse_acir_json,
 };

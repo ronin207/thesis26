@@ -14,8 +14,8 @@ use core::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 
-use super::field_p192::Fp192;
-use super::hasher::{PLUM_DIGEST_BYTES, PlumHasher};
+use crate::primitives::field::p192::Fp192;
+use crate::primitives::hash::hasher_plum::{PLUM_DIGEST_BYTES, PlumHasher};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlumMerkleProof {
@@ -205,7 +205,7 @@ impl<H: PlumHasher> PlumMerkleTree<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::hasher::{PlumGriffinHasher, PlumSha3Hasher};
+    use crate::primitives::hash::hasher_plum::{PlumGriffinHasher, PlumSha3Hasher};
 
     fn sample_leaves(n: usize) -> Vec<Fp192> {
         (0..n).map(|i| Fp192::from_u64(i as u64 * 31 + 7)).collect()

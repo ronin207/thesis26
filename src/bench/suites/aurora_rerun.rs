@@ -10,7 +10,7 @@
 //! for backwards compatibility).
 
 use crate::bench::{AuroraRerunConfig, BenchWriter, RunnerConfig, SampleRecord, emit_summaries};
-use crate::evaluation::{
+use crate::bench::{
     PolicyInput, PolicyPredicate, run_pp2_aurora_with_security, run_pp3_aurora_with_security,
 };
 use crate::LoquatError;

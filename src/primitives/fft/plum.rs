@@ -11,7 +11,7 @@
 //! `2^64`-order smooth subgroup `F_p^* / ⟨g^((p-1)/2^64)⟩`, which the
 //! `Fp192` modulus is chosen specifically to make large.
 
-use super::field_p192::Fp192;
+use crate::primitives::field::p192::Fp192;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FftError {

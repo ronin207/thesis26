@@ -6,8 +6,8 @@
 //! Griffin is preferred for SNARK-friendly applications as it has significantly
 //! lower circuit complexity compared to SHA256.
 
-use super::field_p127::Fp127;
-use super::griffin::griffin_hash;
+use crate::primitives::field::p127::Fp127;
+use crate::primitives::hash::griffin_p127::griffin_hash;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 #[cfg(feature = "std")]

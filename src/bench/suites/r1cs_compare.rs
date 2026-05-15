@@ -13,7 +13,7 @@
 use std::time::Instant;
 
 use crate::bench::{BenchWriter, R1csCompareConfig, RunnerConfig, SampleRecord, emit_summaries};
-use crate::noir_backend::{convert_acir_to_r1cs, parse_acir_json};
+use crate::compilers::noir::{convert_acir_to_r1cs, parse_acir_json};
 use crate::snarks::{AuroraParams, aurora_prove, aurora_verify, build_loquat_r1cs_pk_witness};
 use crate::{keygen_with_params, loquat_setup, loquat_setup_tiny, loquat_sign};
 use crate::{LoquatError, LoquatResult};

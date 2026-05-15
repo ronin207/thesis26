@@ -6,7 +6,7 @@ use crate::signatures::loquat::sumcheck::{
     verify_sumcheck_proof,
 };
 use crate::signatures::loquat::transcript::{FieldTranscript, expand_index};
-use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 use bincode::Options;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -652,7 +652,7 @@ fn bincode_options() -> impl Options {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+    use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 
     fn multiplication_instance() -> (R1csInstance, R1csWitness) {
         let num_variables = 4; // 1 (constant) + x + y + z

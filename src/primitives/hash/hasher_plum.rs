@@ -27,8 +27,8 @@ use sha3::{
     digest::{ExtendableOutput, Update as Sha3Update, XofReader},
 };
 
-use super::field_p192::Fp192;
-use super::griffin::{
+use crate::primitives::field::p192::Fp192;
+use crate::primitives::hash::griffin_p192::{
     PlumGriffinState, plum_griffin_params, plum_griffin_permutation,
 };
 
@@ -85,7 +85,7 @@ impl PlumHasher for PlumGriffinHasher {
     }
 
     fn finalize_bytes(self) -> [u8; PLUM_DIGEST_BYTES] {
-        let digest = super::griffin::plum_griffin_hash(&self.buffer);
+        let digest = crate::primitives::hash::griffin_p192::plum_griffin_hash(&self.buffer);
         let mut out = [0u8; PLUM_DIGEST_BYTES];
         // Take the first 32 bytes of the 64-byte Griffin digest.
         out.copy_from_slice(&digest[..PLUM_DIGEST_BYTES]);

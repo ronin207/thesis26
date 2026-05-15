@@ -11,7 +11,7 @@
 //!     `max_k_for_local_prove` so large-k configs don't run for hours.
 
 use crate::bench::{BenchWriter, CircuitScaleConfig, RunnerConfig, SampleRecord, emit_summaries};
-use crate::evaluation::{
+use crate::bench::{
     PolicyInput, PolicyPredicate, run_pp2_aurora_single_opts, run_pp2_constraint_count_single,
     run_pp3_aurora_single_opts, run_pp3_constraint_count_single,
 };

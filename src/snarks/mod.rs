@@ -20,8 +20,6 @@ pub mod aurora;
 pub mod fractal;
 #[cfg(not(vc_pqc_skip_libiop))]
 pub mod libiop_bridge;
-pub mod loquat_r1cs;
-pub mod r1cs;
 
 pub use aurora::{
     AuroraParams, AuroraProof, AuroraProverOptions, AuroraVerificationHints,
@@ -29,10 +27,15 @@ pub use aurora::{
     aurora_verify_with_public_inputs,
 };
 pub use fractal::{FractalParams, FractalProof, fractal_prove, fractal_verify};
-pub use loquat_r1cs::{
+// R1CS types now live in `crate::primitives::r1cs`; re-exported here
+// for callers that import via `vc_pqc::snarks::*`.
+pub use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+// Loquat-specific R1CS lowering now lives at
+// `crate::signatures::loquat::r1cs_circuit`; re-exported here for callers
+// that import via `vc_pqc::snarks::*`.
+pub use crate::signatures::loquat::r1cs_circuit::{
     build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_witness_instance,
     build_loquat_r1cs_pk_sig_witness, build_loquat_r1cs_pk_sig_witness_instance,
     build_revocation_r1cs_pk_witness, build_revocation_r1cs_pk_witness_instance,
     take_last_r1cs_breakdown,
 };
-pub use r1cs::{R1csConstraint, R1csInstance, R1csWitness};

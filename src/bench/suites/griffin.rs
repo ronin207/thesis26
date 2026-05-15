@@ -15,7 +15,7 @@
 use std::time::Instant;
 
 use crate::bench::{BenchWriter, GriffinConfig, RunnerConfig, SampleRecord, emit_summaries};
-use crate::evaluation::run_pp2_aurora_single_opts;
+use crate::bench::run_pp2_aurora_single_opts;
 use crate::snarks::{
     AuroraParams, aurora_prove, aurora_verify,
     build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_sig_witness_instance,

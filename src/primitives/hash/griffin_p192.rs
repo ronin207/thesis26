@@ -33,7 +33,7 @@ use sha3::{
     digest::{ExtendableOutput, Update as Sha3Update, XofReader},
 };
 
-use super::field_p192::{Fp192, MODULUS_BITS};
+use crate::primitives::field::p192::{Fp192, MODULUS_BITS};
 
 /// Counter incremented on every full Griffin permutation. Mirrors
 /// `loquat::griffin::GRIFFIN_PERM_COUNT` from the Loquat side.

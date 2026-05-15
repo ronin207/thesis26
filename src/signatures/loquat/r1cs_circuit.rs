@@ -386,7 +386,7 @@ use crate::signatures::loquat::setup::LoquatPublicParams;
 use crate::signatures::loquat::sign::LoquatSignature;
 use crate::signatures::loquat::sumcheck::replay_sumcheck_challenges;
 use crate::signatures::loquat::transcript::{FieldTranscript, expand_f, expand_f2_real, expand_index};
-use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 
 struct TranscriptData {
     i_indices: Vec<usize>,

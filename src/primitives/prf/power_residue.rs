@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use num_bigint::BigUint;
 use once_cell::sync::Lazy;
 
-use super::field_p192::{Fp192, MODULUS_BITS, T_RESIDUE};
+use crate::primitives::field::p192::{Fp192, MODULUS_BITS, T_RESIDUE};
 
 /// Counter incremented on every PRF symbol evaluation. Useful for the
 /// zkVM attribution phase — separates "Legendre / power residue" symbol

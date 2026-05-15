@@ -1,4 +1,4 @@
-use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
