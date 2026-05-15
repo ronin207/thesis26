@@ -1,0 +1,8 @@
+# run_benchmarks.sh — mode=zkvm tiny=0 runs_override=<config> ts=20260416_173016
+# cwd: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis
+# out: results/bench_run_20260416_173016
+
+=== benchmark cells (mode=zkvm) ===
+  [ 1] zkvm   B6_zkvm_sweep                    -> cell_B6_zkvm_sweep
+=== total: 1 cells ===
+[dry-run] not executing

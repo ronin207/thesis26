@@ -61,6 +61,15 @@ impl R1csConstraint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R1csInstance {
     pub num_variables: usize,
+    /// Number of variables that are public inputs (i.e., part of the verifier-visible
+    /// instance vector). They occupy indices `[1, num_inputs]` of the witness vector
+    /// after the implicit constant-1 slot at index 0. The remaining indices
+    /// `[num_inputs+1, num_variables-1]` are private witness.
+    ///
+    /// `0` means "no public inputs" (legacy behavior used pre-Phase-4); the entire
+    /// witness vector is private. New (Phase 4+) builders set this explicitly.
+    #[serde(default)]
+    pub num_inputs: usize,
     pub constraints: Vec<R1csConstraint>,
 }
 
@@ -88,6 +97,7 @@ impl R1csInstance {
         }
         Ok(Self {
             num_variables,
+            num_inputs: 0,
             constraints,
         })
     }
@@ -99,6 +109,7 @@ impl R1csInstance {
     pub fn digest(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update(self.num_variables.to_le_bytes());
+        hasher.update(self.num_inputs.to_le_bytes());
         for constraint in &self.constraints {
             absorb_sparse_row(&mut hasher, &constraint.a);
             absorb_sparse_row(&mut hasher, &constraint.b);

@@ -8,17 +8,19 @@
 //! match the formal algorithms: `Setup`, `PriGen`, `NymKey`, `CreGen`,
 //! `CreVer`, `ShowCre`, `ShowVer`, and `RevCre`.
 
+use crate::evaluation::pp3::{
+    PolicyInput, PolicyPredicate, evaluate_policy_input, parse_attribute_map,
+};
+use crate::loquat::field_utils;
 use crate::loquat::field_utils::F;
+use crate::loquat::griffin::{GRIFFIN_STATE_WIDTH, griffin_permutation_raw};
+use crate::loquat::merkle::MerkleTree;
 use crate::loquat::{
     LoquatPublicParams, LoquatSignature, loquat_setup, loquat_sign, loquat_verify,
 };
-use crate::loquat::field_utils;
-use crate::loquat::griffin::{griffin_permutation_raw, GRIFFIN_STATE_WIDTH};
-use crate::loquat::merkle::MerkleTree;
 use crate::snarks::{
-    AuroraParams, AuroraProof, R1csConstraint, R1csInstance, R1csWitness, aurora_prove, aurora_verify,
-    build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_witness_instance,
-    build_loquat_r1cs_pk_sig_witness,
+    AuroraParams, AuroraProof, R1csConstraint, R1csInstance, R1csWitness, aurora_prove,
+    aurora_verify, build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_witness_instance,
     build_revocation_r1cs_pk_witness, build_revocation_r1cs_pk_witness_instance,
 };
 use crate::{LoquatError, LoquatKeyPair, LoquatResult, keygen_with_params};
@@ -27,6 +29,8 @@ use rand::{Rng, distributions::Standard};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
+
+const POLICY_RANGE_BITS: usize = 32;
 
 /// Public parameters for the BDEC layer (`par` in the paper).
 #[derive(Debug, Clone)]
@@ -248,6 +252,46 @@ fn pk_prefix_index(public_key: &[F], depth: usize) -> LoquatResult<u64> {
     Ok(idx)
 }
 
+/// Compute the sparse-revocation leaf index (first `depth` bits of `pk_U`).
+pub fn bdec_public_key_prefix_index(public_key: &[F], depth: usize) -> LoquatResult<u64> {
+    pk_prefix_index(public_key, depth)
+}
+
+/// Build a synthetic public key whose first `depth` bits map to `prefix_index`.
+///
+/// This helper is useful for deterministic revocation-list population in benchmarks.
+pub fn bdec_synthetic_public_key_with_prefix(
+    prefix_index: u64,
+    depth: usize,
+    key_len: usize,
+) -> LoquatResult<Vec<F>> {
+    if depth > 63 {
+        return Err(LoquatError::invalid_parameters(
+            "revocation depth too large for u64 indexing",
+        ));
+    }
+    if key_len < depth {
+        return Err(LoquatError::invalid_parameters(
+            "key_len shorter than revocation depth",
+        ));
+    }
+    let max_index = 1u64.checked_shl(depth as u32).ok_or_else(|| {
+        LoquatError::invalid_parameters("revocation depth overflow while building synthetic key")
+    })?;
+    if prefix_index >= max_index {
+        return Err(LoquatError::invalid_parameters(
+            "prefix_index exceeds revocation tree capacity",
+        ));
+    }
+    let mut key = vec![F::zero(); key_len];
+    for bit_idx in 0..depth {
+        if ((prefix_index >> bit_idx) & 1) == 1 {
+            key[bit_idx] = F::one();
+        }
+    }
+    Ok(key)
+}
+
 fn revocation_leaf_digest(value: F) -> [u8; 32] {
     // Matches the circuit leaf compression: Griffin perm over (value, 0, len_tag=1, 0).
     let mut state = [F::zero(); GRIFFIN_STATE_WIDTH];
@@ -319,6 +363,12 @@ fn attribute_merkle_root(attributes: &[String]) -> LoquatResult<([u8; 32], Vec<S
     let mut root = [0u8; 32];
     root.copy_from_slice(&root_vec);
     Ok((root, ordered))
+}
+
+/// Return the Merkle root for the attribute list using BDEC's canonicalization/padding rules.
+pub fn bdec_attribute_merkle_root(attributes: &[String]) -> LoquatResult<[u8; 32]> {
+    let (root, _ordered) = attribute_merkle_root(attributes)?;
+    Ok(root)
 }
 
 /// Helper: build a Merkle membership proof for an attribute, using the same canonicalisation
@@ -393,7 +443,11 @@ pub fn bdec_setup(lambda: usize, max_attributes: usize) -> LoquatResult<BdecSyst
 }
 
 /// Run `Setup` with an additional sparse-Merkle revocation accumulator (revocation checked in ZK).
-pub fn bdec_setup_zk(lambda: usize, max_attributes: usize, revocation_depth: usize) -> LoquatResult<BdecSystem> {
+pub fn bdec_setup_zk(
+    lambda: usize,
+    max_attributes: usize,
+    revocation_depth: usize,
+) -> LoquatResult<BdecSystem> {
     let mut system = bdec_setup(lambda, max_attributes)?;
     system.revocation_accumulator = Some(BdecRevocationAccumulator::new(revocation_depth)?);
     Ok(system)
@@ -455,6 +509,45 @@ pub fn bdec_issue_credential(
         system.params.loquat_params.l,
     )?;
     let aurora_proof = aurora_prove(&r1cs_instance, &r1cs_witness, &system.params.aurora_params)?;
+
+    Ok(BdecCredential {
+        pseudonym: pseudonym.clone(),
+        attributes,
+        attribute_hash,
+        attribute_commitment_type: BdecAttributeCommitmentType::HashListSha256,
+        credential_signature,
+        proof: BdecCredentialProof {
+            commitment,
+            aurora_proof,
+        },
+    })
+}
+
+/// Issue a credential **without** running `aurora_prove`, by attaching a caller-supplied
+/// (already-generated) aurora proof. Used by constraint-count benchmarks (B3) that need
+/// many credentials per ShowCre invocation but do not need each CreGen proof to be
+/// independently verifiable — only the merged R1CS instance shape matters.
+///
+/// **Do NOT use** outside of constraint-counting benchmarks: the cloned proof is not
+/// a valid proof for this credential's R1CS statement, so [`bdec_verify_credential`]
+/// will reject it.
+pub fn bdec_issue_credential_with_existing_proof(
+    system: &BdecSystem,
+    user_keypair: &LoquatKeyPair,
+    pseudonym: &BdecPseudonymKey,
+    attributes: Vec<String>,
+    aurora_proof: AuroraProof,
+) -> LoquatResult<BdecCredential> {
+    if attributes.len() > system.params.max_attributes {
+        return Err(LoquatError::invalid_parameters(
+            "too many attributes for credential",
+        ));
+    }
+
+    let attribute_hash = hash_attributes(&attributes);
+    let credential_signature =
+        loquat_sign(&attribute_hash, user_keypair, &system.params.loquat_params)?;
+    let commitment = credential_commitment(pseudonym, &credential_signature, &attribute_hash)?;
 
     Ok(BdecCredential {
         pseudonym: pseudonym.clone(),
@@ -561,7 +654,11 @@ pub fn bdec_verify_credential(
     )? {
         return Ok(false);
     }
-    if is_signature_from_revoked_key(system, &credential.pseudonym.public, &credential.pseudonym.signature)? {
+    if is_signature_from_revoked_key(
+        system,
+        &credential.pseudonym.public,
+        &credential.pseudonym.signature,
+    )? {
         return Ok(false);
     }
 
@@ -648,10 +745,8 @@ pub fn bdec_link_pseudonyms(
         None
     };
 
-    let (instance, witness) = merge_r1cs_instances_shared_pk(
-        circuits,
-        system.params.loquat_params.l,
-    )?;
+    let (instance, witness) =
+        merge_r1cs_instances_shared_pk(circuits, system.params.loquat_params.l)?;
     let proof = aurora_prove(&instance, &witness, &system.params.aurora_params)?;
 
     Ok(BdecLinkProof {
@@ -665,13 +760,15 @@ pub fn bdec_link_pseudonyms(
 /// Verify a conditional linkability proof.
 pub fn bdec_verify_link_proof(system: &BdecSystem, link: &BdecLinkProof) -> LoquatResult<bool> {
     // Revocation scan: reject if any revoked pk verifies either pseudonym signature.
-    if is_signature_from_revoked_key(system, &link.old_pseudonym.public, &link.old_pseudonym.signature)?
-        || is_signature_from_revoked_key(
-            system,
-            &link.new_pseudonym.public,
-            &link.new_pseudonym.signature,
-        )?
-    {
+    if is_signature_from_revoked_key(
+        system,
+        &link.old_pseudonym.public,
+        &link.old_pseudonym.signature,
+    )? || is_signature_from_revoked_key(
+        system,
+        &link.new_pseudonym.public,
+        &link.new_pseudonym.signature,
+    )? {
         return Ok(false);
     }
 
@@ -785,7 +882,8 @@ pub fn bdec_show_credential_paper(
         None
     };
 
-    let (r1cs_instance, r1cs_witness) = merge_r1cs_instances_shared_pk(circuits, system.params.loquat_params.l)?;
+    let (r1cs_instance, r1cs_witness) =
+        merge_r1cs_instances_shared_pk(circuits, system.params.loquat_params.l)?;
     let show_proof = aurora_prove(&r1cs_instance, &r1cs_witness, &system.params.aurora_params)?;
 
     Ok(BdecShownCredentialPaper {
@@ -798,6 +896,259 @@ pub fn bdec_show_credential_paper(
         show_proof,
         revocation_proof,
     })
+}
+
+/// R1CS-count-only helper for PP2. Builds the same R1CS instance as
+/// `bdec_show_credential_paper` **without** invoking `aurora_prove`. Returns the
+/// merged constraint count.
+///
+/// This is used by B3 (circuit-scale) when `tier = "constraints_only"` so that
+/// large-k configurations (k=6, 8, 14) do not incur hours of IOP proving time
+/// for a measurement that is fully determined by the R1CS structure.
+pub fn bdec_show_credential_paper_constraint_count(
+    system: &BdecSystem,
+    user_keypair: &LoquatKeyPair,
+    credentials: &[BdecCredential],
+    disclosed_attributes: Vec<String>,
+) -> LoquatResult<usize> {
+    if credentials.is_empty() {
+        return Err(LoquatError::invalid_parameters(
+            "at least one credential is required",
+        ));
+    }
+
+    // NOTE: B3 constraint-count fast path. We intentionally skip
+    // `bdec_verify_credential` (which calls `aurora_verify`) — the merged R1CS
+    // shape only depends on parameters and signature lengths, not on whether
+    // each per-credential aurora proof is valid.
+    let canonical_disclosure = canonicalise_attributes(&disclosed_attributes)?;
+    ensure_disclosure_subset(credentials, &canonical_disclosure)?;
+    let disclosure_hash = hash_attributes(&canonical_disclosure);
+
+    let verifier_pseudonym = bdec_nym_key(system, user_keypair)?;
+    let shown_credential_signature =
+        loquat_sign(&disclosure_hash, user_keypair, &system.params.loquat_params)?;
+
+    let mut circuits = Vec::with_capacity(credentials.len() + 2);
+    for credential in credentials {
+        let (inst, wit) = build_loquat_r1cs_pk_witness(
+            &credential.pseudonym.public,
+            &credential.pseudonym.signature,
+            &user_keypair.public_key,
+            &system.params.loquat_params,
+        )?;
+        circuits.push((inst, wit));
+    }
+    let (ver_inst, ver_wit) = build_loquat_r1cs_pk_witness(
+        &verifier_pseudonym.public,
+        &verifier_pseudonym.signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )?;
+    circuits.push((ver_inst, ver_wit));
+    let (shown_inst, shown_wit) = build_loquat_r1cs_pk_witness(
+        &disclosure_hash,
+        &shown_credential_signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )?;
+    circuits.push((shown_inst, shown_wit));
+
+    if let Some(acc) = system.revocation_accumulator.as_ref() {
+        let root = acc.root();
+        let depth = acc.depth();
+        let auth_path = acc.auth_path(&user_keypair.public_key)?;
+        let (rev_inst, rev_wit) =
+            build_revocation_r1cs_pk_witness(&user_keypair.public_key, &root, &auth_path, depth)?;
+        circuits.push((rev_inst, rev_wit));
+    }
+
+    let (r1cs_instance, _r1cs_witness) =
+        merge_r1cs_instances_shared_pk(circuits, system.params.loquat_params.l)?;
+    Ok(r1cs_instance.num_constraints())
+}
+
+/// Policy-bound `ShowCre` variant for PP3 evaluation.
+///
+/// This generates a ShowCre proof that includes in-circuit policy predicates over
+/// disclosed attributes.
+pub fn bdec_show_credential_with_policy_paper(
+    system: &BdecSystem,
+    user_keypair: &LoquatKeyPair,
+    credentials: &[BdecCredential],
+    disclosed_attributes: Vec<String>,
+    policy: &PolicyInput,
+) -> LoquatResult<BdecShownCredentialPaper> {
+    if credentials.is_empty() {
+        return Err(LoquatError::invalid_parameters(
+            "at least one credential is required",
+        ));
+    }
+
+    for credential in credentials {
+        if !bdec_verify_credential(system, credential)? {
+            return Err(LoquatError::verification_failure(
+                "credential failed verification during ShowCre",
+            ));
+        }
+    }
+
+    let canonical_disclosure = canonicalise_attributes(&disclosed_attributes)?;
+    ensure_disclosure_subset(credentials, &canonical_disclosure)?;
+    let disclosure_hash = hash_attributes(&canonical_disclosure);
+    if !evaluate_policy_input(&canonical_disclosure, policy) {
+        return Err(LoquatError::invalid_parameters(
+            "disclosed attributes do not satisfy the requested policy",
+        ));
+    }
+
+    let verifier_pseudonym = bdec_nym_key(system, user_keypair)?;
+    let shown_credential_signature =
+        loquat_sign(&disclosure_hash, user_keypair, &system.params.loquat_params)?;
+
+    let mut circuits = Vec::with_capacity(credentials.len() + 3);
+    for credential in credentials {
+        let (inst, wit) = build_loquat_r1cs_pk_witness(
+            &credential.pseudonym.public,
+            &credential.pseudonym.signature,
+            &user_keypair.public_key,
+            &system.params.loquat_params,
+        )?;
+        circuits.push((inst, wit));
+    }
+    let (ver_inst, ver_wit) = build_loquat_r1cs_pk_witness(
+        &verifier_pseudonym.public,
+        &verifier_pseudonym.signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )?;
+    circuits.push((ver_inst, ver_wit));
+    let (shown_inst, shown_wit) = build_loquat_r1cs_pk_witness(
+        &disclosure_hash,
+        &shown_credential_signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )?;
+    circuits.push((shown_inst, shown_wit));
+
+    let revocation_proof = if let Some(acc) = system.revocation_accumulator.as_ref() {
+        let root = acc.root();
+        let depth = acc.depth();
+        let auth_path = acc.auth_path(&user_keypair.public_key)?;
+        let (rev_inst, rev_wit) =
+            build_revocation_r1cs_pk_witness(&user_keypair.public_key, &root, &auth_path, depth)?;
+        circuits.push((rev_inst, rev_wit));
+        Some(BdecRevocationProof { root, depth })
+    } else {
+        None
+    };
+
+    let (policy_inst, policy_wit) = build_policy_r1cs_pk_witness(
+        policy,
+        &canonical_disclosure,
+        &user_keypair.public_key,
+        system.params.loquat_params.l,
+    )?;
+    circuits.push((policy_inst, policy_wit));
+
+    let (r1cs_instance, r1cs_witness) =
+        merge_r1cs_instances_shared_pk(circuits, system.params.loquat_params.l)?;
+    let show_proof = aurora_prove(&r1cs_instance, &r1cs_witness, &system.params.aurora_params)?;
+
+    Ok(BdecShownCredentialPaper {
+        credentials: credentials.to_vec(),
+        verifier_pseudonym,
+        disclosed_attributes: canonical_disclosure,
+        attribute_proofs: Vec::new(),
+        disclosure_hash,
+        shown_credential_signature,
+        show_proof,
+        revocation_proof,
+    })
+}
+
+/// R1CS-count-only helper for PP3 (policy-bound). Builds the same R1CS instance
+/// as `bdec_show_credential_with_policy_paper` **without** invoking
+/// `aurora_prove`. Returns the merged constraint count.
+///
+/// This is used by B3 (circuit-scale) when `tier = "constraints_only"` so that
+/// large-k configurations (k=6, 8, 14) do not incur hours of IOP proving time
+/// for a measurement that is fully determined by the R1CS structure.
+pub fn bdec_show_credential_with_policy_paper_constraint_count(
+    system: &BdecSystem,
+    user_keypair: &LoquatKeyPair,
+    credentials: &[BdecCredential],
+    disclosed_attributes: Vec<String>,
+    policy: &PolicyInput,
+) -> LoquatResult<usize> {
+    if credentials.is_empty() {
+        return Err(LoquatError::invalid_parameters(
+            "at least one credential is required",
+        ));
+    }
+
+    // NOTE: B3 constraint-count fast path. We intentionally skip
+    // `bdec_verify_credential` (which calls `aurora_verify`) — the merged R1CS
+    // shape only depends on parameters and signature lengths, not on whether
+    // each per-credential aurora proof is valid.
+    let canonical_disclosure = canonicalise_attributes(&disclosed_attributes)?;
+    ensure_disclosure_subset(credentials, &canonical_disclosure)?;
+    let disclosure_hash = hash_attributes(&canonical_disclosure);
+    if !evaluate_policy_input(&canonical_disclosure, policy) {
+        return Err(LoquatError::invalid_parameters(
+            "disclosed attributes do not satisfy the requested policy",
+        ));
+    }
+
+    let verifier_pseudonym = bdec_nym_key(system, user_keypair)?;
+    let shown_credential_signature =
+        loquat_sign(&disclosure_hash, user_keypair, &system.params.loquat_params)?;
+
+    let mut circuits = Vec::with_capacity(credentials.len() + 3);
+    for credential in credentials {
+        let (inst, wit) = build_loquat_r1cs_pk_witness(
+            &credential.pseudonym.public,
+            &credential.pseudonym.signature,
+            &user_keypair.public_key,
+            &system.params.loquat_params,
+        )?;
+        circuits.push((inst, wit));
+    }
+    let (ver_inst, ver_wit) = build_loquat_r1cs_pk_witness(
+        &verifier_pseudonym.public,
+        &verifier_pseudonym.signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )?;
+    circuits.push((ver_inst, ver_wit));
+    let (shown_inst, shown_wit) = build_loquat_r1cs_pk_witness(
+        &disclosure_hash,
+        &shown_credential_signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )?;
+    circuits.push((shown_inst, shown_wit));
+
+    if let Some(acc) = system.revocation_accumulator.as_ref() {
+        let root = acc.root();
+        let depth = acc.depth();
+        let auth_path = acc.auth_path(&user_keypair.public_key)?;
+        let (rev_inst, rev_wit) =
+            build_revocation_r1cs_pk_witness(&user_keypair.public_key, &root, &auth_path, depth)?;
+        circuits.push((rev_inst, rev_wit));
+    }
+
+    let (policy_inst, policy_wit) = build_policy_r1cs_pk_witness(
+        policy,
+        &canonical_disclosure,
+        &user_keypair.public_key,
+        system.params.loquat_params.l,
+    )?;
+    circuits.push((policy_inst, policy_wit));
+
+    let (r1cs_instance, _r1cs_witness) =
+        merge_r1cs_instances_shared_pk(circuits, system.params.loquat_params.l)?;
+    Ok(r1cs_instance.num_constraints())
 }
 
 /// Paper-aligned `ShowCre` variant that supports **hidden attributes** via Merkle membership proofs.
@@ -932,6 +1283,22 @@ pub fn bdec_verify_shown_credential_paper(
     shown: &BdecShownCredentialPaper,
     expected_verifier_pseudonym: &[u8],
 ) -> LoquatResult<bool> {
+    if !verify_shown_credential_semantics_paper(system, shown, expected_verifier_pseudonym)? {
+        return Ok(false);
+    }
+    let r1cs_instance = match bdec_build_showver_instance_paper(system, shown) {
+        Ok(instance) => instance,
+        Err(LoquatError::VerificationFailure { .. }) => return Ok(false),
+        Err(err) => return Err(err),
+    };
+    bdec_verify_show_proof_paper(system, shown, &r1cs_instance)
+}
+
+fn verify_shown_credential_semantics_paper(
+    system: &BdecSystem,
+    shown: &BdecShownCredentialPaper,
+    expected_verifier_pseudonym: &[u8],
+) -> LoquatResult<bool> {
     if shown.verifier_pseudonym.public != expected_verifier_pseudonym {
         return Ok(false);
     }
@@ -991,9 +1358,46 @@ pub fn bdec_verify_shown_credential_paper(
             return Ok(false);
         }
     }
+    Ok(true)
+}
 
+/// Paper-aligned `ShowVer` with explicit policy evaluation for PP3 studies.
+///
+/// This verifies a proof that was generated by `bdec_show_credential_with_policy_paper`,
+/// i.e. the Aurora statement includes both ShowVer and policy predicates.
+pub fn bdec_verify_shown_credential_with_policy_paper(
+    system: &BdecSystem,
+    shown: &BdecShownCredentialPaper,
+    expected_verifier_pseudonym: &[u8],
+    policy: &PolicyInput,
+) -> LoquatResult<bool> {
+    if !verify_shown_credential_semantics_paper(system, shown, expected_verifier_pseudonym)? {
+        return Ok(false);
+    }
+    if !evaluate_policy_input(&shown.disclosed_attributes, policy) {
+        return Ok(false);
+    }
+    let r1cs_instance = match bdec_build_showver_instance_with_policy_paper(system, shown, policy) {
+        Ok(instance) => instance,
+        Err(LoquatError::VerificationFailure { .. }) => return Ok(false),
+        Err(err) => return Err(err),
+    };
+    bdec_verify_show_proof_paper(system, shown, &r1cs_instance)
+}
+
+/// Build the merged ShowVer R1CS instance (instance only) for a paper-style shown credential.
+///
+/// This captures the verifier-side "instance rebuild" work and is intended for D1/D2 benchmarking.
+pub fn bdec_build_showver_instance_paper(
+    system: &BdecSystem,
+    shown: &BdecShownCredentialPaper,
+) -> LoquatResult<R1csInstance> {
     // Rebuild the paper statement circuit (k + 2 signature verifications [+ optional revocation]), pk hidden.
-    let extra = if shown.revocation_proof.is_some() { 1 } else { 0 };
+    let extra = if shown.revocation_proof.is_some() {
+        1
+    } else {
+        0
+    };
     let mut instances = Vec::with_capacity(shown.credentials.len() + 2 + extra);
     for credential in &shown.credentials {
         instances.push(build_loquat_r1cs_pk_witness_instance(
@@ -1014,13 +1418,16 @@ pub fn bdec_verify_shown_credential_paper(
     )?);
 
     if let Some(meta) = shown.revocation_proof {
-        let acc = match system.revocation_accumulator.as_ref() {
-            Some(a) => a,
-            None => return Ok(false),
-        };
+        let acc = system.revocation_accumulator.as_ref().ok_or_else(|| {
+            LoquatError::verification_failure(
+                "show credential references revocation proof but system has no accumulator",
+            )
+        })?;
         // Ensure the proof is bound to the *current* published revocation root.
         if meta.root != acc.root() || meta.depth != acc.depth() {
-            return Ok(false);
+            return Err(LoquatError::verification_failure(
+                "revocation proof metadata does not match current accumulator root/depth",
+            ));
         }
         instances.push(build_revocation_r1cs_pk_witness_instance(
             &meta.root,
@@ -1028,19 +1435,81 @@ pub fn bdec_verify_shown_credential_paper(
             system.params.loquat_params.l,
         )?);
     }
-    let r1cs_instance =
-        merge_r1cs_instances_shared_pk_instance_only(&instances, system.params.loquat_params.l)?;
-    let proof_ok = aurora_verify(
-        &r1cs_instance,
+    merge_r1cs_instances_shared_pk_instance_only(&instances, system.params.loquat_params.l)
+}
+
+/// Build the ShowVer verifier instance with additional policy predicates for PP3.
+pub fn bdec_build_showver_instance_with_policy_paper(
+    system: &BdecSystem,
+    shown: &BdecShownCredentialPaper,
+    policy: &PolicyInput,
+) -> LoquatResult<R1csInstance> {
+    let extra = if shown.revocation_proof.is_some() {
+        2
+    } else {
+        1
+    };
+    let mut instances = Vec::with_capacity(shown.credentials.len() + 2 + extra);
+    for credential in &shown.credentials {
+        instances.push(build_loquat_r1cs_pk_witness_instance(
+            &credential.pseudonym.public,
+            &credential.pseudonym.signature,
+            &system.params.loquat_params,
+        )?);
+    }
+    instances.push(build_loquat_r1cs_pk_witness_instance(
+        &shown.verifier_pseudonym.public,
+        &shown.verifier_pseudonym.signature,
+        &system.params.loquat_params,
+    )?);
+    instances.push(build_loquat_r1cs_pk_witness_instance(
+        &shown.disclosure_hash,
+        &shown.shown_credential_signature,
+        &system.params.loquat_params,
+    )?);
+    if let Some(meta) = shown.revocation_proof {
+        let acc = system.revocation_accumulator.as_ref().ok_or_else(|| {
+            LoquatError::verification_failure(
+                "show credential references revocation proof but system has no accumulator",
+            )
+        })?;
+        if meta.root != acc.root() || meta.depth != acc.depth() {
+            return Err(LoquatError::verification_failure(
+                "revocation proof metadata does not match current accumulator root/depth",
+            ));
+        }
+        instances.push(build_revocation_r1cs_pk_witness_instance(
+            &meta.root,
+            meta.depth,
+            system.params.loquat_params.l,
+        )?);
+    }
+    instances.push(build_policy_r1cs_pk_witness_instance(
+        policy,
+        &shown.disclosed_attributes,
+        system.params.loquat_params.l,
+    )?);
+    merge_r1cs_instances_shared_pk_instance_only(&instances, system.params.loquat_params.l)
+}
+
+/// Verify only the Aurora ShowVer proof against a prebuilt instance.
+///
+/// This isolates proof-checking cost from instance rebuild overhead.
+pub fn bdec_verify_show_proof_paper(
+    system: &BdecSystem,
+    shown: &BdecShownCredentialPaper,
+    r1cs_instance: &R1csInstance,
+) -> LoquatResult<bool> {
+    match aurora_verify(
+        r1cs_instance,
         &shown.show_proof,
         &system.params.aurora_params,
         None,
-    )?
-    .is_some();
-    if !proof_ok {
-        return Ok(false);
+    ) {
+        Ok(result) => Ok(result.is_some()),
+        Err(LoquatError::VerificationFailure { .. }) => Ok(false),
+        Err(err) => Err(err),
     }
-    Ok(true)
 }
 
 fn credential_commitment(
@@ -1117,15 +1586,206 @@ fn serialize_public_key(public_key: &[F]) -> LoquatResult<Vec<u8>> {
 }
 
 fn deserialize_public_key(bytes: &[u8]) -> LoquatResult<Vec<F>> {
-    bincode_options()
-        .deserialize(bytes)
-        .map_err(|err| LoquatError::serialization_error(&format!("failed to decode public key: {err}")))
+    bincode_options().deserialize(bytes).map_err(|err| {
+        LoquatError::serialization_error(&format!("failed to decode public key: {err}"))
+    })
 }
 
 fn bincode_options() -> impl Options {
     bincode::DefaultOptions::new()
         .with_fixint_encoding()
         .allow_trailing_bytes()
+}
+
+fn build_policy_r1cs_pk_witness(
+    policy: &PolicyInput,
+    disclosed_attributes: &[String],
+    public_key: &[F],
+    pk_len: usize,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    build_policy_r1cs_pk_witness_inner(policy, disclosed_attributes, Some(public_key), pk_len, true)
+}
+
+fn build_policy_r1cs_pk_witness_instance(
+    policy: &PolicyInput,
+    disclosed_attributes: &[String],
+    pk_len: usize,
+) -> LoquatResult<R1csInstance> {
+    let (instance, _) =
+        build_policy_r1cs_pk_witness_inner(policy, disclosed_attributes, None, pk_len, false)?;
+    Ok(instance)
+}
+
+fn build_policy_r1cs_pk_witness_inner(
+    policy: &PolicyInput,
+    disclosed_attributes: &[String],
+    public_key: Option<&[F]>,
+    pk_len: usize,
+    validate_witness: bool,
+) -> LoquatResult<(R1csInstance, R1csWitness)> {
+    let mut assignment: Vec<F> = Vec::new();
+    let mut constraints: Vec<R1csConstraint> = Vec::new();
+    for idx in 0..pk_len {
+        let value = public_key
+            .and_then(|pk| pk.get(idx).copied())
+            .unwrap_or(F::zero());
+        assignment.push(value);
+    }
+
+    let attributes = parse_attribute_map(disclosed_attributes);
+    for predicate in &policy.predicates {
+        match predicate {
+            PolicyPredicate::GteI64 { key, min_value } => {
+                let raw = attributes.get(key).ok_or_else(|| {
+                    LoquatError::invalid_parameters(&format!(
+                        "policy predicate references missing attribute key `{key}`",
+                    ))
+                })?;
+                let value_u32 = raw.parse::<u32>().map_err(|_| {
+                    LoquatError::invalid_parameters(&format!(
+                        "attribute `{key}` is not a valid u32 for range predicate",
+                    ))
+                })?;
+                let min_u32 = u32::try_from(*min_value).map_err(|_| {
+                    LoquatError::invalid_parameters(
+                        "GteI64 policy min_value must be in range [0, 2^32-1]",
+                    )
+                })?;
+                let value_field = F::new(value_u32 as u128);
+                let x_idx = alloc_r1cs_var(&mut assignment, value_field);
+                constraints.push(linear_zero_constraint(vec![
+                    (x_idx, F::one()),
+                    (0, -value_field),
+                ]));
+
+                let slack_u32 = value_u32.saturating_sub(min_u32);
+                let slack_field = F::new(slack_u32 as u128);
+                let slack_idx = alloc_r1cs_var(
+                    &mut assignment,
+                    if validate_witness {
+                        slack_field
+                    } else {
+                        F::zero()
+                    },
+                );
+
+                let mut decompose_terms = vec![(slack_idx, F::one())];
+                for bit in 0..POLICY_RANGE_BITS {
+                    let bit_is_set = ((slack_u32 >> bit) & 1) == 1;
+                    let bit_value = if validate_witness && bit_is_set {
+                        F::one()
+                    } else {
+                        F::zero()
+                    };
+                    let bit_idx = alloc_r1cs_var(&mut assignment, bit_value);
+                    constraints.push(boolean_constraint(bit_idx));
+                    decompose_terms.push((bit_idx, -F::new(1u128 << bit)));
+                }
+                constraints.push(linear_zero_constraint(decompose_terms));
+                constraints.push(linear_zero_constraint(vec![
+                    (x_idx, F::one()),
+                    (slack_idx, -F::one()),
+                    (0, -F::new(min_u32 as u128)),
+                ]));
+            }
+            PolicyPredicate::OneOf {
+                key,
+                allowed_values,
+            } => {
+                if allowed_values.is_empty() {
+                    return Err(LoquatError::invalid_parameters(
+                        "OneOf policy must contain at least one allowed value",
+                    ));
+                }
+                let raw = attributes.get(key).ok_or_else(|| {
+                    LoquatError::invalid_parameters(&format!(
+                        "policy predicate references missing attribute key `{key}`",
+                    ))
+                })?;
+
+                let value_tag = policy_string_tag_to_field(raw);
+                let value_idx = alloc_r1cs_var(&mut assignment, value_tag);
+                constraints.push(linear_zero_constraint(vec![
+                    (value_idx, F::one()),
+                    (0, -value_tag),
+                ]));
+
+                let mut product_idx: Option<usize> = None;
+                for allowed in allowed_values {
+                    let allowed_tag = policy_string_tag_to_field(allowed);
+                    let diff_value = if validate_witness {
+                        value_tag - allowed_tag
+                    } else {
+                        F::zero()
+                    };
+                    let diff_idx = alloc_r1cs_var(&mut assignment, diff_value);
+                    constraints.push(linear_zero_constraint(vec![
+                        (value_idx, F::one()),
+                        (diff_idx, -F::one()),
+                        (0, -allowed_tag),
+                    ]));
+
+                    product_idx = Some(if let Some(prev_idx) = product_idx {
+                        let prev = assignment[prev_idx - 1];
+                        let prod_value = if validate_witness {
+                            prev * diff_value
+                        } else {
+                            F::zero()
+                        };
+                        let prod_idx = alloc_r1cs_var(&mut assignment, prod_value);
+                        constraints.push(multiplication_constraint(prev_idx, diff_idx, prod_idx));
+                        prod_idx
+                    } else {
+                        diff_idx
+                    });
+                }
+
+                let final_prod = product_idx.ok_or_else(|| {
+                    LoquatError::invalid_parameters("OneOf policy product construction failed")
+                })?;
+                constraints.push(linear_zero_constraint(vec![(final_prod, F::one())]));
+            }
+        }
+    }
+
+    let instance = R1csInstance::new(assignment.len() + 1, constraints)?;
+    let witness = R1csWitness::new(assignment);
+    if validate_witness {
+        instance.is_satisfied(&witness)?;
+    } else {
+        witness.validate(&instance)?;
+    }
+    Ok((instance, witness))
+}
+
+fn alloc_r1cs_var(assignment: &mut Vec<F>, value: F) -> usize {
+    assignment.push(value);
+    assignment.len()
+}
+
+fn linear_zero_constraint(terms: Vec<(usize, F)>) -> R1csConstraint {
+    R1csConstraint::from_sparse(terms, vec![(0, F::one())], vec![])
+}
+
+fn multiplication_constraint(left: usize, right: usize, out: usize) -> R1csConstraint {
+    R1csConstraint::from_sparse(
+        vec![(left, F::one())],
+        vec![(right, F::one())],
+        vec![(out, F::one())],
+    )
+}
+
+fn boolean_constraint(idx: usize) -> R1csConstraint {
+    R1csConstraint::from_sparse(
+        vec![(idx, F::one())],
+        vec![(idx, F::one()), (0, -F::one())],
+        vec![],
+    )
+}
+
+fn policy_string_tag_to_field(value: &str) -> F {
+    let digest = Sha256::digest(value.as_bytes());
+    field_utils::bytes_to_field_element(&digest[..16])
 }
 
 fn merge_r1cs_instances_shared_pk(
@@ -1164,7 +1824,7 @@ fn merge_r1cs_instances_with_offsets(
             "expected at least one R1CS instance to merge",
         ));
     }
-    
+
     let mut offsets = Vec::with_capacity(circuits.len());
     let mut offset = 0usize;
     let mut num_variables = 1usize;
@@ -1222,7 +1882,9 @@ fn merge_r1cs_instances_shared_pk_instance_only(
     R1csInstance::new(merged.num_variables, constraints)
 }
 
-fn merge_r1cs_instances_instance_only(instances: &[R1csInstance]) -> LoquatResult<(R1csInstance, Vec<usize>)> {
+fn merge_r1cs_instances_instance_only(
+    instances: &[R1csInstance],
+) -> LoquatResult<(R1csInstance, Vec<usize>)> {
     if instances.is_empty() {
         return Err(LoquatError::invalid_parameters(
             "expected at least one R1CS instance to merge",
@@ -1337,8 +1999,8 @@ mod tests {
         assert!(bdec_verify_credential(&system, &cred).expect("crever"));
 
         let disclosed = vec![attrs[0].clone(), attrs[1].clone()];
-        let shown =
-            bdec_show_credential_paper(&system, &user, &[cred.clone()], disclosed).expect("showcre");
+        let shown = bdec_show_credential_paper(&system, &user, &[cred.clone()], disclosed)
+            .expect("showcre");
         assert!(
             bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public)
                 .expect("showver")
@@ -1389,14 +2051,9 @@ mod tests {
         for attr in &disclosed {
             proofs.push(bdec_attribute_merkle_proof(0, &cred.attributes, attr).expect("proof"));
         }
-        let shown = bdec_show_credential_paper_merkle(
-            &system,
-            &user,
-            &[cred.clone()],
-            disclosed,
-            proofs,
-        )
-        .expect("showcre merkle");
+        let shown =
+            bdec_show_credential_paper_merkle(&system, &user, &[cred.clone()], disclosed, proofs)
+                .expect("showcre merkle");
         assert!(
             bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public)
                 .expect("showver")
@@ -1411,25 +2068,25 @@ mod tests {
 }
 
 // ============================================================================
-// New "Paper" API: Minimal credential publishing (ppk, h, c, ε)
+// New "Paper" API: Minimal credential publishing aligned to paper artifacts.
 // ============================================================================
 
-/// Minimal paper-aligned credential that publishes only (ppk, h, c, ε).
+/// Minimal paper-aligned credential.
 ///
-/// This credential format uses the new `build_loquat_r1cs_pk_sig_witness_inner` function
-/// to prove knowledge of a valid Loquat signature without revealing the full signature.
-/// Only the essential public components are published:
+/// This format exposes the same core artifacts as the ProSec-style CreGen output:
 /// - ppk: pseudonym public key
-/// - h: message commitment hash
-/// - c: Aurora commitment
-/// - ε: Aurora proof of knowledge
+/// - h: message commitment hash (derived from signature transcript)
+/// - c: credential signature
+/// - ε: Aurora proof
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BdecPaperCredential {
     /// Pseudonym public key (ppk)
     pub pseudonym_public: Vec<u8>,
     /// Message commitment hash (h)
     pub message_commitment: [u8; 32],
-    /// Aurora commitment (c)
+    /// Credential signature (c)
+    pub signature: LoquatSignature,
+    /// Aurora commitment digest for the proving instance.
     pub aurora_commitment: [u8; 32],
     /// Aurora proof (ε)
     pub aurora_proof: AuroraProof,
@@ -1437,9 +2094,8 @@ pub struct BdecPaperCredential {
 
 /// Create a minimal paper-aligned credential from a user's Loquat signature.
 ///
-/// This function uses the new witness builder that enforces the full Loquat verification
-/// circuit including LDT queries, producing an Aurora proof that attests to signature validity
-/// without revealing the signature itself.
+/// This function uses the stable pk-witness Loquat verification circuit used by the
+/// main CreGen path, producing an Aurora proof that attests to signature validity.
 ///
 /// # Arguments
 /// * `system` - BDEC system parameters
@@ -1448,7 +2104,7 @@ pub struct BdecPaperCredential {
 /// * `signature` - Valid Loquat signature on the message
 ///
 /// # Returns
-/// A `BdecPaperCredential` containing only (ppk, h, c, ε)
+/// A `BdecPaperCredential` containing (ppk, h, c, ε)
 pub fn bdec_paper_create_credential(
     system: &BdecSystem,
     user_keypair: &LoquatKeyPair,
@@ -1456,14 +2112,19 @@ pub fn bdec_paper_create_credential(
     signature: &LoquatSignature,
 ) -> LoquatResult<BdecPaperCredential> {
     // Verify the signature is valid before creating the credential
-    if !loquat_verify(message, signature, &user_keypair.public_key, &system.params.loquat_params)? {
+    if !loquat_verify(
+        message,
+        signature,
+        &user_keypair.public_key,
+        &system.params.loquat_params,
+    )? {
         return Err(LoquatError::verification_failure(
             "signature verification failed during paper credential creation",
         ));
     }
 
-    // Build the R1CS instance and witness using the new extended witness builder
-    let (r1cs_instance, r1cs_witness) = crate::snarks::build_loquat_r1cs_pk_sig_witness(
+    // Build the R1CS instance and witness using the same pk-witness path as CreGen.
+    let (r1cs_instance, r1cs_witness) = build_loquat_r1cs_pk_witness(
         message,
         signature,
         &user_keypair.public_key,
@@ -1495,6 +2156,7 @@ pub fn bdec_paper_create_credential(
     Ok(BdecPaperCredential {
         pseudonym_public: pseudonym.public,
         message_commitment,
+        signature: signature.clone(),
         aurora_commitment,
         aurora_proof,
     })
@@ -1502,8 +2164,8 @@ pub fn bdec_paper_create_credential(
 
 /// Verify a minimal paper-aligned credential.
 ///
-/// This function verifies the Aurora proof without requiring access to the full signature.
-/// It reconstructs the R1CS instance from public information and verifies the proof.
+/// This function reconstructs the same pk-witness Loquat verification instance from
+/// public artifacts and verifies the Aurora proof.
 ///
 /// # Arguments
 /// * `system` - BDEC system parameters
@@ -1517,16 +2179,30 @@ pub fn bdec_paper_verify_credential(
     credential: &BdecPaperCredential,
     message: &[u8],
 ) -> LoquatResult<bool> {
-    // Build the R1CS instance (instance-only generation)
-    let r1cs_instance = crate::snarks::build_loquat_r1cs_pk_sig_witness_instance(
-        message,
-        &system.params.loquat_params,
-    )?;
+    // As with loquat_verify(), proof-mismatch errors are treated as "invalid" rather than hard errors.
+    let verification_result = (|| {
+        // Build the R1CS instance (instance-only generation) using the published signature.
+        let r1cs_instance = build_loquat_r1cs_pk_witness_instance(
+            message,
+            &credential.signature,
+            &system.params.loquat_params,
+        )?;
 
-    // Verify the Aurora proof (pass None for verification hints)
-    let result = aurora_verify(&r1cs_instance, &credential.aurora_proof, &system.params.aurora_params, None)?;
-    // If aurora_verify returns Some(_), the verification succeeded; None indicates failure
-    Ok(result.is_some())
+        // Verify the Aurora proof (pass None for verification hints).
+        let result = aurora_verify(
+            &r1cs_instance,
+            &credential.aurora_proof,
+            &system.params.aurora_params,
+            None,
+        )?;
+        Ok(result.is_some())
+    })();
+
+    match verification_result {
+        Ok(is_valid) => Ok(is_valid),
+        Err(LoquatError::VerificationFailure { .. }) => Ok(false),
+        Err(err) => Err(err),
+    }
 }
 
 #[cfg(test)]
@@ -1610,8 +2286,9 @@ mod paper_api_tests {
             println!("    - {}", attr);
         }
 
-        let credential = bdec_issue_credential(&system, &user_keypair, &pseudonym_ta, attributes.clone())
-            .expect("issue credential");
+        let credential =
+            bdec_issue_credential(&system, &user_keypair, &pseudonym_ta, attributes.clone())
+                .expect("issue credential");
 
         println!("  ✓ Generated credential signature c_U_TA");
         println!("  ✓ Computed attribute hash h_U_TA");
@@ -1624,14 +2301,26 @@ mod paper_api_tests {
         println!("    \"issuer\": {{ \"id\": \"did:example:TA-XYZ-University\" }},");
         println!("    \"credentialSubject\": {{");
         let ppk_sample = &pseudonym_ta.public[..8.min(pseudonym_ta.public.len())];
-        println!("      \"id\": \"bdec:ppk:{}\",", hex_encode_sample(ppk_sample));
-        println!("      \"attributes\": {{ ... {} attributes ... }},", attributes.len());
+        println!(
+            "      \"id\": \"bdec:ppk:{}\",",
+            hex_encode_sample(ppk_sample)
+        );
+        println!(
+            "      \"attributes\": {{ ... {} attributes ... }},",
+            attributes.len()
+        );
         println!("      \"commitment\": {{");
-        println!("        \"digest\": \"{}...\"", hex_encode_sample(&credential.attribute_hash[..8]));
+        println!(
+            "        \"digest\": \"{}...\"",
+            hex_encode_sample(&credential.attribute_hash[..8])
+        );
         println!("      }}");
         println!("    }},");
         println!("    \"bdecArtifacts\": {{");
-        println!("      \"ppk_U_TA\": \"{}...\",", hex_encode_sample(ppk_sample));
+        println!(
+            "      \"ppk_U_TA\": \"{}...\",",
+            hex_encode_sample(ppk_sample)
+        );
         println!("      \"c_U_TA\": \"<signature bytes>\",");
         println!("      \"epsilon_c_U_TA\": \"<proof bytes>\"");
         println!("    }}");
@@ -1641,7 +2330,8 @@ mod paper_api_tests {
         // Step 5: CreVer (Verify the credential - simulates TA verification)
         // =========================================================================
         println!("\nStep 5: Credential Verification (CreVer)");
-        let verification_result = bdec_verify_credential(&system, &credential).expect("verify credential");
+        let verification_result =
+            bdec_verify_credential(&system, &credential).expect("verify credential");
         assert!(verification_result, "Credential verification failed");
         println!("  ✓ TA verified credential successfully");
         println!("  ✓ Ready for on-chain publication");
@@ -1664,7 +2354,8 @@ mod paper_api_tests {
             &user_keypair,
             &[credential.clone()],
             disclosed.clone(),
-        ).expect("show credential");
+        )
+        .expect("show credential");
 
         println!("  ✓ Generated verifier pseudonym ppk_U_V");
         println!("  ✓ Computed disclosure hash h_U_V");
@@ -1676,13 +2367,23 @@ mod paper_api_tests {
         println!("  {{");
         println!("    \"type\": [\"BDECShownCredential\"],");
         println!("    \"holderPseudonym\": {{");
-        let vpk_sample = &shown_credential.verifier_pseudonym.public[..8.min(shown_credential.verifier_pseudonym.public.len())];
-        println!("      \"id\": \"bdec:ppk:{}\",", hex_encode_sample(vpk_sample));
+        let vpk_sample = &shown_credential.verifier_pseudonym.public
+            [..8.min(shown_credential.verifier_pseudonym.public.len())];
+        println!(
+            "      \"id\": \"bdec:ppk:{}\",",
+            hex_encode_sample(vpk_sample)
+        );
         println!("      \"forVerifier\": \"did:example:Company-V\"");
         println!("    }},");
-        println!("    \"disclosedAttributes\": {{ ... {} attributes ... }},", disclosed.len());
+        println!(
+            "    \"disclosedAttributes\": {{ ... {} attributes ... }},",
+            disclosed.len()
+        );
         println!("    \"commitment\": {{");
-        println!("      \"digest\": \"{}...\"", hex_encode_sample(&shown_credential.disclosure_hash[..8]));
+        println!(
+            "      \"digest\": \"{}...\"",
+            hex_encode_sample(&shown_credential.disclosure_hash[..8])
+        );
         println!("    }},");
         println!("    \"bdecArtifacts\": {{");
         println!("      \"c_U_V\": \"<signature bytes>\",");
@@ -1698,8 +2399,12 @@ mod paper_api_tests {
             &system,
             &shown_credential,
             &shown_credential.verifier_pseudonym.public,
-        ).expect("verify shown credential");
-        assert!(show_verification_result, "Shown credential verification failed");
+        )
+        .expect("verify shown credential");
+        assert!(
+            show_verification_result,
+            "Shown credential verification failed"
+        );
         println!("  ✓ Verifier confirmed presentation validity");
         println!("  ✓ Pseudonym ppk_U_V verified");
         println!("  ✓ Disclosed attributes confirmed");
@@ -1716,14 +2421,20 @@ mod paper_api_tests {
             &system_mut,
             &shown_credential,
             &shown_credential.verifier_pseudonym.public,
-        ).expect("verify after revocation");
-        assert!(!revoked_verification, "Revoked credential should not verify");
+        )
+        .expect("verify after revocation");
+        assert!(
+            !revoked_verification,
+            "Revoked credential should not verify"
+        );
         println!("  ✓ Revoked credential correctly rejected");
 
         println!("\n=== Test Complete ===");
         println!("All BDEC operations verified successfully!");
         println!("\nKey insights:");
-        println!("  • Credentials contain cryptographic artifacts (ppk, c, ε), not JSON signatures");
+        println!(
+            "  • Credentials contain cryptographic artifacts (ppk, c, ε), not JSON signatures"
+        );
         println!("  • Attributes are hashed into commitments (h = H(A))");
         println!("  • zkSNARK proofs bind pseudonyms to hidden pk_U");
         println!("  • Selective disclosure via commitment to H(A↓)");
@@ -1733,5 +2444,8 @@ mod paper_api_tests {
 
 // Helper functions for test output formatting
 fn hex_encode_sample(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+    bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>()
 }

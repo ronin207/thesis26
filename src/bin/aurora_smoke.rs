@@ -4,7 +4,7 @@ use vc_pqc::{
     keygen_with_params, loquat_setup, loquat_sign,
     snarks::{
         AuroraParams, AuroraProverOptions, aurora_prove_with_options, aurora_verify,
-        build_loquat_r1cs,
+        build_loquat_r1cs_pk_witness,
     },
 };
 
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let signature = loquat_sign(&message, &keypair, &params)?;
 
     let (instance, witness) =
-        build_loquat_r1cs(&message, &signature, &keypair.public_key, &params)?;
+        build_loquat_r1cs_pk_witness(&message, &signature, &keypair.public_key, &params)?;
     instance.is_satisfied(&witness)?;
     println!(
         "R1CS ready: {} variables, {} constraints",

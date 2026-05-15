@@ -32,7 +32,8 @@ fn main() -> vc_pqc::LoquatResult<()> {
     for attr in &disclosed {
         proofs.push(bdec_attribute_merkle_proof(0, &cred.attributes, attr)?);
     }
-    let shown = bdec_show_credential_paper_merkle(&system, &user, &[cred.clone()], disclosed, proofs)?;
+    let shown =
+        bdec_show_credential_paper_merkle(&system, &user, &[cred.clone()], disclosed, proofs)?;
 
     println!("[bdec_merkle_revocation_demo] showver...");
     let ok = bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public)?;
@@ -47,17 +48,3 @@ fn main() -> vc_pqc::LoquatResult<()> {
 
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

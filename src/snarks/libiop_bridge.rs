@@ -168,8 +168,7 @@ fn serialize_constraints(constraints: &[R1csConstraint], num_variables: usize) -
         let offset = i * padded_row_len;
 
         // Helper to write a sparse row
-        let write_row = |coeffs: &[(usize, crate::loquat::field_utils::F)],
-                        buf: &mut [u8]| {
+        let write_row = |coeffs: &[(usize, crate::loquat::field_utils::F)], buf: &mut [u8]| {
             for (var_idx, coeff) in coeffs.iter() {
                 if *var_idx >= padded_num_variables {
                     continue;

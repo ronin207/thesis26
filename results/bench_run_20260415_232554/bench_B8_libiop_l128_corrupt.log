@@ -1,0 +1,10 @@
+[B8] B8_libiop_l128_corrupt: emitting+running target/aurora_bdec_s128.corrupt.bdec-r1cs with env=SKIP_SATISFIED_CHECK=1
+[runner] libiop.a = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/libiop/libiop.a
+[runner] libff.a  = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/depends/libff/libff/libff.a
+[runner] running on target/aurora_bdec_s128.corrupt.bdec-r1cs ...
+[runner] loading target/aurora_bdec_s128.corrupt.bdec-r1cs ...
+Reset time counters for profiling
+libc++abi: terminating due to uncaught exception of type std::runtime_error: var_idx out of range
+scripts/fp127_aurora_runner.sh: line 69: 72524 Abort trap: 6           "./$OUT_BIN" "$WIRE"
+jq: parse error: Invalid numeric literal at line 1, column 6
+[B8] corrupt: FAIL rc=5 (expected rc=1 = REJECT)

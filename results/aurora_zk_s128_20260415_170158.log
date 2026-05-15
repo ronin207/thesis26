@@ -1,0 +1,117 @@
+--- ZK=1 on aurora_bdec_s128.bdec-r1cs at Wed Apr 15 17:01:58 JST 2026 ---
+[runner] libiop.a = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/libiop/libiop.a
+[runner] libff.a  = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/depends/libff/libff/libff.a
+[runner] running on target/aurora_bdec_s128.bdec-r1cs ...
+Reset time counters for profiling
+[runner] loading target/aurora_bdec_s128.bdec-r1cs ...
+[runner] wire: num_vars=262144 (incl const-1), num_inputs=0, num_constraints=262144
+[runner] make_zk=true RS_extra_dimensions=7
+[runner] Aurora prover ...
+(enter) Aurora SNARK prover                	[             ]	(0.1491s x0.99 from start)
+  
+Aurora SNARK parameters
+  * security parameter (bits) = 128
+  * RS extra dimensions = 7
+  * LDT reducer soundness type = proven
+  * FRI soundness type = heuristic
+  * zero-knowledge = true
+  * domain type = multiplicative coset
+
+Aurora IOP parameters
+  * target security parameter = 128
+  * achieved security parameter = 108.3
+  * RS extra dimensions = 7
+  * codeword domain dim = 27
+  * constraint domain dim = 18
+  * variable domain dim = 18
+  * query bound = 375
+  * make zk = true
+  * domain type = multiplicative coset
+
+Multi lincheck parameters
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 235.0
+  * interactive repetitions = 1
+  * constraint domain dim = 18
+  * make zk = true
+  * domain type = multiplicative coset
+
+LDT instance reducer parameters
+  * soundness type = proven
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 226.0
+  * codeword domain dim = 27
+  * max tested degree bound = 1048576
+  * max constraint degree bound = 525037
+  * absolute proximity parameter = 44389716
+  * fractional proximity parameter = 0.330729
+  * num output LDT instances = 1
+
+FRI parameters
+  * soundness type = heuristic
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 253.0
+  * target query soundness error (bits) = 108
+  * achieved query soundness error (bits) = 108.3
+  * codeword domain dim = 27
+  * effective proximity parameter = 0.330729
+  * number of interactive repetitions = 1
+  * number of query repetitions = 187
+  * localization parameter array = { 1 2 2 2 2 2 2 2 2 2 }
+  * number of reductions = 10
+
+BCS parameters
+  * digest_len (bytes) = 32
+  * digest_len (bits) = 256
+  * hash_type = blake2b
+  (enter) Submit witness oracles             	[             ]	(0.1685s x0.99 from start)
+    (enter) Sumcheck: sample masking polynomial components	[             ]	(0.1686s x0.99 from start)
+    (leave) Sumcheck: sample masking polynomial components	[0.1015s x1.00]	(0.2700s x0.99 from start)
+    (enter) Sumcheck: compute masking polynomial codeword	[             ]	(0.2700s x0.99 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(0.3080s x0.99 from start)
+        * Vector size: 524662
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[153.4820s x1.00]	(153.7900s x1.00 from start)
+    (leave) Sumcheck: compute masking polynomial codeword	[153.5200s x1.00]	(153.7900s x1.00 from start)
+    (enter) Compute randomized f_w             	[             ]	(153.7900s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(153.7903s x1.00 from start)
+        * Vector size: 1
+        * Coset size: 1
+      (leave) Call to multiplicative_IFFT_wrapper	[0.0000s x0.96]	(153.7903s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(153.7903s x1.00 from start)
+        * Vector size: 1
+        * Subgroup size: 262144
+      (leave) Call to multiplicative_FFT_wrapper 	[0.0222s x1.00]	(153.8125s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(153.8166s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4398s x1.00]	(154.2564s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(154.2921s x1.00 from start)
+        * Vector size: 262518
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[138.3237s x0.99]	(292.6159s x1.00 from start)
+    (leave) Compute randomized f_w             	[138.8259s x0.99]	(292.6159s x1.00 from start)
+    (enter) Compute A/B/Cz                     	[             ]	(292.6159s x1.00 from start)
+    (leave) Compute A/B/Cz                     	[0.0711s x1.00]	(292.6871s x1.00 from start)
+    (enter) Compute f_{A/B/Cz} over codeword domain	[             ]	(292.6871s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(292.6875s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4464s x0.99]	(293.1339s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(293.1342s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4464s x0.99]	(293.5806s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(293.5809s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4465s x0.99]	(294.0275s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(294.0351s x1.00 from start)
+        * Vector size: 262519
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[143.2819s x0.98]	(437.3170s x0.99 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(437.3196s x0.99 from start)
+        * Vector size: 262519
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[140.7666s x0.99]	(578.0862s x0.99 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(578.1190s x0.99 from start)

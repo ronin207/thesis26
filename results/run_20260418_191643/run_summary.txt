@@ -1,0 +1,9 @@
+vc-pqc run summary — 2026年 4月19日 日曜日 03時00分57秒 JST
+Results directory: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/results/run_20260418_191643
+
+Suite                     Est.    Status
+-----                     ----    ------
+bench_runner              ~180 m  done:0
+
+OVERALL: all suites passed
+Total wall time: 7h 44m 14s

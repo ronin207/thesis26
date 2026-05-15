@@ -266,7 +266,10 @@ pub fn loquat_setup_with_kappa(lambda: usize, kappa: usize) -> LoquatResult<Loqu
 }
 
 #[cfg(feature = "std")]
-fn loquat_setup_internal(lambda: usize, kappa_override: Option<usize>) -> LoquatResult<LoquatPublicParams> {
+fn loquat_setup_internal(
+    lambda: usize,
+    kappa_override: Option<usize>,
+) -> LoquatResult<LoquatPublicParams> {
     loquat_debug!("\n================== ALGORITHM 2: LOQUAT SETUP ==================");
     loquat_debug!("INPUT: Security Parameter λ = {}", lambda);
 
@@ -280,7 +283,7 @@ fn loquat_setup_internal(lambda: usize, kappa_override: Option<usize>) -> Loquat
         _ => {
             return Err(LoquatError::invalid_parameters(
                 "Unsupported security level.",
-            ))
+            ));
         }
     };
     loquat_debug!("✓ L (public key bits): {} (derived from λ={})", l, lambda);
@@ -315,7 +318,8 @@ fn loquat_setup_internal(lambda: usize, kappa_override: Option<usize>) -> Loquat
     let eta = 2;
     loquat_debug!("✓ η (localization parameter): {}", eta);
 
-    let kappa = kappa_override.unwrap_or_else(|| security_profile(lambda).map(|p| p.kappa).unwrap_or(32));
+    let kappa =
+        kappa_override.unwrap_or_else(|| security_profile(lambda).map(|p| p.kappa).unwrap_or(32));
     loquat_debug!("✓ κ (query repetition parameter): {}", kappa);
 
     let min_rate_denominator: usize = 4 * m + (kappa * (1 << eta));

@@ -73,7 +73,13 @@ macro_rules! loquat_debug {
 
 #[cfg(feature = "std")]
 pub mod bdec;
+#[cfg(feature = "std")]
+pub mod bench;
+#[cfg(feature = "std")]
+pub mod evaluation;
 pub mod loquat;
+#[cfg(feature = "std")]
+pub mod noir_backend;
 #[cfg(feature = "std")]
 pub mod snarks;
 // pub mod anoncreds;
@@ -81,13 +87,26 @@ pub mod snarks;
 // Re-export commonly used types for convenience
 #[cfg(feature = "std")]
 pub use bdec::{
-    BdecCredential, BdecCredentialProof, BdecLinkProof, BdecPseudonymKey, BdecPublicParams,
-    BdecRevocationAccumulator, BdecRevocationProof, BdecShownCredentialPaper, BdecSystem,
-    BdecAttributeMerkleProof, BdecAttributeCommitmentType,
-    bdec_issue_credential, bdec_link_pseudonyms, bdec_nym_key, bdec_prigen, bdec_revoke, bdec_setup,
-    bdec_setup_zk, bdec_issue_credential_merkle_attrs, bdec_attribute_merkle_proof,
+    BdecAttributeCommitmentType, BdecAttributeMerkleProof, BdecCredential, BdecCredentialProof,
+    BdecLinkProof, BdecPseudonymKey, BdecPublicParams, BdecRevocationAccumulator,
+    BdecRevocationProof, BdecShownCredentialPaper, BdecSystem, bdec_attribute_merkle_proof,
+    bdec_attribute_merkle_root, bdec_build_showver_instance_paper,
+    bdec_build_showver_instance_with_policy_paper, bdec_issue_credential,
+    bdec_issue_credential_merkle_attrs, bdec_link_pseudonyms, bdec_nym_key, bdec_prigen,
+    bdec_public_key_prefix_index, bdec_revoke, bdec_setup, bdec_setup_zk,
     bdec_show_credential_paper, bdec_show_credential_paper_merkle,
-    bdec_verify_credential, bdec_verify_link_proof, bdec_verify_shown_credential_paper,
+    bdec_show_credential_with_policy_paper, bdec_synthetic_public_key_with_prefix,
+    bdec_verify_credential, bdec_verify_link_proof, bdec_verify_show_proof_paper,
+    bdec_verify_shown_credential_paper, bdec_verify_shown_credential_with_policy_paper,
+};
+#[cfg(feature = "std")]
+pub use evaluation::{
+    D1ChurnEntry, D2CostMetrics, D3PrivacyResult, PhaseSpan, PhaseTimer, PolicyInput,
+    PolicyPredicate, Pp2AuroraBenchmarkResult, Pp2AuroraRunConfig, Pp3AuroraBenchmarkResult,
+    default_pp3_policies, evaluate_policy_input, parse_attribute_map,
+    pp3_policy_only_d1_churn_rows, run_pp2_aurora_cli, run_pp2_aurora_single,
+    run_pp2_aurora_single_opts, run_pp3_aurora_single, run_pp3_aurora_single_opts,
+    run_pp3_default_policy_comparison,
 };
 #[cfg(feature = "std")]
 pub use loquat::keygen::{LoquatKeyPair, keygen_with_params};
@@ -97,6 +116,10 @@ pub use loquat::{
 };
 #[cfg(feature = "std")]
 pub use loquat::{loquat_setup, loquat_setup_tiny, loquat_sign};
+#[cfg(feature = "std")]
+pub use noir_backend::{
+    AcirR1csBuild, NoirAuroraBackend, compile_acir_json_to_r1cs, convert_acir_to_r1cs,
+};
 
 // Re-export Griffin hash module
 pub use loquat::griffin::{

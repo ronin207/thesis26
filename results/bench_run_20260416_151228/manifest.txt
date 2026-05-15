@@ -1,0 +1,16 @@
+# run_benchmarks.sh — mode=snark tiny=0 runs_override=<config> ts=20260416_151228
+# cwd: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis
+# out: results/bench_run_20260416_151228
+
+=== benchmark cells (mode=snark only=/B[12]/) ===
+  [ 1] snark  B1_noir                          -> cell_B1_noir
+  [ 2] snark  B2_r1cs_compare                  -> cell_B2_r1cs_compare
+=== total: 2 cells ===
+
+=== execution log ===
+[15:12:28] >>> B1_noir (snark) — log: results/bench_run_20260416_151228/bench_B1_noir.log
+[15:12:42] PASS (14s)
+[15:12:42] >>> B2_r1cs_compare (snark) — log: results/bench_run_20260416_151228/bench_B2_r1cs_compare.log
+[15:12:43] PASS (1s)
+
+=== summary: 2 passed, 0 failed, results/bench_run_20260416_151228 ===

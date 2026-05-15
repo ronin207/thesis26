@@ -1,0 +1,16 @@
+# run_benchmarks.sh — mode=snark tiny=0 runs_override=<config> ts=20260416_112256
+# cwd: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis
+# out: results/bench_run_20260416_112256
+
+=== benchmark cells (mode=snark only=/B[59]/) ===
+  [ 1] snark  B5_griffin                       -> cell_B5_griffin
+  [ 2] snark  B9_pp3_policy                    -> cell_B9_pp3_policy
+=== total: 2 cells ===
+
+=== execution log ===
+[11:22:56] >>> B5_griffin (snark) — log: results/bench_run_20260416_112256/bench_B5_griffin.log
+[12:20:02] PASS (3426s)
+[12:20:02] >>> B9_pp3_policy (snark) — log: results/bench_run_20260416_112256/bench_B9_pp3_policy.log
+[14:25:54] PASS (7552s)
+
+=== summary: 2 passed, 0 failed, results/bench_run_20260416_112256 ===

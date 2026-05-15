@@ -68,4 +68,4 @@ pub use sign::{LoquatSignature, LoquatSignatureArtifact, LoquatSigningTranscript
 pub use sumcheck::generate_sumcheck_proof;
 pub use sumcheck::{UnivariateSumcheckProof, verify_sumcheck_proof};
 pub use transcript::Transcript;
-pub use verify::loquat_verify;
+pub use verify::{loquat_verify, loquat_verify_phased};

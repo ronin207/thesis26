@@ -1,0 +1,8 @@
+[package]
+name = "bdec_showver"
+type = "bin"
+authors = ["takumiotsuka"]
+description = "BDEC ShowVer circuit scaffold for Noir -> ACIR -> Aurora flow"
+
+[dependencies]
+loquat_lib = { path = "../loquat_lib" }

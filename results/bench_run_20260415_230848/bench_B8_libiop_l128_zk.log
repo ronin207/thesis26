@@ -1,0 +1,117 @@
+[B8] B8_libiop_l128_zk: emitting+running target/aurora_bdec_s128.bdec-r1cs with env=ZK=1
+[runner] libiop.a = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/libiop/libiop.a
+[runner] libff.a  = target/release/build/vc-pqc-d2f1d1bcefc38bfd/out/build/depends/libff/libff/libff.a
+[runner] running on target/aurora_bdec_s128.bdec-r1cs ...
+[runner] loading target/aurora_bdec_s128.bdec-r1cs ...
+Reset time counters for profiling
+[runner] wire: num_vars=262144 (incl const-1), num_inputs=0, num_constraints=262144
+[runner] make_zk=true RS_extra_dimensions=7
+[runner] Aurora prover ...
+(enter) Aurora SNARK prover                	[             ]	(0.1386s x1.00 from start)
+  
+Aurora SNARK parameters
+  * security parameter (bits) = 128
+  * RS extra dimensions = 7
+  * LDT reducer soundness type = proven
+  * FRI soundness type = heuristic
+  * zero-knowledge = true
+  * domain type = multiplicative coset
+
+Aurora IOP parameters
+  * target security parameter = 128
+  * achieved security parameter = 108.3
+  * RS extra dimensions = 7
+  * codeword domain dim = 27
+  * constraint domain dim = 18
+  * variable domain dim = 18
+  * query bound = 375
+  * make zk = true
+  * domain type = multiplicative coset
+
+Multi lincheck parameters
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 235.0
+  * interactive repetitions = 1
+  * constraint domain dim = 18
+  * make zk = true
+  * domain type = multiplicative coset
+
+LDT instance reducer parameters
+  * soundness type = proven
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 226.0
+  * codeword domain dim = 27
+  * max tested degree bound = 1048576
+  * max constraint degree bound = 525037
+  * absolute proximity parameter = 44389716
+  * fractional proximity parameter = 0.330729
+  * num output LDT instances = 1
+
+FRI parameters
+  * soundness type = heuristic
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 253.0
+  * target query soundness error (bits) = 108
+  * achieved query soundness error (bits) = 108.3
+  * codeword domain dim = 27
+  * effective proximity parameter = 0.330729
+  * number of interactive repetitions = 1
+  * number of query repetitions = 187
+  * localization parameter array = { 1 2 2 2 2 2 2 2 2 2 }
+  * number of reductions = 10
+
+BCS parameters
+  * digest_len (bytes) = 32
+  * digest_len (bits) = 256
+  * hash_type = blake2b
+  (enter) Submit witness oracles             	[             ]	(0.1605s x0.99 from start)
+    (enter) Sumcheck: sample masking polynomial components	[             ]	(0.1605s x0.99 from start)
+    (leave) Sumcheck: sample masking polynomial components	[0.0992s x1.00]	(0.2597s x0.99 from start)
+    (enter) Sumcheck: compute masking polynomial codeword	[             ]	(0.2597s x0.99 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(0.2980s x0.99 from start)
+        * Vector size: 524662
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[152.6821s x1.00]	(152.9801s x1.00 from start)
+    (leave) Sumcheck: compute masking polynomial codeword	[152.7204s x1.00]	(152.9801s x1.00 from start)
+    (enter) Compute randomized f_w             	[             ]	(152.9801s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(152.9804s x1.00 from start)
+        * Vector size: 1
+        * Coset size: 1
+      (leave) Call to multiplicative_IFFT_wrapper	[0.0000s x0.95]	(152.9804s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(152.9804s x1.00 from start)
+        * Vector size: 1
+        * Subgroup size: 262144
+      (leave) Call to multiplicative_FFT_wrapper 	[0.0245s x1.00]	(153.0050s x1.00 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(153.0110s x1.00 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4380s x1.00]	(153.4490s x1.00 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(153.4865s x1.00 from start)
+        * Vector size: 262518
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[137.5469s x0.99]	(291.0334s x0.99 from start)
+    (leave) Compute randomized f_w             	[138.0533s x0.99]	(291.0334s x0.99 from start)
+    (enter) Compute A/B/Cz                     	[             ]	(291.0334s x0.99 from start)
+    (leave) Compute A/B/Cz                     	[0.0718s x1.00]	(291.1052s x0.99 from start)
+    (enter) Compute f_{A/B/Cz} over codeword domain	[             ]	(291.1052s x0.99 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(291.1057s x0.99 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4418s x1.00]	(291.5475s x0.99 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(291.5478s x0.99 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4425s x1.00]	(291.9903s x0.99 from start)
+      (enter) Call to multiplicative_IFFT_wrapper	[             ]	(291.9906s x0.99 from start)
+        * Vector size: 262144
+        * Coset size: 262144
+      (leave) Call to multiplicative_IFFT_wrapper	[0.4419s x1.00]	(292.4326s x0.99 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(292.4411s x0.99 from start)
+        * Vector size: 262519
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[138.7331s x0.99]	(431.1741s x0.99 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(431.1765s x0.99 from start)
+        * Vector size: 262519
+        * Subgroup size: 134217728
+      (leave) Call to multiplicative_FFT_wrapper 	[136.7831s x0.99]	(567.9596s x0.99 from start)
+      (enter) Call to multiplicative_FFT_wrapper 	[             ]	(567.9621s x0.99 from start)

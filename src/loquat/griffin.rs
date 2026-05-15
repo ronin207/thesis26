@@ -1,12 +1,24 @@
 use crate::loquat::field_utils::{field_to_bytes, F};
+#[cfg(not(feature = "std"))]
+use alloc::{format, vec, vec::Vec};
+#[cfg(not(feature = "std"))]
+use core::cmp::{max, min};
+#[cfg(not(feature = "std"))]
+use core::mem::MaybeUninit;
+#[cfg(feature = "std")]
 use num_bigint::BigUint;
+#[cfg(feature = "std")]
 use num_traits::{One, ToPrimitive, Zero};
+#[cfg(feature = "std")]
 use once_cell::sync::Lazy;
 use sha3::{
     Shake256,
     digest::ExtendableOutput,
 };
+#[cfg(feature = "std")]
 use std::cmp::{max, min};
+#[cfg(feature = "std")]
+use std::vec::Vec;
 
 const FIELD_MODULUS: u128 = (1u128 << 127) - 1;
 const STATE_WIDTH: usize = 4;
@@ -16,6 +28,12 @@ const SECURITY_LEVEL: usize = 128;
 const DIGEST_ELEMENTS: usize = 2; // 2 * 16 bytes = 32-byte digest
 
 pub const GRIFFIN_FIELD_MODULUS: u128 = FIELD_MODULUS;
+
+/// Global counter incremented on every Griffin permutation invocation.
+/// Used by attribution measurements in the RISC0 guest. Negligible
+/// overhead vs the ~thousands of field ops per permutation.
+pub static GRIFFIN_PERM_COUNT: core::sync::atomic::AtomicU64 =
+    core::sync::atomic::AtomicU64::new(0);
 pub const GRIFFIN_STATE_WIDTH: usize = STATE_WIDTH;
 pub const GRIFFIN_CAPACITY: usize = CAPACITY;
 pub const GRIFFIN_RATE: usize = RATE;
@@ -38,10 +56,30 @@ pub struct GriffinState {
     lanes: [F; STATE_WIDTH],
 }
 
+#[cfg(feature = "std")]
 static GRIFFIN_PARAMS: Lazy<GriffinParams> = Lazy::new(compute_griffin_params);
 
+#[cfg(not(feature = "std"))]
+static mut GRIFFIN_PARAMS: MaybeUninit<GriffinParams> = MaybeUninit::uninit();
+#[cfg(not(feature = "std"))]
+static mut GRIFFIN_PARAMS_INIT: bool = false;
+
+#[cfg(feature = "std")]
 pub fn get_griffin_params() -> &'static GriffinParams {
     &GRIFFIN_PARAMS
+}
+
+#[cfg(not(feature = "std"))]
+pub fn get_griffin_params() -> &'static GriffinParams {
+    // Single-threaded guest: unsafe lazy init is acceptable here.
+    #[allow(static_mut_refs)]
+    unsafe {
+        if !GRIFFIN_PARAMS_INIT {
+            GRIFFIN_PARAMS.write(compute_griffin_params());
+            GRIFFIN_PARAMS_INIT = true;
+        }
+        &*GRIFFIN_PARAMS.as_ptr()
+    }
 }
 
 pub fn griffin_hash(data: &[u8]) -> Vec<u8> {
@@ -91,6 +129,7 @@ pub fn griffin_sponge(params: &GriffinParams, mut inputs: Vec<F>, output_len: us
 }
 
 fn griffin_permutation(params: &GriffinParams, state: &mut GriffinState) {
+    GRIFFIN_PERM_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     for r in 0..params.rounds - 1 {
         nonlinear_layer(params, state);
         linear_layer(params, state);
@@ -231,6 +270,7 @@ fn compute_griffin_params() -> GriffinParams {
     }
 }
 
+#[cfg(feature = "std")]
 fn bytes_chunk_to_field(bytes: &[u8]) -> F {
     let mut acc = BigUint::zero();
     for (i, byte) in bytes.iter().enumerate() {
@@ -239,6 +279,32 @@ fn bytes_chunk_to_field(bytes: &[u8]) -> F {
     let modulus = BigUint::from(FIELD_MODULUS);
     let reduced = acc % modulus;
     F::new(reduced.to_u128().unwrap())
+}
+
+#[cfg(not(feature = "std"))]
+fn bytes_chunk_to_field(bytes: &[u8]) -> F {
+    // Same result as the BigUint version but using u128 arithmetic.
+    // Input is at most 17 bytes (ceil(127/8) + 1 = 17), fits in 136 bits.
+    let mut lo = 0u128;
+    let mut hi = 0u128;
+    for (i, &byte) in bytes.iter().enumerate() {
+        if i < 16 {
+            lo |= (byte as u128) << (8 * i);
+        } else {
+            hi |= (byte as u128) << (8 * (i - 16));
+        }
+    }
+    // Reduce mod p = 2^127 - 1.
+    // 2^128 ≡ 2 (mod p), 2^127 ≡ 1 (mod p)
+    let p = FIELD_MODULUS;
+    let mut reduced = (lo & p) + (lo >> 127) + 2 * hi;
+    while reduced >= p {
+        reduced = (reduced & p) + (reduced >> 127);
+    }
+    if reduced == p {
+        reduced = 0;
+    }
+    F::new(reduced)
 }
 
 fn get_powers() -> (u128, u128) {
@@ -274,6 +340,7 @@ fn mod_inverse(a: i128, modulus: i128) -> i128 {
     t
 }
 
+#[cfg(feature = "std")]
 fn get_number_of_rounds(d: u128) -> usize {
     let target = BigUint::one() << (SECURITY_LEVEL / 2);
     let mut rgb = 1usize;
@@ -298,6 +365,35 @@ fn get_number_of_rounds(d: u128) -> usize {
     ((base as f64 * 1.2).ceil()) as usize
 }
 
+#[cfg(not(feature = "std"))]
+fn get_number_of_rounds(d: u128) -> usize {
+    // Same algorithm as the BigUint version, but using u128 saturating arithmetic.
+    // binomial values that exceed u128::MAX are treated as >= target.
+    let target = 1u128 << (SECURITY_LEVEL / 2); // 2^64
+    let mut rgb = 1usize;
+    loop {
+        let left = binomial_u128(
+            rgb * (d as usize + STATE_WIDTH) + 1,
+            1 + STATE_WIDTH * rgb,
+        );
+        let right = binomial_u128(
+            (d as usize).pow(rgb as u32) + 1 + rgb,
+            1 + rgb,
+        );
+        if min(left, right) >= target {
+            break;
+        }
+        rgb += 1;
+        if rgb > 25 {
+            break;
+        }
+    }
+    let base = (rgb + 1).max(6);
+    // (base * 1.2) rounded up
+    (base * 6 + 4) / 5
+}
+
+#[cfg(feature = "std")]
 fn binomial(n: usize, k: usize) -> BigUint {
     if k == 0 || k == n {
         return BigUint::one();
@@ -310,6 +406,19 @@ fn binomial(n: usize, k: usize) -> BigUint {
         denominator *= BigUint::from((i + 1) as u64);
     }
     numerator / denominator
+}
+
+#[cfg(not(feature = "std"))]
+fn binomial_u128(n: usize, k: usize) -> u128 {
+    if k == 0 || k == n {
+        return 1;
+    }
+    let k = min(k, n - k);
+    let mut result = 1u128;
+    for i in 0..k {
+        result = result.saturating_mul((n - i) as u128) / ((i + 1) as u128);
+    }
+    result
 }
 
 fn build_matrix() -> [[F; STATE_WIDTH]; STATE_WIDTH] {

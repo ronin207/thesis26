@@ -1,0 +1,186 @@
+# vc-pqc Benchmark Configuration
+# All values here are defaults; every field can be overridden via CLI flags.
+# See: cargo run --release --bin bench_runner -- --help
+
+[runner]
+# Number of measured runs per configuration (after warmup).
+runs = 10
+
+# Number of warmup runs to discard before measuring.
+warmup = 2
+
+# Output file for JSONL records.  Use "-" for stdout.
+# A timestamp placeholder {ts} is replaced at runtime.
+output = "results/bench_{ts}.jsonl"
+
+# Suites to run.  Supported values:
+#   all, aurora-rerun, backend, circuit-scale, griffin, noir, r1cs-compare, zkvm
+#
+# Comma-separated list, e.g. suites = ["aurora-rerun", "griffin"]
+# suites = ["aurora-rerun"]
+# Priority order: B7 (headline numbers), B5 (Griffin breakdown), B3 (scaling),
+# B4 (backend comparison), B2 (R1CS comparison), B1 (Noir pipeline).
+# B6 (zkVM) runs separately since it's a different workspace.
+suites = ["aurora-rerun", "griffin", "circuit-scale", "backend", "r1cs-compare", "noir"]
+
+# If true, print a dry-run listing of all configurations without executing.
+dry_run = false
+
+# If true, append to an existing output file rather than creating a new one.
+# When used with --resume, already-completed configs are skipped.
+resume = false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B1 — Noir Compiler Pipeline
+# ──────────────────────────────────────────────────────────────────────────────
+[noir]
+# Path to the Noir package to compile (relative to project root).
+package_dir = "noir/bdec_showver"
+
+# nargo binary name or absolute path.
+nargo_bin = "nargo"
+
+# Comma-separated list of optimization variants to test.
+# "default" = no extra flags; "aggressive" = --brillig-optimization aggressive
+opt_levels = ["default", "aggressive"]
+
+# Where the compiled ACIR JSON artefact lands (relative to package_dir).
+# nargo writes to <package_dir>/target/<name>.json by default.
+acir_artifact = "target/bdec_showver.json"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B2 — Noir vs Hand-Written R1CS Comparison
+# ──────────────────────────────────────────────────────────────────────────────
+[r1cs_compare]
+# k and rev_depth values to sweep for the comparison.
+k_values = [1, 2]
+rev_depth_values = [10, 20]
+
+# Security level for Loquat params.
+security_level = 128
+
+# Whether to run Aurora prove+verify (slow) in addition to constraint counting.
+run_aurora = true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B3 — Circuit Size Scaling
+# ──────────────────────────────────────────────────────────────────────────────
+[circuit_scale]
+# Credential count sweep.
+k_values = [1, 2, 4, 6, 8, 14]
+
+# Attribute count sweep.
+attr_values = [16, 32, 64, 128, 256]
+
+# Revocation tree depths.
+rev_depth_values = [10, 20]
+
+# Policy configurations: "none", "gpa", "gpa_degree"
+policy_configs = ["none", "gpa", "gpa_degree"]
+
+# Tier: "constraints_only" | "aurora_prove" | "both"
+# Use "constraints_only" on MacBook; "aurora_prove" on cloud.
+tier = "constraints_only"
+
+# For the aurora_prove tier, cap k to avoid multi-hour runs on MacBook.
+max_k_for_local_prove = 4
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B4 — Aurora vs Fractal Backend
+# ──────────────────────────────────────────────────────────────────────────────
+[backend]
+# Fixed R1CS configuration for the comparison.
+k = 2
+rev_depth = 20
+attr_count = 64
+security_level = 128
+
+# Backends to include: "aurora", "fractal", or both.
+backends = ["aurora", "fractal"]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B5 — Griffin Hash Cost Breakdown
+# ──────────────────────────────────────────────────────────────────────────────
+[griffin]
+# Number of Griffin hash inputs to test in isolation.
+hash_input_sizes = [1, 4, 16, 64]
+
+# Merkle tree depth for the Merkle-only sub-benchmark.
+merkle_depth = 20
+
+# Full credential config to use as the "100%" reference.
+full_k = 2
+full_attr = 64
+full_rev_depth = 20
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B6 — RISC Zero zkVM Sweep
+# ──────────────────────────────────────────────────────────────────────────────
+[zkvm]
+# Path to the zkvm workspace (relative to project root).
+workspace_dir = "zkvm"
+
+# k, s, m parameter sets.  Use the full sweep or a subset for local testing.
+k_values = [1, 2, 6, 14, 30]
+s_values = [1, 3, 10]
+m_values = [16, 64, 256]
+
+# Mode: "dev" (RISC0_DEV_MODE=1, cycle counts only, fast) or "full" (full proofs).
+mode = "dev"
+
+# Revocation list size (0 = no extra entries beyond the prover).
+lr_size = 0
+
+# Revocation tree depth.
+rev_depth = 20
+
+# Path to the compiled host binary (built by cargo build --release in zkvm/).
+# A relative path is resolved from the project root.
+host_bin = "zkvm/target/release/host"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B7 — Aurora Statistical Re-Run
+# ──────────────────────────────────────────────────────────────────────────────
+[aurora_rerun]
+# PP2 (revocation) scenario parameters.
+pp2_k = 2
+pp2_lr_size = 0
+pp2_rev_depth = 20
+
+# PP3 (policy) scenario parameters.
+pp3_k = 1
+pp3_lr_size = 0
+pp3_rev_depth = 20
+pp3_policy_gpa_min = 30     # GPA ≥ 3.0 (stored as 10× integer)
+pp3_policy_degree_set = ["CS", "EE", "Math"]
+
+# Whether to also measure PP2 with a combined policy (PP2+PP3).
+run_combined = true
+combined_k = 2
+combined_policy_gpa_min = 30
+combined_policy_degree_set = ["CS", "EE", "Math"]
+
+# Use tiny/test params (much faster, not thesis-quality, good for CI).
+tiny = false
+
+# Security-level sweep (Loquat paper parameter sets). Every level runs PP2 + PP3
+# (+ combined, if enabled) independently. Records are labelled with the level
+# so downstream analysis can build a cost-vs-security curve.
+#   80  — Loquat paper minimum parameter set; research/feasibility baseline.
+#   100 — mid-level; maps the curve between 80 and 128.
+#   128 — published BDEC instantiation; primary comparison point.
+# Use [128] for a single-point comparison, or [80, 100, 128] for the full sweep.
+security_levels = [80, 100, 128]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B9 — PP3 Policy Timing (prove/verify cost as a function of policy predicates).
+# ──────────────────────────────────────────────────────────────────────────────
+# Fills the `PP3 Policy (D2)` xlsx template: varies ONLY policy at a fixed
+# pivot to produce three timing rows ({none, gpa, gpa_degree}). See
+# src/bench/pp3_policy.rs for the runner. Pivot mirrors B7 so rows align.
+[pp3_policy]
+k         = 2
+lr_size   = 0
+rev_depth = 20
+gpa_min   = 30
+degree_set = ["CS", "EE", "Math"]

@@ -11,8 +11,9 @@ use super::hasher::{GriffinHasher, LoquatHasher};
 use super::ldt::LDTOpening;
 use super::ldt::LDTProof;
 use super::sumcheck::UnivariateSumcheckProof;
+use super::transcript::FieldTranscript;
 #[cfg(feature = "std")]
-use super::transcript::{FieldTranscript, expand_f, expand_f2_real, expand_index};
+use super::transcript::{expand_f, expand_f2_real, expand_index};
 #[cfg(feature = "std")]
 use super::{
     fft::{evaluate_on_coset, interpolate_on_coset},
@@ -686,12 +687,8 @@ pub fn loquat_sign(
         "✓ LDT codeword length: {} (evaluations of f^(0) over U)",
         ldt_codeword.len()
     );
-    let (ldt_proof, fri_challenges) = ldt_protocol(
-        &ldt_codeword,
-        params,
-        merkle_config,
-        &mut transcript,
-    )?;
+    let (ldt_proof, fri_challenges) =
+        ldt_protocol(&ldt_codeword, params, merkle_config, &mut transcript)?;
 
     let c_cap_nodes = merkle_tree.cap_nodes().to_vec();
     let s_cap_nodes = s_merkle.cap_nodes().to_vec();

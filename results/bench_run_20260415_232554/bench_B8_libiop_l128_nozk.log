@@ -1,0 +1,227 @@
+warning: unused import: `super::encoding`
+ --> src/loquat/verify.rs:1:5
+  |
+1 | use super::encoding;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::string::ToString`
+  --> src/loquat/verify.rs:14:5
+   |
+14 | use std::string::ToString;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `full_prove_ms`
+  --> src/bench/griffin.rs:29:28
+   |
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                            ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_prove_ms`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `full_verify_ms`
+  --> src/bench/griffin.rs:29:43
+   |
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                                           ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_verify_ms`
+
+warning: unused variable: `full_proof_bytes`
+  --> src/bench/griffin.rs:29:59
+   |
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                                                           ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_proof_bytes`
+
+warning: function `hex_encode_sample` is never used
+    --> src/bdec/mod.rs:2446:4
+     |
+2446 | fn hex_encode_sample(bytes: &[u8]) -> String {
+     |    ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `flatten_field2_matrix` is never used
+   --> src/loquat/sign.rs:185:4
+    |
+185 | fn flatten_field2_matrix(matrix: &[Vec<F2>], out: &mut Vec<u8>) {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `flatten_two_nested_field2` is never used
+   --> src/loquat/sign.rs:206:4
+    |
+206 | fn flatten_two_nested_field2(blocks: &[Vec<Vec<F2>>], out: &mut Vec<u8>) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `verify_ldt` is never used
+   --> src/loquat/verify.rs:699:8
+    |
+552 | impl<'a> Algorithm7Verifier<'a> {
+    | ------------------------------- method in this implementation
+...
+699 |     fn verify_ldt(&mut self) -> LoquatResult<()> {
+    |        ^^^^^^^^^^
+
+warning: function `merkle_path_opening` is never used
+ --> src/snarks/loquat_r1cs.rs:1:4
+  |
+1 | fn merkle_path_opening(
+  |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `field_mul_const` is never used
+   --> src/snarks/loquat_r1cs.rs:273:4
+    |
+273 | fn field_mul_const(builder: &mut R1csBuilder, var: FieldVar, constant: F) -> FieldVar {
+    |    ^^^^^^^^^^^^^^^
+
+warning: method `to_dense` is never used
+   --> src/snarks/loquat_r1cs.rs:365:8
+    |
+325 | impl SparseLC {
+    | ------------- method in this implementation
+...
+365 |     fn to_dense(&self, num_variables: usize) -> Vec<F> {
+    |        ^^^^^^^^
+
+warning: methods `enforce_f2_sum_equals_unit`, `enforce_f2_sum_equals_const`, `xor3_bits`, `majority_bits`, and `choice_bits` are never used
+   --> src/snarks/loquat_r1cs.rs:481:8
+    |
+411 | impl R1csBuilder {
+    | ---------------- methods in this implementation
+...
+481 |     fn enforce_f2_sum_equals_unit(&mut self, vars: &[F2Var], target: F2Var) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+507 |     fn enforce_f2_sum_equals_const(&mut self, vars: &[F2Var], constant: F2) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+588 |     fn xor3_bits(
+    |        ^^^^^^^^^
+...
+609 |     fn majority_bits(
+    |        ^^^^^^^^^^^^^
+...
+625 |     fn choice_bits(
+    |        ^^^^^^^^^^^
+
+warning: function `alloc_f2` is never used
+    --> src/snarks/loquat_r1cs.rs:2636:4
+     |
+2636 | fn alloc_f2(builder: &mut R1csBuilder, value: F2) -> F2Var {
+     |    ^^^^^^^^
+
+warning: function `enforce_f2_add_eq` is never used
+    --> src/snarks/loquat_r1cs.rs:2640:4
+     |
+2640 | fn enforce_f2_add_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+     |    ^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_f2_sub_eq` is never used
+    --> src/snarks/loquat_r1cs.rs:2644:4
+     |
+2644 | fn enforce_f2_sub_eq(builder: &mut R1csBuilder, left: F2Var, right: F2Var, target: F2Var) {
+     |    ^^^^^^^^^^^^^^^^^
+
+warning: function `enforce_f0_linear_combination` is never used
+    --> src/snarks/loquat_r1cs.rs:2754:4
+     |
+2754 | fn enforce_f0_linear_combination(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `bytes_from_f2` is never used
+    --> src/snarks/loquat_r1cs.rs:3228:4
+     |
+3228 | fn bytes_from_f2(builder: &mut R1csBuilder, var: F2Var, value: F2) -> Vec<Byte> {
+     |    ^^^^^^^^^^^^^
+
+warning: function `serialize_field_matrix_bytes` is never used
+    --> src/snarks/loquat_r1cs.rs:3234:4
+     |
+3234 | fn serialize_field_matrix_bytes(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `TranscriptCircuit` is never constructed
+    --> src/snarks/loquat_r1cs.rs:3262:8
+     |
+3262 | struct TranscriptCircuit {
+     |        ^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `append_message`, and `challenge` are never used
+    --> src/snarks/loquat_r1cs.rs:3268:8
+     |
+3267 | impl TranscriptCircuit {
+     | ---------------------- associated items in this implementation
+3268 |     fn new(builder: &mut R1csBuilder, label: &[u8]) -> Self {
+     |        ^^^
+...
+3278 |     fn append_message(&mut self, builder: &mut R1csBuilder, label: &[u8], data: &[Byte]) {
+     |        ^^^^^^^^^^^^^^
+...
+3291 |     fn challenge(&mut self, builder: &mut R1csBuilder, label: &[u8]) -> Vec<Byte> {
+     |        ^^^^^^^^^
+
+warning: function `enforce_field_matches_digest` is never used
+    --> src/snarks/loquat_r1cs.rs:3424:4
+     |
+3424 | fn enforce_field_matches_digest(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_leaves` is never used
+    --> src/snarks/loquat_r1cs.rs:3718:4
+     |
+3718 | fn merkle_root_from_leaves(builder: &mut R1csBuilder, leaves: &[Vec<Byte>]) -> Vec<Byte> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_fri_layer_leaves` is never used
+    --> src/snarks/loquat_r1cs.rs:3741:4
+     |
+3741 | fn build_fri_layer_leaves(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `collect_f2_field_vars` is never used
+    --> src/snarks/loquat_r1cs.rs:3867:4
+     |
+3867 | fn collect_f2_field_vars(vars: &[F2Var], values: &[F2]) -> Vec<FieldVar> {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `griffin_hash_f2_chunk` is never used
+    --> src/snarks/loquat_r1cs.rs:3879:4
+     |
+3879 | fn griffin_hash_f2_chunk(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hash_chunked_f2_vector` is never used
+    --> src/snarks/loquat_r1cs.rs:3888:4
+     |
+3888 | fn hash_chunked_f2_vector(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hash_chunked_c_columns` is never used
+    --> src/snarks/loquat_r1cs.rs:3906:4
+     |
+3906 | fn hash_chunked_c_columns(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_field_digests` is never used
+    --> src/snarks/loquat_r1cs.rs:3955:4
+     |
+3955 | fn merkle_root_from_field_digests(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_f2_vector` is never used
+    --> src/snarks/loquat_r1cs.rs:3978:4
+     |
+3978 | fn merkle_root_from_f2_vector(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `merkle_root_from_c_matrix` is never used
+    --> src/snarks/loquat_r1cs.rs:3989:4
+     |
+3989 | fn merkle_root_from_c_matrix(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `vc-pqc` (lib) generated 31 warnings (run `cargo fix --lib -p vc-pqc` to apply 5 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.10s
+     Running `target/release/emit_aurora_r1cs --mode bdec --security 128 --out target/aurora_bdec_s128.bdec-r1cs`
+[emit] mode=bdec tiny=false security=128 raw_constraints=246629 raw_vars_incl_c1=247379 -> padded_constraints=262144 padded_vars_incl_c1=262144 num_inputs=0 msg="emit_aurora_r1cs::bdec" -> "target/aurora_bdec_s128.bdec-r1cs" (26323816 B)
+[B8] B8_libiop_l128_nozk: emitting+running target/aurora_bdec_s128.bdec-r1cs with env=<none>
+bash: line 16: env_kv[@]: unbound variable

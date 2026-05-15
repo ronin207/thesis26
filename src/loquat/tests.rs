@@ -297,12 +297,9 @@ mod integration_tests {
         )
         .expect("Show credential should succeed");
 
-        let valid_show = bdec_verify_shown_credential_paper(
-            &system,
-            &shown,
-            &shown.verifier_pseudonym.public,
-        )
-        .expect("Shown credential verification should succeed");
+        let valid_show =
+            bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public)
+                .expect("Shown credential verification should succeed");
         assert!(valid_show, "Shown credential should verify");
 
         let mut tampered = shown.clone();
@@ -359,23 +356,15 @@ mod integration_tests {
         .expect("Show credential should succeed");
 
         assert!(
-            bdec_verify_shown_credential_paper(
-                &system,
-                &shown,
-                &shown.verifier_pseudonym.public,
-            )
-            .unwrap()
+            bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public,)
+                .unwrap()
         );
 
         // Revocation edge case
         bdec_revoke(&mut system, &user_keypair.public_key).expect("revocation should succeed");
         assert!(
-            !bdec_verify_shown_credential_paper(
-                &system,
-                &shown,
-                &shown.verifier_pseudonym.public,
-            )
-            .unwrap()
+            !bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public,)
+                .unwrap()
         );
     }
 
@@ -411,7 +400,10 @@ mod integration_tests {
             &shown.verifier_pseudonym.public,
         )
         .expect("verification should run");
-        assert!(!is_valid, "Verifier must reject when the SNARK proof is tampered");
+        assert!(
+            !is_valid,
+            "Verifier must reject when the SNARK proof is tampered"
+        );
     }
 
     #[test]
@@ -532,12 +524,21 @@ mod integration_tests {
 
             let credential_bundle = vec![credential.clone()];
             let revealed: Vec<String> = attributes.iter().take(*reveal_count).cloned().collect();
-            let shown = bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, revealed.clone())
-                .expect("Show credential should succeed");
+            let shown = bdec_show_credential_paper(
+                &system,
+                &user_keypair,
+                &credential_bundle,
+                revealed.clone(),
+            )
+            .expect("Show credential should succeed");
 
             assert!(
-                bdec_verify_shown_credential_paper(&system, &shown, &shown.verifier_pseudonym.public)
-                    .expect("Shown credential verification should succeed"),
+                bdec_verify_shown_credential_paper(
+                    &system,
+                    &shown,
+                    &shown.verifier_pseudonym.public
+                )
+                .expect("Shown credential verification should succeed"),
                 "Shown credential should verify for attribute count {attribute_count}"
             );
 
@@ -588,13 +589,21 @@ mod integration_tests {
 
         let credential_bundle = vec![credential.clone()];
         let revealed = vec![attributes[0].clone()];
-        let shown_a =
-            bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, revealed.clone())
-                .expect("Show credential A should succeed");
+        let shown_a = bdec_show_credential_paper(
+            &system,
+            &user_keypair,
+            &credential_bundle,
+            revealed.clone(),
+        )
+        .expect("Show credential A should succeed");
 
-        let shown_b =
-            bdec_show_credential_paper(&system, &user_keypair, &credential_bundle, revealed.clone())
-                .expect("Show credential B should succeed");
+        let shown_b = bdec_show_credential_paper(
+            &system,
+            &user_keypair,
+            &credential_bundle,
+            revealed.clone(),
+        )
+        .expect("Show credential B should succeed");
 
         assert_ne!(
             shown_a.verifier_pseudonym.public, shown_b.verifier_pseudonym.public,

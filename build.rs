@@ -15,10 +15,22 @@ fn main() {
     println!("cargo:rerun-if-env-changed=VC_PQC_LIBIOP_CXX_COMPILER");
     println!("cargo:rerun-if-changed=libiop/CMakeLists.txt");
     println!("cargo:rerun-if-changed=libiop/libiop");
+    println!("cargo:rerun-if-changed=libiop/libiop_c_api.cpp");
+    println!("cargo:rerun-if-changed=libiop/libiop_c_api.h");
     println!("cargo:rerun-if-changed=libiop/depends/CMakeLists.txt");
+    println!("cargo:rerun-if-changed=libiop/depends/libff/libff");
+    println!("cargo:rerun-if-changed=libiop/depends/libff/libff/CMakeLists.txt");
 
     let mut cfg = cmake::Config::new("libiop");
     cfg.profile("RelWithDebInfo");
+    // cmake 3.5+ policy compat: libiop's CMakeLists.txt specifies VERSION 3.1 which
+    // cmake >= 4.0 no longer supports without this policy override.
+    cfg.define("CMAKE_POLICY_VERSION_MINIMUM", "3.5");
+    // CURVE=EDWARDS avoids the BN128/ate-pairing dependency (zm uses x86 SSE
+    // intrinsics that don't build on arm64).
+    cfg.define("CURVE", "EDWARDS");
+    // libff defaults USE_ASM=ON which adds -mpclmul/-msse4.1 (x86-only).
+    cfg.define("USE_ASM", "OFF");
     cfg.define("BUILD_TESTING", "OFF");
     cfg.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
     cfg.define("MULTICORE", if libiop_multicore { "ON" } else { "OFF" });

@@ -8,11 +8,11 @@
 //! - It operates natively over prime fields
 //! - It's more efficient in zero-knowledge proof systems
 
-use super::hasher::{GriffinHasher, LoquatHasher};
 use super::field_utils::{F, F2};
 use super::griffin::{get_griffin_params, griffin_sponge};
+use super::hasher::{GriffinHasher, LoquatHasher};
 #[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
@@ -216,7 +216,11 @@ pub fn expand_index(seed: [F; 2], count: usize, domain: &[u8], modulus: usize) -
     //
     // This is easy to mirror in-circuit (bit-decompose once, then one subtract).
     let k = (usize::BITS - (modulus.saturating_sub(1)).leading_zeros()) as usize;
-    let mask = if k >= 128 { u128::MAX } else { (1u128 << k) - 1 };
+    let mask = if k >= 128 {
+        u128::MAX
+    } else {
+        (1u128 << k) - 1
+    };
     expand_f(seed, count, domain)
         .into_iter()
         .map(|x| {

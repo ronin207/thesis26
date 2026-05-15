@@ -25,11 +25,13 @@ pub mod r1cs;
 pub use aurora::{
     AuroraParams, AuroraProof, AuroraProverOptions, AuroraVerificationHints,
     AuroraVerificationResult, aurora_prove, aurora_prove_with_options, aurora_verify,
+    aurora_verify_with_public_inputs,
 };
 pub use fractal::{FractalParams, FractalProof, fractal_prove, fractal_verify};
 pub use loquat_r1cs::{
-    build_loquat_r1cs, build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_witness_instance,
+    build_loquat_r1cs_pk_witness, build_loquat_r1cs_pk_witness_instance,
     build_loquat_r1cs_pk_sig_witness, build_loquat_r1cs_pk_sig_witness_instance,
     build_revocation_r1cs_pk_witness, build_revocation_r1cs_pk_witness_instance,
+    take_last_r1cs_breakdown,
 };
 pub use r1cs::{R1csConstraint, R1csInstance, R1csWitness};
