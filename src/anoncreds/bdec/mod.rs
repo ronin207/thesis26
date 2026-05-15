@@ -8,7 +8,7 @@
 //! match the formal algorithms: `Setup`, `PriGen`, `NymKey`, `CreGen`,
 //! `CreVer`, `ShowCre`, `ShowVer`, and `RevCre`.
 
-use crate::evaluation::pp3::{
+use crate::bench::scenarios::pp3::{
     PolicyInput, PolicyPredicate, evaluate_policy_input, parse_attribute_map,
 };
 use crate::signatures::loquat::field_utils;

@@ -21,24 +21,30 @@
 
 pub mod encoding;
 pub mod errors;
-pub mod fft;
-pub mod field_p127;
 pub mod field_utils;
-pub mod griffin;
 #[cfg(feature = "guest")]
 pub mod guest;
-pub mod hasher;
 #[cfg(feature = "std")]
 pub mod iop_key_id;
 #[cfg(feature = "std")]
 pub mod keygen;
 pub mod ldt;
-pub mod merkle;
+#[cfg(feature = "std")]
+pub mod r1cs_circuit;
 pub mod setup;
 pub mod sign;
 pub mod sumcheck;
 pub mod transcript;
 pub mod verify;
+
+// Backwards-compat aliases so `super::griffin`, `super::merkle`, etc.
+// from within signatures/loquat/* keep resolving after the primitives
+// sweep (Griffin / Merkle / FFT / hashers / field moved to src/primitives/).
+pub use crate::primitives::fft::loquat as fft;
+pub use crate::primitives::field::p127 as field_p127;
+pub use crate::primitives::hash::griffin_p127 as griffin;
+pub use crate::primitives::hash::hasher_loquat as hasher;
+pub use crate::primitives::merkle::loquat as merkle;
 
 #[cfg(feature = "std")]
 pub mod benchmark;

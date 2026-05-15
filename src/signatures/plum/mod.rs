@@ -84,19 +84,7 @@
 //! (three-level cycle-attribution measurement).
 
 #[cfg(feature = "std")]
-pub mod fft;
-#[cfg(feature = "std")]
-pub mod field_p192;
-#[cfg(feature = "std")]
-pub mod griffin;
-#[cfg(feature = "std")]
-pub mod hasher;
-#[cfg(feature = "std")]
 pub mod keygen;
-#[cfg(feature = "std")]
-pub mod merkle;
-#[cfg(feature = "std")]
-pub mod prf;
 #[cfg(feature = "std")]
 pub mod setup;
 #[cfg(feature = "std")]
@@ -111,3 +99,19 @@ pub mod sumcheck;
 pub mod transcript;
 #[cfg(feature = "std")]
 pub mod verify;
+
+// Backwards-compat aliases so `super::field_p192`, `super::griffin`,
+// `super::hasher`, `super::merkle`, `super::fft`, `super::prf` keep
+// resolving from within signatures/plum/* after the primitives sweep.
+#[cfg(feature = "std")]
+pub use crate::primitives::fft::plum as fft;
+#[cfg(feature = "std")]
+pub use crate::primitives::field::p192 as field_p192;
+#[cfg(feature = "std")]
+pub use crate::primitives::hash::griffin_p192 as griffin;
+#[cfg(feature = "std")]
+pub use crate::primitives::hash::hasher_plum as hasher;
+#[cfg(feature = "std")]
+pub use crate::primitives::merkle::plum as merkle;
+#[cfg(feature = "std")]
+pub use crate::primitives::prf::power_residue as prf;

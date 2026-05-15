@@ -76,9 +76,8 @@ pub mod anoncreds;
 #[cfg(feature = "std")]
 pub mod bench;
 #[cfg(feature = "std")]
-pub mod evaluation;
-#[cfg(feature = "std")]
 pub mod noir_backend;
+pub mod primitives;
 pub mod signatures;
 #[cfg(feature = "std")]
 pub mod snarks;
@@ -109,7 +108,7 @@ pub use bdec::{
     bdec_verify_shown_credential_paper, bdec_verify_shown_credential_with_policy_paper,
 };
 #[cfg(feature = "std")]
-pub use evaluation::{
+pub use bench::{
     D1ChurnEntry, D2CostMetrics, D3PrivacyResult, PhaseSpan, PhaseTimer, PolicyInput,
     PolicyPredicate, Pp2AuroraBenchmarkResult, Pp2AuroraRunConfig, Pp3AuroraBenchmarkResult,
     default_pp3_policies, evaluate_policy_input, parse_attribute_map,
