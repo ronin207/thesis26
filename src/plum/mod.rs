@@ -59,21 +59,24 @@
 //!
 //!   - **Phase 8** — `sign` implements Algorithms 3–5 (6 protocol
 //!     phases) wiring sumcheck, STIR, Merkle, and Fiat–Shamir
-//!     together. `PlumSignature` carries `(root_c, T, o, root_s, S,
-//!     root_h, stir_roots, stir_betas, final_coefs)`. Query openings
-//!     for the BCRSVW sumcheck identity and the STIR-fold consistency
-//!     are NOT YET in the signature struct — tracked in code.
-//!   - **Phase 9 (partial)** — `verify` implements Algorithm 6 Step 1
-//!     (FS replay) and the residuosity portion of Step 3 (Alg 6 line
-//!     21). The Merkle / sumcheck identity / STIR-fold portions
-//!     require signature openings still to be added. Per the proof-
-//!     checker audit, the partial verify is a structural smoke test
-//!     and NOT a meaningful security check — see `verify.rs` module
-//!     doc-comment for details.
+//!     together. `PlumSignature` carries roots + responses + STIR
+//!     data + per-query Merkle openings of `ĉ'_j, ŝ, ĥ` at the κ_0 = 26
+//!     FS-derived query indices in U_0. Per-round STIR opening of
+//!     `â_i|_{U_i}` for the fold-consistency check is still TODO.
+//!   - **Phase 9** — `verify` implements Algorithm 6 Step 1 (FS replay
+//!     through Phase 5), Step 2 at the algebraic-identity level
+//!     (Merkle path verification + BCRSVW sumcheck identity check
+//!     `Σ_{a ∈ H} g̃(a) = z·µ + S` via Lagrange interpolation from
+//!     query points), and Step 3 residuosity check (Alg 6 line 21).
+//!     The STIR-fold consistency portion of Step 3 requires per-round
+//!     `â_i` openings (TODO, follow-up commit). Per the proof-checker
+//!     audit, the EUF-KO reduction does NOT close until STIR
+//!     proximity testing is added — see `verify.rs` module doc-comment
+//!     for the security caveat.
 //!
-//! TODO from the plan: extend `PlumSignature` with Merkle query
-//! openings (`ĉ'_j`, `ŝ`, `ĥ`, per-round `â_i`); complete Algorithm 6
-//! Steps 2-3; Phase 10 (zkVM); Phase 11 (three-level attribution
+//! TODO from the plan: extend `PlumSignature` with per-round STIR
+//! Merkle openings; implement Alg 6 lines 13–18 (STIR fold
+//! consistency); Phase 10 (zkVM); Phase 11 (three-level attribution
 //! measurement).
 
 #[cfg(feature = "std")]

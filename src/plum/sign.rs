@@ -36,7 +36,7 @@ use super::field_p192::Fp192;
 use super::fft::evaluate_on_coset;
 use super::hasher::{PLUM_DIGEST_BYTES, PlumHasher};
 use super::keygen::PlumSecretKey;
-use super::merkle::PlumMerkleTree;
+use super::merkle::{PlumMerkleProof, PlumMerkleTree};
 use super::prf::DEFAULT_PARAMS;
 use super::setup::PlumPublicParams;
 use super::stir::{
@@ -86,6 +86,20 @@ pub struct PlumSignature {
     /// Coefficients of the final-round polynomial `f̂_{R+1}` (Alg 5
     /// line 14), length `< d_R = d_stop`.
     pub final_coefs: Vec<Fp192>,
+
+    // ─── Query openings (Alg 6 Step 2 — paper p. 122) ───
+    /// FS-derived query indices into `U_0`. Length `pp.kappa_0`.
+    pub query_indices: Vec<usize>,
+    /// `c_prime_openings[q][j] = ĉ'_j(U_0[query_indices[q]])`. The full
+    /// row is what the prover hashed to form the Merkle leaf.
+    pub c_prime_openings: Vec<Vec<Fp192>>,
+    /// `c_prime_paths[q]` is the sibling chain (digest path) to root_c.
+    /// Verifier hashes the row to a digest and walks up.
+    pub c_prime_paths: Vec<Vec<[u8; PLUM_DIGEST_BYTES]>>,
+    /// `ŝ(U_0[query_indices[q]])` plus its Merkle path against root_s.
+    pub s_openings: Vec<PlumMerkleProof>,
+    /// `ĥ(U_0[query_indices[q]])` plus its Merkle path against root_h.
+    pub h_openings: Vec<PlumMerkleProof>,
 }
 
 /// Algorithm 3 / 4 / 5 — generate a PLUM signature.
@@ -314,6 +328,38 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     let r_phase5 = transcript.challenge_field(b"phase5/r");
     let r0_fold = transcript.challenge_field(b"phase5/r0_fold");
 
+    // FS-derive κ_0 query indices into U_0 for the initial-codeword
+    // proximity check (Alg 6 line 9 + Alg 5 line 16). These are bound
+    // here, AFTER root_h has been absorbed and AFTER the rate-
+    // correction parameters are derived, so the prover cannot grind.
+    // FS-derived; not re-absorbed because the indices are
+    // deterministic from the transcript (challenge_indices' output is
+    // a pure function of the prior absorbs). Re-absorbing would force
+    // the verifier to mirror it, and any asymmetry there would break
+    // the STIR-FS chain in a future Phase 10. See proof-checker Q2
+    // audit, 2026-05-15.
+    let query_indices: Vec<usize> =
+        transcript.challenge_indices(b"queries/U_0", pp.kappa_0, pp.u_size);
+
+    // Record the per-query openings of ĉ'_j, ŝ, ĥ. The Merkle commits
+    // were built earlier; we just open them at the FS-derived indices.
+    let c_prime_openings: Vec<Vec<Fp192>> = query_indices
+        .iter()
+        .map(|&e| (0..n).map(|j| c_prime_on_u[j][e].clone()).collect())
+        .collect();
+    let c_prime_paths: Vec<Vec<[u8; PLUM_DIGEST_BYTES]>> = query_indices
+        .iter()
+        .map(|&e| merkle_c.open_digest(e))
+        .collect();
+    let s_openings: Vec<PlumMerkleProof> = query_indices
+        .iter()
+        .map(|&e| merkle_s.open(e))
+        .collect();
+    let h_openings: Vec<PlumMerkleProof> = query_indices
+        .iter()
+        .map(|&e| merkle_h.open(e))
+        .collect();
+
     // Define f̂* (the initial STIR codeword). Per Alg 4 line 16, this is
     // a degree-d* linear combination of c̃' (which is f̂ here), ŝ, ĥ,
     // and p̂ with degree-shift factors t_k · r^{shift_k}. We compute it
@@ -460,6 +506,11 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
         stir_roots,
         stir_betas,
         final_coefs,
+        query_indices,
+        c_prime_openings,
+        c_prime_paths,
+        s_openings,
+        h_openings,
     }
 }
 
