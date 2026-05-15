@@ -6,7 +6,15 @@ edition = "2021"
 [workspace]
 
 [dependencies]
-risc0-zkvm = { version = "^3.0.3", default-features = false }
+# `std` enabled so the PLUM guest binary can use `std::collections::*`
+# transitively via the PLUM modules (Loquat is no_std and ignores it).
+risc0-zkvm = { version = "^3.0.3", default-features = false, features = ["std"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 sha2 = { version = "0.10", default-features = false }
-vc-pqc = { path = "../../..", default-features = false, features = ["guest"] }
+vc-pqc = { path = "../../..", default-features = false, features = ["guest", "std"] }
+
+# PLUM guest binary (Phase 10 — runs plum_verify inside risc0 and
+# commits the cycle-attribution counters).
+[[bin]]
+name = "plum_verify"
+path = "src/bin/plum_verify.rs"
