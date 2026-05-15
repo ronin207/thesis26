@@ -142,8 +142,8 @@ pub fn decompose(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plum::fft::evaluate_on_coset;
-    use crate::plum::setup::plum_setup;
+    use crate::signatures::plum::fft::evaluate_on_coset;
+    use crate::signatures::plum::setup::plum_setup;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 

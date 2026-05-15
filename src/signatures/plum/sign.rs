@@ -743,9 +743,9 @@ fn compute_p_hat(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plum::hasher::PlumSha3Hasher;
-    use crate::plum::keygen::plum_keygen;
-    use crate::plum::setup::plum_setup;
+    use crate::signatures::plum::hasher::PlumSha3Hasher;
+    use crate::signatures::plum::keygen::plum_keygen;
+    use crate::signatures::plum::setup::plum_setup;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 

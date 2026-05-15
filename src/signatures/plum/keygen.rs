@@ -124,7 +124,7 @@ pub fn plum_keygen<R: Rng + CryptoRng>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plum::setup::plum_setup;
+    use crate::signatures::plum::setup::plum_setup;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 

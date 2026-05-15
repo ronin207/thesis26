@@ -9,7 +9,7 @@ use std::error::Error;
 
 use crate::evaluation::instrument::PhaseTimer;
 
-use crate::bdec::{
+use crate::anoncreds::bdec::{
     BdecCredential, bdec_build_showver_instance_with_policy_paper, bdec_issue_credential,
     bdec_issue_credential_with_existing_proof, bdec_nym_key, bdec_prigen,
     bdec_public_key_prefix_index, bdec_revoke, bdec_setup_zk,

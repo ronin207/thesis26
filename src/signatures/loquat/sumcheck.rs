@@ -1,6 +1,6 @@
 use super::transcript::FieldTranscript;
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::{F, F2};
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::field_utils::{F, F2};
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
@@ -69,7 +69,7 @@ pub fn generate_sumcheck_proof(
     );
 
     if polynomial_evals.len() != (1 << num_variables) {
-        return Err(crate::loquat::errors::LoquatError::SumcheckError {
+        return Err(crate::signatures::loquat::errors::LoquatError::SumcheckError {
             step: "proof_generation".to_string(),
             details: format!(
                 "Polynomial evaluations length {} doesn't match 2^{\n}",
@@ -289,7 +289,7 @@ fn transcript_challenge(transcript: &mut FieldTranscript) -> F2 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loquat::transcript::FieldTranscript;
+    use crate::signatures::loquat::transcript::FieldTranscript;
 
     #[test]
     fn test_sumcheck_protocol() {

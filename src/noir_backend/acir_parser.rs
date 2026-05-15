@@ -1,5 +1,5 @@
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::F;
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::field_utils::F;
 use serde_json::Value;
 use std::vec::Vec;
 

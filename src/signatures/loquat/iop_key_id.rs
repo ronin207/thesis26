@@ -154,8 +154,8 @@ pub fn verify_iop_proof(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loquat::keygen::keygen_with_params;
-    use crate::loquat::setup::loquat_setup;
+    use crate::signatures::loquat::keygen::keygen_with_params;
+    use crate::signatures::loquat::setup::loquat_setup;
     use rand::thread_rng;
 
     #[test]

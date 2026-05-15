@@ -186,7 +186,7 @@ pub fn interpolate_on_coset(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plum::setup::plum_setup;
+    use crate::signatures::plum::setup::plum_setup;
 
     fn naive_evaluate(coeffs: &[Fp192], point: &Fp192) -> Fp192 {
         // Horner.

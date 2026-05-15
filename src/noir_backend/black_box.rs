@@ -1,4 +1,4 @@
-use crate::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NoirBlackBoxOp {

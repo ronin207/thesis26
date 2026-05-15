@@ -293,8 +293,8 @@ pub fn fold_coefficients(coeffs: &[Fp192], eta: usize, r_fold: &Fp192) -> Vec<Fp
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plum::fft::evaluate_on_coset;
-    use crate::plum::setup::plum_setup;
+    use crate::signatures::plum::fft::evaluate_on_coset;
+    use crate::signatures::plum::setup::plum_setup;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 

@@ -774,10 +774,10 @@ pub fn plum_verify<H: PlumHasher>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plum::hasher::PlumSha3Hasher;
-    use crate::plum::keygen::plum_keygen;
-    use crate::plum::setup::plum_setup;
-    use crate::plum::sign::plum_sign;
+    use crate::signatures::plum::hasher::PlumSha3Hasher;
+    use crate::signatures::plum::keygen::plum_keygen;
+    use crate::signatures::plum::setup::plum_setup;
+    use crate::signatures::plum::sign::plum_sign;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 

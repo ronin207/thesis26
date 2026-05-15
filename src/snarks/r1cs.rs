@@ -1,5 +1,5 @@
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::{F, field_to_bytes};
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::field_utils::{F, field_to_bytes};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::vec::Vec;

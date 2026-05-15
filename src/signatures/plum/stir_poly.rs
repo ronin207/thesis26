@@ -235,7 +235,7 @@ pub fn degree_correction_polynomial(r_comb: &Fp192, kappa: usize) -> Vec<Fp192> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plum::setup::plum_setup;
+    use crate::signatures::plum::setup::plum_setup;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 

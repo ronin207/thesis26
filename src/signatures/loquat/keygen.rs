@@ -171,7 +171,7 @@ pub fn keygen_with_params(params: &LoquatPublicParams) -> LoquatResult<LoquatKey
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loquat::setup::loquat_setup;
+    use crate::signatures::loquat::setup::loquat_setup;
 
     #[test]
     fn test_keygen_with_params() {

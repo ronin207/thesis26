@@ -11,11 +11,11 @@
 use crate::evaluation::pp3::{
     PolicyInput, PolicyPredicate, evaluate_policy_input, parse_attribute_map,
 };
-use crate::loquat::field_utils;
-use crate::loquat::field_utils::F;
-use crate::loquat::griffin::{GRIFFIN_STATE_WIDTH, griffin_permutation_raw};
-use crate::loquat::merkle::MerkleTree;
-use crate::loquat::{
+use crate::signatures::loquat::field_utils;
+use crate::signatures::loquat::field_utils::F;
+use crate::signatures::loquat::griffin::{GRIFFIN_STATE_WIDTH, griffin_permutation_raw};
+use crate::signatures::loquat::merkle::MerkleTree;
+use crate::signatures::loquat::{
     LoquatPublicParams, LoquatSignature, loquat_setup, loquat_sign, loquat_verify,
 };
 use crate::snarks::{

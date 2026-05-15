@@ -374,18 +374,18 @@ fn enforce_field_digest_equals_bytes(
     Ok(())
 }
 
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::fft::{evaluate_on_coset, interpolate_on_coset};
-use crate::loquat::field_utils::{self, F, F2, field_to_u128, sqrt_canonical};
-use crate::loquat::griffin::{
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::fft::{evaluate_on_coset, interpolate_on_coset};
+use crate::signatures::loquat::field_utils::{self, F, F2, field_to_u128, sqrt_canonical};
+use crate::signatures::loquat::griffin::{
     GRIFFIN_DIGEST_ELEMENTS, GRIFFIN_FIELD_MODULUS, GRIFFIN_RATE, GRIFFIN_STATE_WIDTH,
     GriffinParams, get_griffin_params,
 };
-use crate::loquat::hasher::{GriffinHasher, LoquatHasher};
-use crate::loquat::setup::LoquatPublicParams;
-use crate::loquat::sign::LoquatSignature;
-use crate::loquat::sumcheck::replay_sumcheck_challenges;
-use crate::loquat::transcript::{FieldTranscript, expand_f, expand_f2_real, expand_index};
+use crate::signatures::loquat::hasher::{GriffinHasher, LoquatHasher};
+use crate::signatures::loquat::setup::LoquatPublicParams;
+use crate::signatures::loquat::sign::LoquatSignature;
+use crate::signatures::loquat::sumcheck::replay_sumcheck_challenges;
+use crate::signatures::loquat::transcript::{FieldTranscript, expand_f, expand_f2_real, expand_index};
 use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 
 struct TranscriptData {

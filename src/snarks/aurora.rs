@@ -1,11 +1,11 @@
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::{F, F2, field_to_bytes, field2_to_bytes};
-use crate::loquat::merkle::MerkleTree;
-use crate::loquat::sumcheck::{
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::field_utils::{F, F2, field_to_bytes, field2_to_bytes};
+use crate::signatures::loquat::merkle::MerkleTree;
+use crate::signatures::loquat::sumcheck::{
     UnivariateSumcheckProof, generate_sumcheck_proof, replay_sumcheck_challenges,
     verify_sumcheck_proof,
 };
-use crate::loquat::transcript::{FieldTranscript, expand_index};
+use crate::signatures::loquat::transcript::{FieldTranscript, expand_index};
 use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 use bincode::Options;
 use serde::{Deserialize, Serialize};

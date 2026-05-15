@@ -1,7 +1,7 @@
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::{F, field_to_u128};
-use crate::loquat::griffin::griffin_hash;
-use crate::loquat::{LoquatPublicParams, LoquatSignature};
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::field_utils::{F, field_to_u128};
+use crate::signatures::loquat::griffin::griffin_hash;
+use crate::signatures::loquat::{LoquatPublicParams, LoquatSignature};
 use crate::noir_backend::acir_parser::{
     AcirOpcode, AcirProgram, AssertZeroOpcode, BlackBoxFuncCallOpcode,
 };
@@ -1030,7 +1030,7 @@ fn u8_from_field(value: F) -> LoquatResult<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bdec::BdecRevocationAccumulator;
+    use crate::anoncreds::bdec::BdecRevocationAccumulator;
     use crate::noir_backend::parse_acir_json;
     use serde_json::json;
 

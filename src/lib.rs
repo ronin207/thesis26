@@ -72,19 +72,26 @@ macro_rules! loquat_debug {
 }
 
 #[cfg(feature = "std")]
-pub mod bdec;
+pub mod anoncreds;
 #[cfg(feature = "std")]
 pub mod bench;
 #[cfg(feature = "std")]
 pub mod evaluation;
-pub mod loquat;
 #[cfg(feature = "std")]
 pub mod noir_backend;
-#[cfg(feature = "std")]
-pub mod plum;
+pub mod signatures;
 #[cfg(feature = "std")]
 pub mod snarks;
-// pub mod anoncreds;
+
+// Backwards-compatible path aliases so external callers (tests, bin/, zkvm
+// guests) can continue to use `vc_pqc::loquat::*`, `vc_pqc::plum::*`,
+// `vc_pqc::bdec::*` after the src/ reorg (loquat+plum moved under
+// `signatures::`, bdec moved under `anoncreds::`).
+pub use signatures::loquat;
+#[cfg(feature = "std")]
+pub use signatures::plum;
+#[cfg(feature = "std")]
+pub use anoncreds::bdec;
 
 // Re-export commonly used types for convenience
 #[cfg(feature = "std")]

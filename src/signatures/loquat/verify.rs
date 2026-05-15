@@ -1030,7 +1030,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loquat::{keygen::keygen_with_params, setup::loquat_setup, sign::loquat_sign};
+    use crate::signatures::loquat::{keygen::keygen_with_params, setup::loquat_setup, sign::loquat_sign};
 
     #[test]
     fn test_valid_signature_verification() {

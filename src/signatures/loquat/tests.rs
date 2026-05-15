@@ -8,16 +8,16 @@
 #[cfg(test)]
 mod integration_tests {
     use crate::LoquatError;
-    use crate::bdec::{
+    use crate::anoncreds::bdec::{
         bdec_issue_credential, bdec_nym_key, bdec_prigen, bdec_revoke, bdec_setup,
         bdec_show_credential_paper, bdec_verify_credential, bdec_verify_shown_credential_paper,
     };
-    use crate::loquat::field_p127::Fp2;
-    use crate::loquat::field_utils::{F, F2, legendre_prf_secure, u128_to_field};
-    use crate::loquat::keygen::keygen_with_params;
-    use crate::loquat::setup::loquat_setup;
-    use crate::loquat::sign::loquat_sign;
-    use crate::loquat::verify::loquat_verify;
+    use crate::signatures::loquat::field_p127::Fp2;
+    use crate::signatures::loquat::field_utils::{F, F2, legendre_prf_secure, u128_to_field};
+    use crate::signatures::loquat::keygen::keygen_with_params;
+    use crate::signatures::loquat::setup::loquat_setup;
+    use crate::signatures::loquat::sign::loquat_sign;
+    use crate::signatures::loquat::verify::loquat_verify;
     // Note: Earlier iterations of this repo integrated RISC0 receipts into BDEC tests.
     // The current paper-aligned BDEC implementation does not include zkVM receipts, so
     // these integration tests exercise the host-side BDEC flow directly.

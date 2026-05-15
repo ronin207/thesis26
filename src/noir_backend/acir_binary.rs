@@ -25,7 +25,7 @@
 //! - `blackbox_kinds` — sub-breakdown of BlackBoxFuncCall by kind
 //!   (RANGE, SHA256, PedersenCommitment, etc.)
 
-use crate::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use flate2::read::GzDecoder;

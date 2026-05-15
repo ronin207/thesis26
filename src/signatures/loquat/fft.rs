@@ -1,5 +1,5 @@
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::{F, F2};
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::field_utils::{F, F2};
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
@@ -155,8 +155,8 @@ pub fn coset_shift_generator(coset: &[F2]) -> LoquatResult<(F2, F2)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loquat::field_p127::Fp2;
-    use crate::loquat::loquat_setup;
+    use crate::signatures::loquat::field_p127::Fp2;
+    use crate::signatures::loquat::loquat_setup;
     use rand::{SeedableRng, rngs::StdRng};
 
     fn derive_coset_parameters(coset: &[F2]) -> (F2, F2) {

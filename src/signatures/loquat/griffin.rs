@@ -1,4 +1,4 @@
-use crate::loquat::field_utils::{field_to_bytes, F};
+use crate::signatures::loquat::field_utils::{field_to_bytes, F};
 #[cfg(not(feature = "std"))]
 use alloc::{format, vec, vec::Vec};
 #[cfg(not(feature = "std"))]
