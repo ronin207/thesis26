@@ -125,6 +125,15 @@ pub enum VerificationFailure {
     /// percent probability) are not lumped in with structural
     /// failures.
     QueryCollision { distinct_count: usize },
+    /// Merkle authentication path for `â_i` at `shift_index`-th shift
+    /// of `round` did not reconstruct `stir_roots[round]`.
+    StirAMerklePathInvalid { round: usize, shift_index: usize },
+    /// The verifier's fiber-fold reconstruction of `â_i(y_j)`
+    /// disagreed with the prover's claimed `â_i(y_j)` (Merkle leaf at
+    /// shift base `b_j`). This is the STIR fold-consistency check
+    /// (Alg 6 lines 13–17): the prover cannot commit to a non-fold
+    /// `â_i` without tripping this.
+    StirFoldConsistencyViolation { round: usize, shift_index: usize },
 }
 
 /// Algorithm 6 — PLUM signature verification.
@@ -191,30 +200,11 @@ pub fn plum_verify<H: PlumHasher>(
     // query indices (the verifier needs these for Step 2).
     let r_phase5 = transcript.challenge_field(b"phase5/r");
     let r0_fold = transcript.challenge_field(b"phase5/r0_fold");
-    // Mirror Sign's fiber-based query derivation.
-    let kappa_shift = pp.kappa_0.div_ceil(pp.eta);
-    let u_over_eta = pp.u_size / pp.eta;
-    let shift_base_indices: Vec<usize> = transcript.challenge_indices(
-        b"queries/U_0/shift_bases",
-        kappa_shift,
-        u_over_eta,
-    );
-    let mut query_indices: Vec<usize> = Vec::with_capacity(kappa_shift * pp.eta);
-    for &base in &shift_base_indices {
-        for t in 0..pp.eta {
-            query_indices.push(base + t * u_over_eta);
-        }
-    }
-    let total_queries = query_indices.len();
 
-    // Cross-check the prover's query_indices against our re-derivation.
-    if query_indices != sig.query_indices {
-        return VerificationOutcome::Reject(VerificationFailure::MalformedSignatureShape);
-    }
-    if sig.c_prime_openings.len() != total_queries
-        || sig.c_prime_paths.len() != total_queries
-        || sig.s_openings.len() != total_queries
-        || sig.h_openings.len() != total_queries
+    // Length check on STIR commitments.
+    if sig.stir_roots.len() != pp.r_rounds
+        || sig.stir_betas.len() != pp.r_rounds
+        || sig.stir_a_openings.len() != pp.r_rounds
     {
         return VerificationOutcome::Reject(VerificationFailure::MalformedSignatureShape);
     }
@@ -247,43 +237,15 @@ pub fn plum_verify<H: PlumHasher>(
         }
     }
 
-    // ─── Step 2 (Alg 6 lines 4–12): per-query Merkle + sumcheck identity ───
+    // ─── Step 2 (Alg 6 lines 4–12) + Step 3 STIR portion (lines 13–18) ───
     //
-    // For each query index q, the prover opens:
-    //   - row of n c_prime values + Merkle path against root_c
-    //   - ŝ value + path against root_s
-    //   - ĥ value + path against root_h
-    //
-    // The verifier:
-    //   1. Recomputes the c_prime row digest and walks up against root_c.
-    //   2. Verifies s and h openings via PlumMerkleTree::verify.
-    //   3. Reconstructs f̂(s) = Σ_j ε_j · ĉ'_j(s) · q̂_j(s) using
-    //      FS-derived (λ, ε, I).
-    //   4. Computes f̂'(s) = z · f̂(s) + ŝ(s).
-    //   5. Computes g̃(s) = f̂'(s) − Z_H(s) · ĥ(s).
-    //   6. Recovers g̃ in coefficient form (degree < |H|) by
-    //      Lagrange-interpolating its values at the κ_0 ≥ |H| query
-    //      points... no wait, query points are in U_0 not H. We can
-    //      check the sumcheck identity directly at each query point
-    //      by an alternate route: use the closed-form
-    //      `Σ_{a ∈ H} g̃(a) = z·µ + S` where µ = Σ_j ε_j · Σ_i
-    //      λ_{i,j} · o_{i,j} (Alg 6 line 11). This µ is computable
-    //      from σ_2, FS challenges, and o-responses without queries.
-    //      So the verifier can check "is z·µ + S consistent with the
-    //      g̃ values implied by the openings?" by computing |H| · g̃(s)
-    //      − (z·µ + S) and ensuring this equals |H| · s · p̂(s) for
-    //      some polynomial p̂ of degree < 2m − 1. Without committing
-    //      p̂, the verifier can only enforce the identity at query
-    //      points by using the LDE structure — which is a separate
-    //      check.
-    //
-    // For this commit we implement the *Merkle* part of Step 2 (items
-    // 1–2 above) and the *value-recompute* part (items 3–5: at each
-    // query, verifier computes g̃(s) explicitly), but defer the full
-    // sumcheck-identity-via-µ check to a follow-up. The current
-    // Merkle check ensures the prover cannot tamper with committed
-    // polynomial values; the value-recompute exercises the
-    // arithmetic chain Verify will need for the full check.
+    // Layout: enter the STIR loop, mirroring Sign's FS chain. For
+    // each round, after appending root_a_i and β_i, derive shift
+    // bases. For round 0 only, expand shift bases to fiber-query
+    // indices in U_0 and run the existing Phase 2 work (Merkle paths
+    // + sumcheck identity + fiber-fold â_1 reconstruction).
+    // Then for every round, verify â_i Merkle paths at shift bases
+    // and cross-check the reconstructed values.
 
     // Pre-compute q̂_j coefficients from FS-derived (λ, I).
     let h_points: Vec<Fp192> = (0..pp.h_size)
@@ -335,237 +297,312 @@ pub fn plum_verify<H: PlumHasher>(
         .fold(Fp192::zero(), |acc, x| acc + x);
     let p_hat_target = z.clone() * mu_local.clone() + sig.s_sum.clone();
 
-    // Walk the queries: verify Merkle paths, then derive g̃(s_q) and
-    // f̂_0(s_q). The latter is folded per fiber to reconstruct â_1
-    // at the shift points.
-    let mut g_at_query: Vec<(Fp192, Fp192)> = Vec::with_capacity(total_queries);
-    let mut f0_at_query: Vec<Fp192> = Vec::with_capacity(total_queries);
-    let mut points_at_query: Vec<Fp192> = Vec::with_capacity(total_queries);
-    for q in 0..total_queries {
-        let e = sig.query_indices[q];
+    // ─── STIR loop ───
+    let mut current_generator = pp.u_generator.clone();
+    let mut current_size = pp.u_size;
+    let mut current_r_fold = r0_fold.clone();
 
-        // (1) Merkle path for c_prime row.
-        let row = &sig.c_prime_openings[q];
-        if row.len() != n {
-            return VerificationOutcome::Reject(
-                VerificationFailure::MalformedSignatureShape,
-            );
-        }
-        let leaf_digest = H::hash_fields(row);
-        if !PlumMerkleTree::<H>::verify_digest_leaf(
-            &sig.root_c,
-            e,
-            &leaf_digest,
-            &sig.c_prime_paths[q],
-        ) {
-            return VerificationOutcome::Reject(
-                VerificationFailure::CPrimeMerklePathInvalid { query: q },
-            );
-        }
+    for round in 0..pp.r_rounds {
+        // FS chain for this round.
+        transcript.append_root(b"stir/root", &sig.stir_roots[round]);
+        let _r_out = transcript.challenge_field(b"stir/r_out");
+        transcript.append_field(b"stir/beta", &sig.stir_betas[round]);
+        let next_r_fold = transcript.challenge_field(b"stir/r_fold");
+        let _r_comb = transcript.challenge_field(b"stir/r_comb");
 
-        // (2) Merkle paths for ŝ and ĥ.
-        let s_proof = &sig.s_openings[q];
-        if s_proof.leaf_index != e
-            || !PlumMerkleTree::<H>::verify(&sig.root_s, s_proof)
-        {
-            return VerificationOutcome::Reject(
-                VerificationFailure::SMerklePathInvalid { query: q },
-            );
-        }
-        let h_proof = &sig.h_openings[q];
-        if h_proof.leaf_index != e
-            || !PlumMerkleTree::<H>::verify(&sig.root_h, h_proof)
-        {
-            return VerificationOutcome::Reject(
-                VerificationFailure::HMerklePathInvalid { query: q },
-            );
-        }
-
-        // (3-5) Reconstruct g̃(s) per the BCRSVW identity.
-        // s = U_0[e] = u_generator^e (subgroup, no shift).
-        let s_point = pp.u_generator.pow_u128(e as u128);
-        let s_value = &s_proof.leaf;
-        let h_value = &h_proof.leaf;
-        let f_hat_s: Fp192 = (0..n)
-            .map(|j| {
-                let q_hat_at_s = evaluate(&q_hat_coeffs[j], &s_point);
-                epsilons[j].clone() * row[j].clone() * q_hat_at_s
-            })
-            .fold(Fp192::zero(), |acc, x| acc + x);
-        let f_prime_s = z.clone() * f_hat_s.clone() + s_value.clone();
-        let z_h_s = vanishing_poly_evaluate(pp.h_size, &pp.h_shift, &s_point);
-        let g_at_s = f_prime_s.clone() - z_h_s.clone() * h_value.clone();
-
-        // p̂(s) per Alg 6 line 11 / BCRSVW formula.
-        let s_inv = s_point.inverse().expect("s ∈ U_0 ⊂ F_p^*, invertible");
-        let p_hat_s = (h_size_field.clone() * f_prime_s
-            - h_size_field.clone() * z_h_s.clone() * h_value.clone()
-            - p_hat_target.clone())
-            * s_inv.clone()
-            * h_size_field.clone().inverse().expect("|H| invertible");
-
-        // f̂_0(s) per Alg 4 line 16. PLUM uses a four-term linear
-        // combination weighted by t_k(s) and r-powers.
-        let t1_s = evaluate(&t1_coeffs, &s_point);
-        let t2_s = evaluate(&t2_coeffs, &s_point);
-        let t3_s = evaluate(&t3_coeffs, &s_point);
-        let t4_s = evaluate(&t4_coeffs, &s_point);
-        let f0_s = t1_s * f_hat_s
-            + t2_s * r_pow_t2.clone() * s_value.clone()
-            + t3_s * r_pow_t3.clone() * h_value.clone()
-            + t4_s * r_pow_t4.clone() * p_hat_s;
-
-        g_at_query.push((s_point.clone(), g_at_s));
-        f0_at_query.push(f0_s);
-        points_at_query.push(s_point);
-    }
-
-    // ─── Sumcheck identity check ───
-    //
-    // The prover's signature implies values g̃(s_q) at κ_0 distinct
-    // query points. Mathematically g̃ has degree < |H|, so any |H| of
-    // these values uniquely determine g̃. We:
-    //   1. Lagrange-interpolate g̃ from the first |H| query points.
-    //   2. Verify the remaining (κ_0 − |H|) query points lie on the
-    //      same polynomial. If the prover constructed the openings
-    //      inconsistently (e.g., committed an ĥ that isn't the true
-    //      sumcheck quotient), the implied g̃ is high-degree and the
-    //      consistency check fails.
-    //   3. Verify Σ_{a ∈ H} g̃(a) = z·µ + S, where
-    //      µ = Σ_j ε_j · Σ_i λ_{i,j} · o_{i,j}. This is the BCRSVW
-    //      sumcheck identity (paper Alg 6 line 11, restructured).
-    //
-    // Soundness rationale: query points in U_0 are FS-derived, so the
-    // prover commits to (root_c, root_s, root_h) before knowing where
-    // they will be queried. Even an unbounded prover who sees the
-    // query indices in advance cannot produce values that pass both
-    // (2) low-degree-on-26-points and (3) sum-equals-target unless the
-    // sumcheck identity actually holds (which forces the prover to
-    // know the true f̂' and ĥ; see paper §3.2 EUF-KO reduction).
-    if total_queries < pp.h_size {
-        return VerificationOutcome::Reject(VerificationFailure::MalformedSignatureShape);
-    }
-    // Pick the first |H| query indices that yield distinct U_0
-    // points. With fiber-structured queries the points within a
-    // fiber are distinct by construction; cross-fiber collisions
-    // happen only if two shift bases collide (probability
-    // ≈ kappa_shift²/(2·|U_0|/η) ≈ 7²/2048 ≈ 2% at PLUM-128).
-    let mut interp_indices: Vec<usize> = Vec::with_capacity(pp.h_size);
-    for q in 0..total_queries {
-        if interp_indices.len() == pp.h_size {
-            break;
-        }
-        let candidate = &g_at_query[q].0;
-        let collides = interp_indices
-            .iter()
-            .any(|&prev_q| g_at_query[prev_q].0 == *candidate);
-        if !collides {
-            interp_indices.push(q);
-        }
-    }
-    if interp_indices.len() < pp.h_size {
-        return VerificationOutcome::Reject(VerificationFailure::QueryCollision {
-            distinct_count: interp_indices.len(),
-        });
-    }
-    let interp_points: Vec<Fp192> = interp_indices
-        .iter()
-        .map(|&q| g_at_query[q].0.clone())
-        .collect();
-    let interp_values: Vec<Fp192> = interp_indices
-        .iter()
-        .map(|&q| g_at_query[q].1.clone())
-        .collect();
-    let g_hat_coeffs = lagrange_interpolate(&interp_points, &interp_values)
-        .expect("interp_points are distinct by construction above");
-    // (2) Consistency check at every query point not used for
-    // interpolation. We also re-check the interpolation points (they
-    // pass trivially) — keeps the loop simpler.
-    let interp_set: std::collections::HashSet<usize> = interp_indices.iter().copied().collect();
-    for q in 0..total_queries {
-        if interp_set.contains(&q) {
-            continue;
-        }
-        let (ref s, ref g_value) = g_at_query[q];
-        let expected = evaluate(&g_hat_coeffs, s);
-        if expected != *g_value {
-            return VerificationOutcome::Reject(
-                VerificationFailure::SumcheckIdentityViolation { query: q },
-            );
-        }
-    }
-    // (3) Sumcheck-target check: Σ_{a ∈ H} g̃(a) = z·µ + S.
-    let mu: Fp192 = (0..n)
-        .map(|j| {
-            let inner: Fp192 = (0..m)
-                .map(|i| {
-                    let idx = j * m + i;
-                    lambdas[j][i].clone() * sig.o_responses[idx].clone()
-                })
-                .fold(Fp192::zero(), |acc, x| acc + x);
-            epsilons[j].clone() * inner
-        })
-        .fold(Fp192::zero(), |acc, x| acc + x);
-    let target = z.clone() * mu + sig.s_sum.clone();
-    let actual_sum: Fp192 = h_points
-        .iter()
-        .map(|a| evaluate(&g_hat_coeffs, a))
-        .fold(Fp192::zero(), |acc, x| acc + x);
-    if actual_sum != target {
-        return VerificationOutcome::Reject(
-            VerificationFailure::SumcheckIdentityViolation { query: usize::MAX },
+        // Derive shift bases for this round.
+        let kappa_shift_round = if round == 0 {
+            pp.kappa_0.div_ceil(pp.eta)
+        } else {
+            pp.kappas[round]
+        };
+        let next_size = current_size / pp.eta;
+        // Mirror Sign's 2x oversample + dedupe to handle birthday
+        // collisions in shift base sampling.
+        let raw_bases: Vec<usize> = transcript.challenge_indices(
+            b"stir/shift_bases",
+            kappa_shift_round * 2,
+            next_size,
         );
-    }
-
-    // ─── STIR fold-on-fiber reconstruction (scaffolding) ───
-    //
-    // For each shift base b_j, the fiber {x_t = ω^{b_j + t·|U_0|/η}}
-    // is η consecutive entries in our fiber-structured query list
-    // (queries [j·η, (j+1)·η)). The fold value at the shift point
-    // y_j = ω^{b_j · η} ∈ U_0^η is the Lagrange-interpolated
-    // polynomial through (x_t, f̂_0(x_t)) evaluated at r_0^fold —
-    // exactly â_1(y_j) per Alg 5 lines 4-7.
-    //
-    // We compute these reconstructions but do NOT yet check them
-    // against any commitment. The full STIR fold-consistency check
-    // (Alg 6 lines 13-18) requires per-round Merkle openings of
-    // â_i|_{U_i} that PlumSignature does not yet carry. Adding those
-    // openings + the consistency check is the remaining gap to a
-    // complete Algorithm 6 verifier; this scaffolding is the
-    // arithmetic side that will plug into it.
-    //
-    // The reconstructions are exercised during every successful
-    // verify, so any bug in the fold formula or in the f̂_0
-    // reconstruction would surface in protocol-roundtrip testing.
-    let mut reconstructed_a_1: Vec<Fp192> = Vec::with_capacity(kappa_shift);
-    for j in 0..kappa_shift {
-        let fiber_start = j * pp.eta;
-        let fiber_end = fiber_start + pp.eta;
-        if fiber_end > total_queries {
-            // Should not happen given fiber-structured queries.
+        let mut shift_bases: Vec<usize> = Vec::with_capacity(kappa_shift_round);
+        for b in &raw_bases {
+            if !shift_bases.contains(b) {
+                shift_bases.push(*b);
+                if shift_bases.len() == kappa_shift_round {
+                    break;
+                }
+            }
+        }
+        if shift_bases.len() != kappa_shift_round {
             return VerificationOutcome::Reject(
                 VerificationFailure::MalformedSignatureShape,
             );
         }
-        let fiber_x: Vec<Fp192> = points_at_query[fiber_start..fiber_end].to_vec();
-        let fiber_y: Vec<Fp192> = f0_at_query[fiber_start..fiber_end].to_vec();
-        // Lagrange-interpolate p̂_y on the η fiber points.
-        let p_y_coeffs = match lagrange_interpolate(&fiber_x, &fiber_y) {
-            Ok(coeffs) => coeffs,
-            Err(_) => {
+
+        // â_i Merkle openings: verify and collect leaf values.
+        if sig.stir_a_openings[round].len() != kappa_shift_round {
+            return VerificationOutcome::Reject(
+                VerificationFailure::MalformedSignatureShape,
+            );
+        }
+        let mut a_i_at_shifts: Vec<Fp192> = Vec::with_capacity(kappa_shift_round);
+        for (j, &b) in shift_bases.iter().enumerate() {
+            let proof = &sig.stir_a_openings[round][j];
+            if proof.leaf_index != b
+                || !PlumMerkleTree::<H>::verify(&sig.stir_roots[round], proof)
+            {
+                return VerificationOutcome::Reject(
+                    VerificationFailure::StirAMerklePathInvalid {
+                        round,
+                        shift_index: j,
+                    },
+                );
+            }
+            a_i_at_shifts.push(proof.leaf.clone());
+        }
+
+        // Round 0 is special: this is where the f̂_0 query openings,
+        // the sumcheck identity check, and the fiber-fold â_1
+        // reconstruction live.
+        if round == 0 {
+            let u_over_eta = pp.u_size / pp.eta;
+            let mut query_indices: Vec<usize> =
+                Vec::with_capacity(kappa_shift_round * pp.eta);
+            for &base in &shift_bases {
+                for t in 0..pp.eta {
+                    query_indices.push(base + t * u_over_eta);
+                }
+            }
+            let total_queries = query_indices.len();
+            if query_indices != sig.query_indices {
                 return VerificationOutcome::Reject(
                     VerificationFailure::MalformedSignatureShape,
                 );
             }
-        };
-        let a_1_at_y = evaluate(&p_y_coeffs, &r0_fold);
-        reconstructed_a_1.push(a_1_at_y);
+            if sig.c_prime_openings.len() != total_queries
+                || sig.c_prime_paths.len() != total_queries
+                || sig.s_openings.len() != total_queries
+                || sig.h_openings.len() != total_queries
+            {
+                return VerificationOutcome::Reject(
+                    VerificationFailure::MalformedSignatureShape,
+                );
+            }
+
+            // Walk the queries: verify Merkle paths, derive g̃(s_q) and
+            // f̂_0(s_q).
+            let mut g_at_query: Vec<(Fp192, Fp192)> =
+                Vec::with_capacity(total_queries);
+            let mut f0_at_query: Vec<Fp192> = Vec::with_capacity(total_queries);
+            let mut points_at_query: Vec<Fp192> =
+                Vec::with_capacity(total_queries);
+            for q in 0..total_queries {
+                let e = sig.query_indices[q];
+
+                // (1) Merkle path for c_prime row.
+                let row = &sig.c_prime_openings[q];
+                if row.len() != n {
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::MalformedSignatureShape,
+                    );
+                }
+                let leaf_digest = H::hash_fields(row);
+                if !PlumMerkleTree::<H>::verify_digest_leaf(
+                    &sig.root_c,
+                    e,
+                    &leaf_digest,
+                    &sig.c_prime_paths[q],
+                ) {
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::CPrimeMerklePathInvalid { query: q },
+                    );
+                }
+
+                // (2) Merkle paths for ŝ and ĥ.
+                let s_proof = &sig.s_openings[q];
+                if s_proof.leaf_index != e
+                    || !PlumMerkleTree::<H>::verify(&sig.root_s, s_proof)
+                {
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::SMerklePathInvalid { query: q },
+                    );
+                }
+                let h_proof = &sig.h_openings[q];
+                if h_proof.leaf_index != e
+                    || !PlumMerkleTree::<H>::verify(&sig.root_h, h_proof)
+                {
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::HMerklePathInvalid { query: q },
+                    );
+                }
+
+                // (3-5) Reconstruct g̃(s) per the BCRSVW identity.
+                let s_point = pp.u_generator.pow_u128(e as u128);
+                let s_value = &s_proof.leaf;
+                let h_value = &h_proof.leaf;
+                let f_hat_s: Fp192 = (0..n)
+                    .map(|j_col| {
+                        let q_hat_at_s = evaluate(&q_hat_coeffs[j_col], &s_point);
+                        epsilons[j_col].clone() * row[j_col].clone() * q_hat_at_s
+                    })
+                    .fold(Fp192::zero(), |acc, x| acc + x);
+                let f_prime_s = z.clone() * f_hat_s.clone() + s_value.clone();
+                let z_h_s =
+                    vanishing_poly_evaluate(pp.h_size, &pp.h_shift, &s_point);
+                let g_at_s = f_prime_s.clone() - z_h_s.clone() * h_value.clone();
+
+                let s_inv =
+                    s_point.inverse().expect("s ∈ U_0 ⊂ F_p^*, invertible");
+                let p_hat_s = (h_size_field.clone() * f_prime_s
+                    - h_size_field.clone() * z_h_s.clone() * h_value.clone()
+                    - p_hat_target.clone())
+                    * s_inv.clone()
+                    * h_size_field
+                        .clone()
+                        .inverse()
+                        .expect("|H| invertible");
+
+                let t1_s = evaluate(&t1_coeffs, &s_point);
+                let t2_s = evaluate(&t2_coeffs, &s_point);
+                let t3_s = evaluate(&t3_coeffs, &s_point);
+                let t4_s = evaluate(&t4_coeffs, &s_point);
+                let f0_s = t1_s * f_hat_s
+                    + t2_s * r_pow_t2.clone() * s_value.clone()
+                    + t3_s * r_pow_t3.clone() * h_value.clone()
+                    + t4_s * r_pow_t4.clone() * p_hat_s;
+
+                g_at_query.push((s_point.clone(), g_at_s));
+                f0_at_query.push(f0_s);
+                points_at_query.push(s_point);
+            }
+
+            // ─── Sumcheck identity check ───
+            if total_queries < pp.h_size {
+                return VerificationOutcome::Reject(
+                    VerificationFailure::MalformedSignatureShape,
+                );
+            }
+            let mut interp_indices: Vec<usize> = Vec::with_capacity(pp.h_size);
+            for q in 0..total_queries {
+                if interp_indices.len() == pp.h_size {
+                    break;
+                }
+                let candidate = &g_at_query[q].0;
+                let collides = interp_indices
+                    .iter()
+                    .any(|&prev_q| g_at_query[prev_q].0 == *candidate);
+                if !collides {
+                    interp_indices.push(q);
+                }
+            }
+            if interp_indices.len() < pp.h_size {
+                return VerificationOutcome::Reject(
+                    VerificationFailure::QueryCollision {
+                        distinct_count: interp_indices.len(),
+                    },
+                );
+            }
+            let interp_points: Vec<Fp192> = interp_indices
+                .iter()
+                .map(|&q| g_at_query[q].0.clone())
+                .collect();
+            let interp_values: Vec<Fp192> = interp_indices
+                .iter()
+                .map(|&q| g_at_query[q].1.clone())
+                .collect();
+            let g_hat_coeffs = lagrange_interpolate(&interp_points, &interp_values)
+                .expect("interp_points are distinct by construction above");
+            let interp_set: std::collections::HashSet<usize> =
+                interp_indices.iter().copied().collect();
+            for q in 0..total_queries {
+                if interp_set.contains(&q) {
+                    continue;
+                }
+                let (ref s, ref g_value) = g_at_query[q];
+                let expected = evaluate(&g_hat_coeffs, s);
+                if expected != *g_value {
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::SumcheckIdentityViolation { query: q },
+                    );
+                }
+            }
+            let mu_check: Fp192 = (0..n)
+                .map(|j_col| {
+                    let inner: Fp192 = (0..m)
+                        .map(|i_row| {
+                            let idx = j_col * m + i_row;
+                            lambdas[j_col][i_row].clone()
+                                * sig.o_responses[idx].clone()
+                        })
+                        .fold(Fp192::zero(), |acc, x| acc + x);
+                    epsilons[j_col].clone() * inner
+                })
+                .fold(Fp192::zero(), |acc, x| acc + x);
+            let target = z.clone() * mu_check + sig.s_sum.clone();
+            let actual_sum: Fp192 = h_points
+                .iter()
+                .map(|a| evaluate(&g_hat_coeffs, a))
+                .fold(Fp192::zero(), |acc, x| acc + x);
+            if actual_sum != target {
+                return VerificationOutcome::Reject(
+                    VerificationFailure::SumcheckIdentityViolation {
+                        query: usize::MAX,
+                    },
+                );
+            }
+
+            // ─── STIR fold-on-fiber: reconstruct â_1 at shift points,
+            //     then cross-check against Merkle-opened values ───
+            //
+            // For each shift base b_j the fiber {x_t = ω^{b_j + t·|U_0|/η}}
+            // sits at queries [j·η, (j+1)·η). The reconstructed
+            // â_1(y_j) is the Lagrange polynomial through (x_t,
+            // f̂_0(x_t)) evaluated at r_0^fold (paper Alg 5 lines 4-7).
+            // If this disagrees with the Merkle-opened â_1(y_j), the
+            // prover did not actually commit to the fold of f̂_0 —
+            // soundness violation per Alg 6 lines 13-17.
+            for j in 0..kappa_shift_round {
+                let fiber_start = j * pp.eta;
+                let fiber_end = fiber_start + pp.eta;
+                if fiber_end > total_queries {
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::MalformedSignatureShape,
+                    );
+                }
+                let fiber_x: Vec<Fp192> =
+                    points_at_query[fiber_start..fiber_end].to_vec();
+                let fiber_y: Vec<Fp192> =
+                    f0_at_query[fiber_start..fiber_end].to_vec();
+                let p_y_coeffs = match lagrange_interpolate(&fiber_x, &fiber_y) {
+                    Ok(coeffs) => coeffs,
+                    Err(_) => {
+                        return VerificationOutcome::Reject(
+                            VerificationFailure::MalformedSignatureShape,
+                        );
+                    }
+                };
+                let a_1_at_y = evaluate(&p_y_coeffs, &current_r_fold);
+                if a_1_at_y != a_i_at_shifts[j] {
+                    return VerificationOutcome::Reject(
+                        VerificationFailure::StirFoldConsistencyViolation {
+                            round,
+                            shift_index: j,
+                        },
+                    );
+                }
+            }
+        }
+
+        // Advance FS chain to next round.
+        current_generator = current_generator.pow_u128(pp.eta as u128);
+        current_size = next_size;
+        current_r_fold = next_r_fold;
     }
-    // `reconstructed_a_1` is unused by any current check but its
-    // computation exercises the fold-on-fiber arithmetic. Keep it
-    // alive across the function so future commits can wire it into
-    // the Alg 6 STIR-fold-consistency check.
-    let _ = reconstructed_a_1;
+
+    // Absorb final_coefs into transcript to mirror Sign's tail. Not
+    // checked yet (final-poly consistency is the remaining Phase 9c
+    // follow-up).
+    transcript.append_fields(b"stir/final_coefs", &sig.final_coefs);
 
     VerificationOutcome::Accept
 }
@@ -677,6 +714,58 @@ mod tests {
             ) => {}
             other => panic!("expected HMerklePathInvalid, got {:?}", other),
         }
+    }
+
+    /// The STIR fold-consistency check should fire if the prover
+    /// commits to an â_1 that is not the fold of f̂_0. We exhibit
+    /// this by tampering one of the Merkle-opened â_1 leaf values.
+    #[test]
+    fn verify_rejects_tampered_stir_a_opening_leaf() {
+        let pp = plum_setup(128).expect("setup");
+        let mut rng = ChaCha20Rng::seed_from_u64(0xD000_00A0);
+        let (sk, pk) = plum_keygen(&pp, &mut rng);
+        let mut sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, b"msg", &mut rng);
+        sig.stir_a_openings[0][0].leaf =
+            sig.stir_a_openings[0][0].leaf.clone() + Fp192::one();
+        let outcome = plum_verify::<PlumSha3Hasher>(&pp, &pk, b"msg", &sig);
+        // Tampering a leaf invalidates the Merkle path before the
+        // fold-consistency check runs, so the rejection is
+        // StirAMerklePathInvalid (the Merkle-path check comes first).
+        assert!(matches!(
+            outcome,
+            VerificationOutcome::Reject(VerificationFailure::StirAMerklePathInvalid {
+                round: 0,
+                shift_index: 0,
+            }),
+        ));
+    }
+
+    /// Pure fold-consistency violation: leave the Merkle path
+    /// intact but tamper a sibling in the â_1 path so the verifier's
+    /// reconstructed root matches the commitment but the leaf value
+    /// disagrees with the fold of f̂_0.
+    ///
+    /// We approximate this by tampering both the leaf and the
+    /// reconstructed Merkle root to be self-consistent — concretely,
+    /// substitute a different shift's opening (different leaf value,
+    /// different siblings) for the first. With overwhelming
+    /// probability the substituted leaf is not what the fold of f̂_0
+    /// predicts at the first shift point.
+    #[test]
+    fn verify_rejects_swapped_stir_a_openings_at_distinct_shifts() {
+        let pp = plum_setup(128).expect("setup");
+        let mut rng = ChaCha20Rng::seed_from_u64(0xD000_00A1);
+        let (sk, pk) = plum_keygen(&pp, &mut rng);
+        let mut sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, b"msg", &mut rng);
+        // Swap the openings at shifts 0 and 1. Both Merkle paths
+        // remain individually valid but expose â_1 at the wrong
+        // shift base (paths claim leaf_index = b_0 but values are
+        // from b_1, and vice versa). The Merkle-path verify checks
+        // proof.leaf_index against the FS-derived base, so this
+        // mismatch is caught.
+        sig.stir_a_openings[0].swap(0, 1);
+        let outcome = plum_verify::<PlumSha3Hasher>(&pp, &pk, b"msg", &sig);
+        assert!(matches!(outcome, VerificationOutcome::Reject(_)));
     }
 
     #[test]

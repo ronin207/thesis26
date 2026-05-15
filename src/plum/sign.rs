@@ -79,10 +79,15 @@ pub struct PlumSignature {
     pub root_h: [u8; PLUM_DIGEST_BYTES],
 
     // ─── σ_5+: STIR (Alg 5) ───
-    /// Per-round Merkle roots over `â_i|_{U_i}` for `i ∈ [1, R]`.
+    /// Per-round Merkle roots over `â_i|_{U_{i-1}^η}` for `i ∈ [1, R]`.
     pub stir_roots: Vec<[u8; PLUM_DIGEST_BYTES]>,
     /// Per-round PRF-style "out" evaluations `β_i = â_i(r_i^out)`.
     pub stir_betas: Vec<Fp192>,
+    /// Per-round Merkle openings of `â_i` at the FS-derived shift
+    /// indices (paper Alg 5 line 11). For round `i ∈ [0, R)`, the
+    /// inner `Vec<PlumMerkleProof>` has length `κ_shift` (the per-round
+    /// shift count) and `openings[j].leaf` is `â_{i+1}(ω_{i}^{b_j · η})`.
+    pub stir_a_openings: Vec<Vec<PlumMerkleProof>>,
     /// Coefficients of the final-round polynomial `f̂_{R+1}` (Alg 5
     /// line 14), length `< d_R = d_stop`.
     pub final_coefs: Vec<Fp192>,
@@ -328,52 +333,9 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     let r_phase5 = transcript.challenge_field(b"phase5/r");
     let r0_fold = transcript.challenge_field(b"phase5/r0_fold");
 
-    // FS-derive query indices into U_0, structured as fibers above
-    // shift points in U_0^η. This shape (rather than κ_0 random
-    // indices) is what STIR fold consistency needs at Phase 9c —
-    // each shift y has the η fiber {x ∈ U_0 : x^η = y} as a queryable
-    // unit, and the verifier reconstructs â_1(y) by Lagrange-on-fiber
-    // + evaluate-at-r_0^fold.
-    //
-    // Indices are bound after root_h + (r_phase5, r0_fold) so the
-    // prover cannot grind. Not re-absorbed because they are FS-
-    // deterministic (challenge_indices' output is a pure function of
-    // the prior transcript state).
-    let kappa_shift = pp.kappa_0.div_ceil(pp.eta);
-    let u_over_eta = pp.u_size / pp.eta;
-    let shift_base_indices: Vec<usize> = transcript.challenge_indices(
-        b"queries/U_0/shift_bases",
-        kappa_shift,
-        u_over_eta,
-    );
-    // Each shift base b ∈ [0, |U_0|/η) defines a fiber in U_0 at
-    // {b, b + |U_0|/η, b + 2·|U_0|/η, …, b + (η−1)·|U_0|/η}. These
-    // are the points x where x^η = ω^{b·η} ∈ U_0^η.
-    let mut query_indices: Vec<usize> = Vec::with_capacity(kappa_shift * pp.eta);
-    for &base in &shift_base_indices {
-        for t in 0..pp.eta {
-            query_indices.push(base + t * u_over_eta);
-        }
-    }
-
-    // Record the per-query openings of ĉ'_j, ŝ, ĥ. The Merkle commits
-    // were built earlier; we just open them at the FS-derived indices.
-    let c_prime_openings: Vec<Vec<Fp192>> = query_indices
-        .iter()
-        .map(|&e| (0..n).map(|j| c_prime_on_u[j][e].clone()).collect())
-        .collect();
-    let c_prime_paths: Vec<Vec<[u8; PLUM_DIGEST_BYTES]>> = query_indices
-        .iter()
-        .map(|&e| merkle_c.open_digest(e))
-        .collect();
-    let s_openings: Vec<PlumMerkleProof> = query_indices
-        .iter()
-        .map(|&e| merkle_s.open(e))
-        .collect();
-    let h_openings: Vec<PlumMerkleProof> = query_indices
-        .iter()
-        .map(|&e| merkle_h.open(e))
-        .collect();
+    // f̂_0 queries and STIR shift bases are derived INSIDE the STIR
+    // loop, bound to `root_a_i` + `β_i` (paper Alg 5 line 11). See
+    // the loop body below for the actual FS derivation.
 
     // Define f̂* (the initial STIR codeword). Per Alg 4 line 16, this is
     // a degree-d* linear combination of c̃' (which is f̂ here), ŝ, ĥ,
@@ -424,12 +386,19 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     let r_rounds = pp.r_rounds;
     let mut stir_roots = Vec::with_capacity(r_rounds);
     let mut stir_betas = Vec::with_capacity(r_rounds);
+    let mut stir_a_openings: Vec<Vec<PlumMerkleProof>> = Vec::with_capacity(r_rounds);
     let mut current_evals = f0_on_u;
     let mut current_generator = pp.u_generator.clone();
     let mut current_size = pp.u_size;
     let mut current_r_fold = r0_fold;
-
     let mut last_round_coeffs: Option<Vec<Fp192>> = None;
+
+    // f̂_0 query openings are populated when round 0 runs.
+    let mut query_indices: Vec<usize> = Vec::new();
+    let mut c_prime_openings: Vec<Vec<Fp192>> = Vec::new();
+    let mut c_prime_paths: Vec<Vec<[u8; PLUM_DIGEST_BYTES]>> = Vec::new();
+    let mut s_openings: Vec<PlumMerkleProof> = Vec::new();
+    let mut h_openings: Vec<PlumMerkleProof> = Vec::new();
 
     for round in 0..r_rounds {
         // Fold f̂_{i-1}|_{U_{i-1}} → â_i (coefficient form, length
@@ -442,16 +411,16 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
         )
         .expect("STIR fold");
 
-        // Commit â_i|_{U_i}. We track |U_i| = current_size / η (which
-        // matches setup.rs's u_sizes descent; note this differs from
-        // Algorithm 1 line 17's literal "η²" descent — flagged in the
-        // Phase 5b commit message).
+        // Commit â_i|_{U_{i-1}^η}. Note: setup.rs's u_sizes descends
+        // by η (not η² as Alg 1 line 17 specifies). The commitment
+        // domain here matches that convention: it is the subgroup
+        // U_{i-1}^η of size current_size/η.
         let next_size = current_size / pp.eta;
         let next_gen = current_generator.pow_u128(pp.eta as u128);
         let mut a_i_padded = a_i.clone();
         a_i_padded.resize(next_size, Fp192::zero());
         let a_i_on_u = evaluate_on_coset(&a_i_padded, &Fp192::one(), &next_gen)
-            .expect("FFT for â_i on U_i");
+            .expect("FFT for â_i on U_{i-1}^η");
         let merkle_a: PlumMerkleTree<H> = PlumMerkleTree::commit(a_i_on_u.clone());
         let root_a = merkle_a.root();
         stir_roots.push(root_a);
@@ -463,41 +432,96 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
         stir_betas.push(beta.clone());
         transcript.append_field(b"stir/beta", &beta);
 
-        // (r_i^fold, r_i^comb, r_{i,j}^shift) ← Expand(H_STIR(β_i)).
+        // (r_i^fold, r_i^comb, shift_bases) ← Expand(H_STIR(β_i)).
+        // Paper Alg 5 line 11: shifts ∈ U_{i-1}^η. We derive shift
+        // INDICES into [0, |U_{i-1}|/η) and map them to U_{i-1}^η via
+        // current_generator^{b · η}. The same indices serve as
+        // Merkle-leaf indices into â_i's commitment (since â_i is
+        // committed on U_{i-1}^η in the order produced by the FFT).
         let next_r_fold = transcript.challenge_field(b"stir/r_fold");
         let r_comb = transcript.challenge_field(b"stir/r_comb");
-        // Shift challenges: paper sets them ∈ U_{i-1}^η. For prover-
-        // side rate correction we only need their values in F_p; the
-        // verifier's check uses them as evaluation points.
-        let shift_count = pp.kappas[round];
-        let r_shifts: Vec<Fp192> =
-            transcript.challenge_fields(b"stir/r_shift", shift_count);
+        let kappa_shift = if round == 0 {
+            pp.kappa_0.div_ceil(pp.eta)
+        } else {
+            pp.kappas[round]
+        };
+        // Over-sample to dedupe — challenge_indices samples with
+        // replacement and at PLUM-128's kappa_shift = 7 into
+        // |U_0|/η = 1024, the birthday probability of any pair
+        // collision is ≈ 2%. We sample 2× and take the first
+        // `kappa_shift` distinct.
+        let raw_bases: Vec<usize> = transcript.challenge_indices(
+            b"stir/shift_bases",
+            kappa_shift * 2,
+            next_size,
+        );
+        let mut shift_bases: Vec<usize> = Vec::with_capacity(kappa_shift);
+        for b in &raw_bases {
+            if !shift_bases.contains(b) {
+                shift_bases.push(*b);
+                if shift_bases.len() == kappa_shift {
+                    break;
+                }
+            }
+        }
+        assert_eq!(
+            shift_bases.len(),
+            kappa_shift,
+            "FS sampling failed to produce {} distinct shift bases from 2x oversample; \
+             increase oversample factor",
+            kappa_shift
+        );
+        let r_shifts: Vec<Fp192> = shift_bases
+            .iter()
+            .map(|&b| current_generator.pow_u128((b * pp.eta) as u128))
+            .collect();
 
-        // G_i = {r_i^out, r_{i,1}^shift, ..., r_{i,κ_i}^shift}.
-        let mut g_i = Vec::with_capacity(1 + shift_count);
+        // Open â_i at each shift base (Merkle path on U_{i-1}^η).
+        let a_openings_this_round: Vec<PlumMerkleProof> =
+            shift_bases.iter().map(|&b| merkle_a.open(b)).collect();
+        stir_a_openings.push(a_openings_this_round);
+
+        // For round 0 only, also open f̂_{i-1} = f̂_0 at the fiber
+        // points above each shift base. Fiber for base b in U_0:
+        // {b, b + |U_0|/η, ..., b + (η−1)·|U_0|/η}.
+        if round == 0 {
+            let u_over_eta = pp.u_size / pp.eta;
+            for &base in &shift_bases {
+                for t in 0..pp.eta {
+                    query_indices.push(base + t * u_over_eta);
+                }
+            }
+            c_prime_openings = query_indices
+                .iter()
+                .map(|&e| (0..n).map(|j| c_prime_on_u[j][e].clone()).collect())
+                .collect();
+            c_prime_paths = query_indices
+                .iter()
+                .map(|&e| merkle_c.open_digest(e))
+                .collect();
+            s_openings = query_indices.iter().map(|&e| merkle_s.open(e)).collect();
+            h_openings = query_indices.iter().map(|&e| merkle_h.open(e)).collect();
+        }
+
+        // Rate correction. G_i = {r_i^out, r_{i,1}^shift, ..., r_{i,κ}^shift}.
+        let mut g_i = Vec::with_capacity(1 + r_shifts.len());
         g_i.push(r_out.clone());
         g_i.extend_from_slice(&r_shifts);
-
         let mut values = Vec::with_capacity(g_i.len());
         values.push(beta.clone());
         for r_shift in &r_shifts {
             values.push(evaluate(&a_i, r_shift));
         }
-        // â_i'(x) = (â_i − b_i) / Π(x − α) and f̂_i = â_i' · t_i.
         let a_prime = rate_correct(&a_i, &g_i, &values).expect("rate_correct");
-        let f_i = apply_degree_correction(&a_prime, &r_comb, shift_count);
+        let f_i = apply_degree_correction(&a_prime, &r_comb, r_shifts.len());
 
-        // Prepare next round.
         if round + 1 == r_rounds {
             last_round_coeffs = Some(f_i);
         } else {
-            // For R > 1 we'd evaluate f_i on U_i and continue. At
-            // PLUM-128 R = 1, so we never enter this branch.
             let mut f_i_padded = f_i.clone();
             f_i_padded.resize(next_size, Fp192::zero());
-            current_evals =
-                evaluate_on_coset(&f_i_padded, &Fp192::one(), &next_gen)
-                    .expect("FFT for f̂_i on U_i");
+            current_evals = evaluate_on_coset(&f_i_padded, &Fp192::one(), &next_gen)
+                .expect("FFT for f̂_i on next domain");
             current_generator = next_gen;
             current_size = next_size;
             current_r_fold = next_r_fold;
@@ -518,6 +542,7 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
         root_h,
         stir_roots,
         stir_betas,
+        stir_a_openings,
         final_coefs,
         query_indices,
         c_prime_openings,

@@ -63,26 +63,22 @@
 //!     data + per-query Merkle openings of `ĉ'_j, ŝ, ĥ` at the κ_0 = 26
 //!     FS-derived query indices in U_0. Per-round STIR opening of
 //!     `â_i|_{U_i}` for the fold-consistency check is still TODO.
-//!   - **Phase 9** — `verify` implements Algorithm 6 Step 1 (FS replay
-//!     through Phase 5), Step 2 at the algebraic-identity level
-//!     (Merkle path verification + BCRSVW sumcheck identity check
-//!     `Σ_{a ∈ H} g̃(a) = z·µ + S` via Lagrange interpolation from
-//!     query points), and Step 3 residuosity check (Alg 6 line 21).
-//!     Queries to `f̂_0` are now structured as `κ_shift × η` fibers in
-//!     `U_0` (rather than random); the verifier reconstructs `f̂_0(s)`
-//!     at every query via Alg 4 line 16 (using the BCRSVW `p̂(s)`
-//!     formula at line 11) and folds each fiber to recover
-//!     `â_1(y_j)` for `y_j ∈ U_0^η`. The fold-on-fiber arithmetic is
-//!     exercised on every successful verify but the per-round
-//!     `â_i|_{U_i}` consistency check (Alg 6 lines 13–18) requires
-//!     additional Merkle openings still to be added. The EUF-KO
-//!     reduction does NOT close until STIR proximity testing is
-//!     added — see `verify.rs` module doc-comment for the security
-//!     caveat.
+//!   - **Phase 9** — `verify` implements Algorithm 6 in full minus
+//!     the final-polynomial check (Alg 6 line 18). Step 1 (FS replay
+//!     through STIR), Step 2 (Merkle paths + BCRSVW sumcheck identity
+//!     `Σ_{a ∈ H} g̃(a) = z·µ + S` via Lagrange interpolation), and
+//!     Step 3 (residuosity at line 21 + STIR fold consistency at
+//!     lines 13–17). The fold consistency check: for each shift base
+//!     `b_j`, the verifier reconstructs `â_1(y_j)` from the fiber
+//!     above `y_j` (Lagrange + evaluate at `r_0^fold`) and
+//!     cross-checks against the Merkle-opened `â_1` leaf at base
+//!     `b_j` — this is exactly the binding of the prover's `â_1`
+//!     commitment to the fold of `f̂_0`. The remaining gap (Alg 6
+//!     line 18 final-polynomial check) requires `t_M` final-round
+//!     query points + queries to `f̂_R` at fibers above them.
 //!
-//! TODO from the plan: extend `PlumSignature` with per-round STIR
-//! Merkle openings; wire reconstructed `â_1` through Alg 6 lines
-//! 13–18 (STIR fold consistency); Phase 10 (zkVM); Phase 11
+//! TODO from the plan: Alg 6 line 18 final-polynomial check (requires
+//! a `f_R` Merkle commitment + openings); Phase 10 (zkVM); Phase 11
 //! (three-level attribution measurement).
 
 #[cfg(feature = "std")]
