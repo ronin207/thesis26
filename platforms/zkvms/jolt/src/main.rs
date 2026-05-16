@@ -59,8 +59,8 @@ pub fn main() {
     let prove = guest::build_prover_loquat_smoke(program, prover_pp);
     let verify = guest::build_verifier_loquat_smoke(verifier_pp);
 
-    let (accepted, proof, io_device) = prove(bytes.clone());
-    let proof_valid = verify(bytes, accepted, io_device.panic, proof);
+    let (accepted, proof, io_device) = prove(&bytes);
+    let proof_valid = verify(&bytes, accepted, io_device.panic, proof);
 
     info!(accepted, proof_valid, "jolt smoke done");
     assert!(accepted, "guest rejected an honest Loquat signature");

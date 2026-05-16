@@ -27,9 +27,14 @@ pub struct LoquatGuestInput {
     pub signature: LoquatSignature,
 }
 
-#[jolt::provable(heap_size = 16777216, max_trace_length = 16777216)]
-fn loquat_smoke(input_bytes: Vec<u8>) -> bool {
-    let input: LoquatGuestInput = postcard::from_bytes(&input_bytes)
+#[jolt::provable(
+    stack_size = 4194304,
+    heap_size = 16777216,
+    max_input_size = 1048576,
+    max_trace_length = 16777216
+)]
+fn loquat_smoke(input_bytes: &[u8]) -> bool {
+    let input: LoquatGuestInput = postcard::from_bytes(input_bytes)
         .expect("guest: postcard decode failed");
     match loquat_verify(&input.message, &input.signature, &input.public_key, &input.params) {
         Ok(accepted) => accepted,
