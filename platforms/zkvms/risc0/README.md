@@ -1,111 +1,70 @@
-# RISC Zero Rust Starter Template
+# RISC Zero — PLUM verify
 
-Welcome to the RISC Zero Rust Starter Template! This template is intended to
-give you a starting point for building a project using the RISC Zero zkVM.
-Throughout the template (including in this README), you'll find comments
-labelled `TODO` in places where you'll need to make changes. To better
-understand the concepts behind this template, check out the [zkVM
-Overview][zkvm-overview].
+PLUM-128 verification + Loquat verification inside RISC Zero v3.0.5,
+with `sys_bigint(OP_MULTIPLY)` precompile routing for the
+`Fp192::mul` hot path.
 
-## Quick Start
+## Layout
 
-First, make sure [rustup] is installed. The
-[`rust-toolchain.toml`][rust-toolchain] file will be used by `cargo` to
-automatically install the correct version.
+- `host/` — drives the prover. `plum_host` runs both SHA3 and Griffin
+  hasher variants by default; override with `PLUM_HOST_HASHER=sha3` or
+  `griffin`. Set `RISC0_DEV_MODE=1` for fast executor measurement
+  (skips real proof gen; useful for cycle-count work).
+- `methods/guest/src/bin/` — guest binaries: `plum_verify` (SHA3),
+  `plum_verify_griffin`, `loquat_only`, plus microbenches
+  (`fp_mul_microbench`, `fp2_microbench`, `griffin_microbench`).
 
-To build all methods and execute the method within the zkVM, run the following
-command:
+## Measurements (PLUM-128 verify, SHA3 hasher, RISC0_DEV_MODE=1 executor)
+
+| Variant                                  | Total cycles    | Verify cycles   | Δ vs baseline |
+|------------------------------------------|----------------:|----------------:|--------------:|
+| Baseline (Fp192 mul emulated)            | 812,646,400     | 748,012,443     | —            |
+| + `Fp192::mul → sys_bigint(OP_MULTIPLY)` | 239,599,616     | 206,113,267     | **−70.5 %**  |
+
+Per-Fp192-mul implied cost: 6,625 cycles (baseline) → 1,826 cycles
+(with precompile). Same 112,903 Fp192::mul invocations counted in
+both runs. The PRF (Phase 2 — `pow_biguint` rewritten as
+square-and-multiply over the now-syscall-backed `Fp192::mul`) plus
+the skip-mod optimisation (Path A — drop the redundant `% MODULUS`
+on the syscall return path) are folded into the same precompile path.
+
+Soundness arg: same reduction as SP1's `UINT256_MUL` version,
+documented in `docs/precompile_soundness/uint256_mul_for_fp192.md`.
+
+## Cross-platform comparison
+
+| zkVM   | Baseline cycles | With precompile | Reduction |
+|--------|----------------:|----------------:|----------:|
+| RISC0  | 812,646,400     | 239,599,616     | −70.5 %   |
+| SP1    | 289,778,709     | 179,952,920     | −37.9 %   |
+
+RISC0 sees a larger relative reduction because the baseline-emulation
+cost per Fp192::mul was already ~2.6× higher than SP1's (6,625 vs
+~2,400 cyc). Absolute final cycle counts are similar (240 M vs 180 M),
+suggesting per-mul precompile overhead is the new floor on both
+platforms.
+
+## Not yet built
+
+- Griffin precompile (the load-bearing AIR per CLAUDE.md). Open
+  question whether the current 240 M / 180 M cycle counts already meet
+  "practically acceptable" on the M5 Pro target — needs a real-proof
+  wall-clock measurement (drop `RISC0_DEV_MODE=1`) before deciding.
+
+## Toolchain prerequisites
+
+- `cargo-risczero` v3.0.5 (`~/.cargo/bin/`)
+- `r0vm` v3.0.5 (`~/.risc0/bin/`)
+- `risc0` rustup toolchain (auto-installed by cargo-risczero)
+
+## Running
 
 ```bash
-cargo run
+cd platforms/zkvms/risc0
+VC_PQC_SKIP_LIBIOP=1 cargo build --release --bin plum_host
+RISC0_DEV_MODE=1 PLUM_HOST_HASHER=sha3 ./target/release/plum_host  # executor (fast)
+PLUM_HOST_HASHER=sha3 ./target/release/plum_host                   # real proof (slow)
 ```
 
-This is an empty template, and so there is no expected output (until you modify
-the code).
-
-### Executing the Project Locally in Development Mode
-
-During development, faster iteration upon code changes can be achieved by leveraging [dev-mode], we strongly suggest activating it during your early development phase. Furthermore, you might want to get insights into the execution statistics of your project, and this can be achieved by specifying the environment variable `RUST_LOG="[executor]=info"` before running your project.
-
-Put together, the command to run your project in development mode while getting execution statistics is:
-
-```bash
-RUST_LOG="[executor]=info" RISC0_DEV_MODE=1 cargo run
-```
-
-### Running Proofs Remotely on Bonsai
-
-_Note: The Bonsai proving service is still in early Alpha; an API key is
-required for access. [Click here to request access][bonsai access]._
-
-If you have access to the URL and API key to Bonsai you can run your proofs
-remotely. To prove in Bonsai mode, invoke `cargo run` with two additional
-environment variables:
-
-```bash
-BONSAI_API_KEY="YOUR_API_KEY" BONSAI_API_URL="BONSAI_URL" cargo run
-```
-
-## How to Create a Project Based on This Template
-
-Search this template for the string `TODO`, and make the necessary changes to
-implement the required feature described by the `TODO` comment. Some of these
-changes will be complex, and so we have a number of instructional resources to
-assist you in learning how to write your own code for the RISC Zero zkVM:
-
-- The [RISC Zero Developer Docs][dev-docs] is a great place to get started.
-- Example projects are available in the [examples folder][examples] of
-  [`risc0`][risc0-repo] repository.
-- Reference documentation is available at [https://docs.rs][docs.rs], including
-  [`risc0-zkvm`][risc0-zkvm], [`cargo-risczero`][cargo-risczero],
-  [`risc0-build`][risc0-build], and [others][crates].
-
-## Directory Structure
-
-It is possible to organize the files for these components in various ways.
-However, in this starter template we use a standard directory structure for zkVM
-applications, which we think is a good starting point for your applications.
-
-```text
-project_name
-├── Cargo.toml
-├── host
-│   ├── Cargo.toml
-│   └── src
-│       └── main.rs                    <-- [Host code goes here]
-└── methods
-    ├── Cargo.toml
-    ├── build.rs
-    ├── guest
-    │   ├── Cargo.toml
-    │   └── src
-    │       └── method_name.rs         <-- [Guest code goes here]
-    └── src
-        └── lib.rs
-```
-
-## Video Tutorial
-
-For a walk-through of how to build with this template, check out this [excerpt
-from our workshop at ZK HACK III][zkhack-iii].
-
-## Questions, Feedback, and Collaborations
-
-We'd love to hear from you on [Discord][discord] or [Twitter][twitter].
-
-[bonsai access]: https://bonsai.xyz/apply
-[cargo-risczero]: https://docs.rs/cargo-risczero
-[crates]: https://github.com/risc0/risc0/blob/main/README.md#rust-binaries
-[dev-docs]: https://dev.risczero.com
-[dev-mode]: https://dev.risczero.com/api/generating-proofs/dev-mode
-[discord]: https://discord.gg/risczero
-[docs.rs]: https://docs.rs/releases/search?query=risc0
-[examples]: https://github.com/risc0/risc0/tree/main/examples
-[risc0-build]: https://docs.rs/risc0-build
-[risc0-repo]: https://www.github.com/risc0/risc0
-[risc0-zkvm]: https://docs.rs/risc0-zkvm
-[rust-toolchain]: rust-toolchain.toml
-[rustup]: https://rustup.rs
-[twitter]: https://twitter.com/risczero
-[zkhack-iii]: https://www.youtube.com/watch?v=Yg_BGqj_6lg&list=PLcPzhUaCxlCgig7ofeARMPwQ8vbuD6hC5&index=5
-[zkvm-overview]: https://dev.risczero.com/zkvm
+The `VC_PQC_SKIP_LIBIOP=1` is to skip libiop's C++ build, which the
+host link path would otherwise drag in via `vc-pqc`'s build.rs.

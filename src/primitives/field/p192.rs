@@ -119,6 +119,29 @@ fn limbs_to_biguint(limbs: &[u64; 4]) -> BigUint {
     BigUint::from_bytes_le(&bytes)
 }
 
+/// Repack a `[u64; 4]` little-endian limb buffer into `[u32; 8]`
+/// (also little-endian). Used at the boundary to risc0's `sys_bigint`,
+/// which operates on `[u32; 8]` slots.
+#[cfg(all(target_os = "zkvm", feature = "risc0", not(feature = "sp1")))]
+fn u64x4_to_u32x8(limbs: [u64; 4]) -> [u32; 8] {
+    let mut out = [0u32; 8];
+    for i in 0..4 {
+        out[2 * i] = limbs[i] as u32;
+        out[2 * i + 1] = (limbs[i] >> 32) as u32;
+    }
+    out
+}
+
+/// Inverse of `u64x4_to_u32x8`.
+#[cfg(all(target_os = "zkvm", feature = "risc0", not(feature = "sp1")))]
+fn u32x8_to_u64x4(limbs: [u32; 8]) -> [u64; 4] {
+    let mut out = [0u64; 4];
+    for i in 0..4 {
+        out[i] = (limbs[2 * i] as u64) | ((limbs[2 * i + 1] as u64) << 32);
+    }
+    out
+}
+
 fn biguint_to_limbs(value: &BigUint) -> [u64; 4] {
     let mut bytes = [0u8; 32];
     let raw = value.to_bytes_le();
@@ -394,6 +417,40 @@ impl Mul for Fp192 {
             // re-reduction is a wasted BigUint allocation.
             return Self {
                 value: limbs_to_biguint(&x_limbs),
+            };
+        }
+
+        // RISC Zero zkVM precompile path. risc0's `sys_bigint` provides
+        // modular multiplication mod a runtime-supplied 256-bit modulus
+        // (op = OP_MULTIPLY = 0). PLUM's 199-bit prime zero-pads to 256.
+        // Same soundness reduction as the SP1 path (see
+        // `docs/precompile_soundness/uint256_mul_for_fp192.md`) — risc0's
+        // bigint chip is the upstream-audited consumer; we are a caller.
+        #[cfg(all(target_os = "zkvm", feature = "risc0", not(feature = "sp1")))]
+        {
+            // risc0's sys_bigint operates on `[u32; 8]` (256 bits, 8 u32
+            // limbs). Our `to_limbs` is `[u64; 4]`; transcode at the
+            // boundary.
+            let x_u64 = self.to_limbs();
+            let y_u64 = rhs.to_limbs();
+            let x_u32 = u64x4_to_u32x8(x_u64);
+            let y_u32 = u64x4_to_u32x8(y_u64);
+            let m_u32 = u64x4_to_u32x8(MODULUS_LIMBS);
+            let mut result_u32 = [0u32; 8];
+            unsafe {
+                risc0_zkvm_platform::syscall::sys_bigint(
+                    &mut result_u32 as *mut [u32; 8],
+                    risc0_zkvm_platform::syscall::bigint::OP_MULTIPLY,
+                    &x_u32 as *const [u32; 8],
+                    &y_u32 as *const [u32; 8],
+                    &m_u32 as *const [u32; 8],
+                );
+            }
+            let result_u64 = u32x8_to_u64x4(result_u32);
+            // Same skip-mod reasoning as the SP1 path: the syscall
+            // result is already in `[0, modulus)`.
+            return Self {
+                value: limbs_to_biguint(&result_u64),
             };
         }
 

@@ -14,7 +14,7 @@ sha2 = { version = "0.10", default-features = false }
 bincode = "1.3"
 # vc-pqc: keep both "guest" (Loquat side) and "std" (PLUM side
 # needs std::collections for HashMap/HashSet in plum::*).
-vc-pqc = { path = "../../../../..", default-features = false, features = ["guest", "std"] }
+vc-pqc = { path = "../../../../..", default-features = false, features = ["guest", "std", "risc0"] }
 
 # PLUM guest binary (Phase 10 — runs plum_verify inside risc0 and
 # commits the cycle-attribution counters). SHA3-256 hasher variant.

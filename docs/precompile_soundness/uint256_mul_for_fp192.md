@@ -1,17 +1,27 @@
-# Soundness note — SP1 `UINT256_MUL` as the Fp192 modular multiplication precompile
+# Soundness note — SP1 `UINT256_MUL` / RISC0 `sys_bigint` as the Fp192 modular multiplication precompile
 
 **Deliverable:** the "192-bit modular arithmetic module" of the thesis's
-3-precompile suite, as built for the SP1 zkVM target.
+3-precompile suite, as built for both the SP1 and the RISC Zero zkVM
+targets.
 
-**Construction.** We do not write a fresh 192-bit-specific AIR. SP1's
-upstream `UINT256_MUL` precompile already constrains modular
-multiplication mod a runtime-supplied 256-bit modulus — see
-`sp1-core-machine-6.2.1/src/syscall/precompiles/uint256/air.rs`. We
-zero-pad PLUM's 199-bit modulus (`p = 2^64 · p_0 + 1`, stored in
+**Construction.** We do not write a fresh 192-bit-specific AIR.
+Both target zkVMs ship a 256-bit modular-multiplication chip mod a
+runtime-supplied modulus, structurally identical to each other:
+
+- **SP1**: `syscall_uint256_mulmod(x, y_and_modulus)` constrained by
+  `sp1-core-machine-6.2.1/src/syscall/precompiles/uint256/air.rs`.
+- **RISC0**: `sys_bigint(result, OP_MULTIPLY, x, y, modulus)`
+  constrained by `risc0-circuit-rv32im`'s baked-in bigint chip.
+
+We zero-pad PLUM's 199-bit modulus (`p = 2^64 · p_0 + 1`, stored in
 `MODULUS_LIMBS: [u64; 4]` with `MODULUS_LIMBS[3] = 0x4c`) to the AIR's
 256-bit slot and zero-pad each Fp192 operand similarly. Wiring is in
-`src/primitives/field/p192.rs::Fp192::mul`, behind
-`#[cfg(all(target_os = "zkvm", feature = "sp1"))]`.
+`src/primitives/field/p192.rs::Fp192::mul`, behind two cfg guards:
+
+- `#[cfg(all(target_os = "zkvm", feature = "sp1"))]` — SP1 path.
+- `#[cfg(all(target_os = "zkvm", feature = "risc0", not(feature = "sp1")))]`
+  — RISC0 path, with `[u64; 4] ↔ [u32; 8]` transcoding at the boundary
+  to match `sys_bigint`'s `[u32; 8]` slots.
 
 ## Reduction
 
@@ -92,6 +102,8 @@ fallback (`product = a.value * b.value; product % MODULUS`).
 
 ## Measurements
 
+### SP1 v6.2.1
+
 Baseline (Fp192 mul emulated via `BigUint::mul` + `%`): 289,778,709
 RISC-V cycles per PLUM-128 verify with `PlumSha3Hasher`.
 
@@ -103,6 +115,25 @@ Cumulative reductions (each row adds to the previous):
 
     UINT256_MUL syscall fires    112,902
     executor wall-clock          ~1.78 s   (3.2 s baseline)
+
+### RISC Zero v3.0.5
+
+Baseline (same emulation path; different rv32im executor):
+812,646,400 RISC-V cycles per PLUM-128 verify with `PlumSha3Hasher`.
+
+With `sys_bigint(OP_MULTIPLY)` + the same Phase 2 + skip-mod stack
+applied (one feature flag toggles all three):
+
+    cycles                       239,599,616   (Δ −572,946,784, −70.5%)
+    sys_bigint invocations           112,903
+    cyc / Fp192::mul                   6,625 (baseline) → 1,826 (precompile)
+
+The risc0 baseline is ~2.6× more expensive per Fp192::mul than SP1's
+(6,625 vs 2,400-ish cyc). The absolute final cycle count is similar
+(240 M vs 180 M), suggesting per-mul precompile overhead is the new
+floor on both platforms. The remaining cost is dominated by Griffin
+permutation work — the Griffin AIR (not yet built) is the targeted
+optimisation for that share.
 
 Source data: `platforms/zkvms/sp1/script/target/release/plum_host`
 under `PLUM_HOST_MODE=execute`. Reproducible — fixed RNG seed
