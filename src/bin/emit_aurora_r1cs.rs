@@ -42,7 +42,7 @@ use std::path::PathBuf;
 
 use vc_pqc::loquat::field_p127::Fp127;
 use vc_pqc::loquat::field_utils::field_to_bytes;
-use vc_pqc::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+use vc_pqc::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 use vc_pqc::snarks::build_loquat_r1cs_pk_witness;
 use vc_pqc::{keygen_with_params, loquat_setup, loquat_setup_tiny, loquat_sign};
 

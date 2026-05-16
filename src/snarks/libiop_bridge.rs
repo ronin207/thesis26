@@ -1,4 +1,4 @@
-use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
@@ -168,12 +168,12 @@ fn serialize_constraints(constraints: &[R1csConstraint], num_variables: usize) -
         let offset = i * padded_row_len;
 
         // Helper to write a sparse row
-        let write_row = |coeffs: &[(usize, crate::loquat::field_utils::F)], buf: &mut [u8]| {
+        let write_row = |coeffs: &[(usize, crate::signatures::loquat::field_utils::F)], buf: &mut [u8]| {
             for (var_idx, coeff) in coeffs.iter() {
                 if *var_idx >= padded_num_variables {
                     continue;
                 }
-                let bytes = crate::loquat::field_utils::field_to_bytes(coeff);
+                let bytes = crate::signatures::loquat::field_utils::field_to_bytes(coeff);
                 let start = offset + *var_idx * field_bytes;
                 buf[start..start + field_bytes].copy_from_slice(&bytes[..field_bytes]);
             }
@@ -201,7 +201,7 @@ fn serialize_witness(witness: &R1csWitness, padded_num_variables: usize) -> Vec<
         if idx >= target_assignment_len {
             break;
         }
-        let bytes = crate::loquat::field_utils::field_to_bytes(val);
+        let bytes = crate::signatures::loquat::field_utils::field_to_bytes(val);
         let start = idx * field_bytes;
         buf[start..start + field_bytes].copy_from_slice(&bytes[..field_bytes]);
     }
@@ -355,7 +355,7 @@ pub fn fractal_verify_ffi(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::loquat::field_utils::F;
+    use crate::signatures::loquat::field_utils::F;
 
     fn aurora_instance() -> (R1csInstance, R1csWitness) {
         // Aurora requires:

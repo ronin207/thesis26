@@ -1,0 +1,17 @@
+[package]
+name = "guest"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+guest = []
+
+[dependencies]
+jolt = { package = "jolt-sdk", git = "https://github.com/a16z/jolt" }
+# postcard is no_std-compatible serde, unlike bincode 1.x which is std-only.
+postcard = { version = "1.0", default-features = false, features = ["alloc"] }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+# vc-pqc with `guest` feature only — Loquat is no_std-compatible. PLUM is
+# not included; it depends on std::collections (`std` feature gates the
+# `signatures::plum` module in `src/lib.rs`).
+vc-pqc = { path = "../../../..", default-features = false, features = ["guest"] }

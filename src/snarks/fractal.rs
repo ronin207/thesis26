@@ -1,11 +1,11 @@
-use crate::loquat::errors::{LoquatError, LoquatResult};
-use crate::loquat::field_utils::{F, bytes_to_field_element, field_to_bytes};
-use crate::loquat::transcript::Transcript;
+use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
+use crate::signatures::loquat::field_utils::{F, bytes_to_field_element, field_to_bytes};
+use crate::signatures::loquat::transcript::Transcript;
 use crate::snarks::aurora::{
     AuroraParams, AuroraProof, AuroraProverOptions, AuroraVerificationHints, aurora_digest,
     aurora_prove_with_options, aurora_verify,
 };
-use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 use serde::{Deserialize, Serialize};
 use std::vec::Vec;
 
@@ -175,7 +175,7 @@ fn digest_to_field(digest: [u8; 32]) -> F {
 mod tests {
     use super::*;
     use crate::snarks::aurora::AuroraParams;
-    use crate::snarks::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
+    use crate::primitives::r1cs::{R1csConstraint, R1csInstance, R1csWitness};
 
     fn sample_instance() -> (R1csInstance, R1csWitness) {
         let num_variables = 4;

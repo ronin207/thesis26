@@ -9,31 +9,72 @@ path = "src/lib.rs"
 
 [features]
 default = ["std"]
-std = []
+# `std` pulls in the host-side / std-only deps used by bench/, bin/, bdec/,
+# PLUM, and snarks/. Loquat-verify-only consumers should use
+# `default-features = false, features = ["guest"]` and stay no_std.
+std = [
+    "dep:rand",
+    "dep:rand_chacha",
+    "dep:bincode",
+    "dep:tracing",
+    "dep:tracing-subscriber",
+    "dep:serde_json",
+    "dep:toml",
+    "dep:base64",
+    "dep:flate2",
+    "dep:rmpv",
+    "serde/std",
+    "sha2/std",
+    "sha3/std",
+    "num-bigint/std",
+    "num-traits/std",
+    "once_cell/std",
+]
 guest = []
+# `sp1` routes `Fp192::mul` (and dependants) through SP1's `UINT256_MUL`
+# precompile syscall when compiled for the SP1 zkVM target. Used by the
+# `platforms/zkvms/sp1` PLUM-Verify guest. No effect on host builds or
+# other targets (the cfg also checks `target_os = "zkvm"`).
+sp1 = ["dep:sp1-zkvm"]
+# `risc0` is the same idea for the RISC Zero zkVM: routes `Fp192::mul`
+# (and dependants) through risc0's `sys_bigint(OP_MULTIPLY)` syscall
+# when compiled for the risc0 zkVM target. Used by the
+# `platforms/zkvms/risc0` PLUM-Verify guest. Mutually exclusive with
+# `sp1` at the cfg level.
+risc0 = ["dep:risc0-zkvm-platform"]
 snark_harness = []
 euf_cma_harness = []
 libiop_multicore = []
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-rand = "0.8"
-rand_chacha = "0.3"
-sha2 = "0.10"
-sha3 = "0.10"
-bincode = "1.3"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-risc0-zkvm = "3.0.3"
-once_cell = "1.19"
-num-bigint = "0.4"
-num-traits = "0.2"
-serde_json = "1.0"
-toml = { version = "0.8", features = ["parse"] }
+# Unconditional (no_std-capable; minimum needed for Loquat verify).
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+sha2 = { version = "0.10", default-features = false }
+sha3 = { version = "0.10", default-features = false }
+once_cell = { version = "1.19", default-features = false, features = ["alloc"] }
+num-bigint = { version = "0.4", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+
+# Optional — pulled in by `std` feature. Loquat-verify in no_std mode
+# (e.g. Jolt guest) does not need any of these.
+rand = { version = "0.8", optional = true }
+rand_chacha = { version = "0.3", optional = true }
+bincode = { version = "1.3", optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"], optional = true }
+serde_json = { version = "1.0", optional = true }
+toml = { version = "0.8", features = ["parse"], optional = true }
 # B1 — decode nargo >= 1.0.0-beta.17 binary ACIR (base64 → gzip → MessagePack).
-base64 = "0.22"
-flate2 = "1.0"
-rmpv = "1.3"
+base64 = { version = "0.22", optional = true }
+flate2 = { version = "1.0", optional = true }
+rmpv = { version = "1.3", optional = true }
+
+# SP1 zkVM-side precompile syscalls (UINT256_MUL etc.). Gated by the
+# `sp1` feature; not pulled in for risc0 / Jolt builds.
+sp1-zkvm = { version = "6.0.1", optional = true }
+# RISC Zero zkVM-side precompile syscalls (`sys_bigint` for modular
+# multiplication mod a runtime modulus). Gated by the `risc0` feature.
+risc0-zkvm-platform = { version = "2.2", default-features = false, optional = true }
 
 [build-dependencies]
 cmake = "0.1.54"

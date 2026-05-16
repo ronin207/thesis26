@@ -72,19 +72,25 @@ macro_rules! loquat_debug {
 }
 
 #[cfg(feature = "std")]
-pub mod bdec;
+pub mod anoncreds;
 #[cfg(feature = "std")]
 pub mod bench;
 #[cfg(feature = "std")]
-pub mod evaluation;
-pub mod loquat;
-#[cfg(feature = "std")]
-pub mod noir_backend;
-#[cfg(feature = "std")]
-pub mod plum;
+pub mod compilers;
+pub mod primitives;
+pub mod signatures;
 #[cfg(feature = "std")]
 pub mod snarks;
-// pub mod anoncreds;
+
+// Backwards-compatible path aliases so external callers (tests, bin/, zkvm
+// guests) can continue to use `vc_pqc::loquat::*`, `vc_pqc::plum::*`,
+// `vc_pqc::bdec::*` after the src/ reorg (loquat+plum moved under
+// `signatures::`, bdec moved under `anoncreds::`).
+pub use signatures::loquat;
+#[cfg(feature = "std")]
+pub use signatures::plum;
+#[cfg(feature = "std")]
+pub use anoncreds::bdec;
 
 // Re-export commonly used types for convenience
 #[cfg(feature = "std")]
@@ -102,7 +108,7 @@ pub use bdec::{
     bdec_verify_shown_credential_paper, bdec_verify_shown_credential_with_policy_paper,
 };
 #[cfg(feature = "std")]
-pub use evaluation::{
+pub use bench::{
     D1ChurnEntry, D2CostMetrics, D3PrivacyResult, PhaseSpan, PhaseTimer, PolicyInput,
     PolicyPredicate, Pp2AuroraBenchmarkResult, Pp2AuroraRunConfig, Pp3AuroraBenchmarkResult,
     default_pp3_policies, evaluate_policy_input, parse_attribute_map,
@@ -119,7 +125,7 @@ pub use loquat::{
 #[cfg(feature = "std")]
 pub use loquat::{loquat_setup, loquat_setup_tiny, loquat_sign};
 #[cfg(feature = "std")]
-pub use noir_backend::{
+pub use compilers::noir::{
     AcirR1csBuild, NoirAuroraBackend, compile_acir_json_to_r1cs, convert_acir_to_r1cs,
 };
 

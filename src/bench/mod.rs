@@ -2,31 +2,43 @@
 //!
 //! # Structure
 //!
-//! Each benchmark suite lives in its own sub-module:
-//!
-//! | Module | Suite | Gaps addressed |
-//! |--------|-------|---------------|
-//! | [`aurora_rerun`] | B7 – statistical re-run of existing Aurora data | Gap 9 |
-//! | [`backend`]      | B4 – Aurora vs Fractal comparison | Gap 5 |
-//! | [`circuit_scale`]| B3 – circuit size scaling | Gap 4 |
-//! | [`griffin`]      | B5 – Griffin hash cost breakdown | Gap 7 |
-//! | [`noir`]         | B1 – Noir compiler pipeline | Gaps 1, 3, 6 |
-//! | [`r1cs_compare`] | B2 – Noir vs hand-written R1CS | Gap 2 |
-//! | [`zkvm`]         | B6 – RISC Zero zkVM sweep | Gap 8 |
+//! - [`suites`] — engineering benchmark suites (one module per `B`-suite).
+//! - [`scenarios`] — thesis protocol scenarios (PP2, PP3) with shared
+//!   D-metric runners that the suites and CLI binaries reuse.
+//! - [`instrument`] — `PhaseTimer` for span-level timing.
+//! - [`metrics`] — D1 / D2 / D3 metric types used by scenarios.
 //!
 //! # Usage
 //!
-//! Normally invoked via `cargo run --release --bin bench_runner`.  All state is
-//! passed through [`BenchConfig`] + [`BenchWriter`].
+//! Normally invoked via `cargo run --release --bin bench_runner`. All
+//! state passes through [`BenchConfig`] + [`BenchWriter`].
 
-pub mod aurora_rerun;
-pub mod backend;
-pub mod circuit_scale;
-pub mod griffin;
-pub mod noir;
-pub mod pp3_policy;
-pub mod r1cs_compare;
-pub mod zkvm;
+pub mod instrument;
+pub mod metrics;
+pub mod scenarios;
+pub mod suites;
+
+// Re-export each suite at the bench:: namespace so existing callers like
+// `crate::bench::griffin::run_griffin` keep resolving.
+pub use suites::{
+    aurora_rerun, backend, circuit_scale, griffin, noir, pp3_policy, r1cs_compare, zkvm,
+};
+
+// Re-export scenarios' runner functions and types at the `bench::` root
+// for backwards compatibility with callers that imported via the old
+// `crate::evaluation::*` paths.
+pub use instrument::{PhaseSpan, PhaseTimer};
+pub use metrics::{D1ChurnEntry, D2CostMetrics, D3PrivacyResult};
+pub use scenarios::pp2::{
+    Pp2AuroraBenchmarkResult, Pp2AuroraRunConfig, run_pp2_aurora_cli, run_pp2_aurora_single,
+    run_pp2_aurora_single_opts, run_pp2_aurora_with_security, run_pp2_constraint_count_single,
+};
+pub use scenarios::pp3::{
+    PolicyInput, PolicyPredicate, Pp3AuroraBenchmarkResult, default_pp3_policies,
+    evaluate_policy_input, parse_attribute_map, pp3_policy_only_d1_churn_rows,
+    run_pp3_aurora_single, run_pp3_aurora_single_opts, run_pp3_aurora_with_security,
+    run_pp3_constraint_count_single, run_pp3_default_policy_comparison,
+};
 
 use crate::LoquatError;
 use serde::{Deserialize, Serialize};
