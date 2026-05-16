@@ -24,7 +24,6 @@ sha3 = "0.10"
 bincode = "1.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-risc0-zkvm = "3.0.3"
 once_cell = "1.19"
 num-bigint = "0.4"
 num-traits = "0.2"
