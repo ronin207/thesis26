@@ -178,6 +178,18 @@ impl Fp192 {
         // calls `to_limbs` twice and `from_limbs` once; killing the
         // allocations there is what makes the syscall actually faster
         // than `BigUint::modpow` per-mul.
+        //
+        // Defensive bound: `take(4)` silently truncates digits beyond the
+        // 4th. That's safe iff `self.value < 2^256`; canonical Fp192
+        // values are `< p < 2^200` so this holds by invariant — but the
+        // invariant has had at least one historical hole (constructors
+        // that don't reduce; see audit
+        // `docs/precompile_soundness/uint256_mul_for_fp192.md`), so we
+        // assert it here. Free in release.
+        debug_assert!(
+            self.value.bits() <= 200,
+            "to_limbs called on non-canonical Fp192 (bits > 200); would silently truncate"
+        );
         let mut out = [0u64; 4];
         for (i, d) in self.value.iter_u64_digits().enumerate().take(4) {
             out[i] = d;
@@ -413,11 +425,21 @@ impl Mul for Fp192 {
             }
             // Skip the `% MODULUS` step that `Self::from_limbs` would
             // normally apply via `from_biguint`: SP1's UINT256_MUL AIR
-            // already constrains the result to `[0, modulus)`, so the
-            // re-reduction is a wasted BigUint allocation.
-            return Self {
-                value: limbs_to_biguint(&x_limbs),
-            };
+            // already constrains the result to `[0, modulus)` (see
+            // `sp1-core-machine-6.2.1/src/syscall/precompiles/uint256/air.rs:435`
+            // — `local.output_range_check.eval(...)` against the modulus
+            // limbs), so the re-reduction is a wasted BigUint allocation.
+            //
+            // Defensive: `debug_assert` the syscall output is canonical.
+            // Free in release; catches any regression of the AIR's
+            // output-range constraint that would otherwise silently
+            // poison every downstream Fp192 operation.
+            let value = limbs_to_biguint(&x_limbs);
+            debug_assert!(
+                value < *MODULUS,
+                "SP1 UINT256_MUL returned non-canonical Fp192 (>= p); upstream AIR range-check changed?"
+            );
+            return Self { value };
         }
 
         // RISC Zero zkVM precompile path. risc0's `sys_bigint` provides
@@ -448,10 +470,16 @@ impl Mul for Fp192 {
             }
             let result_u64 = u32x8_to_u64x4(result_u32);
             // Same skip-mod reasoning as the SP1 path: the syscall
-            // result is already in `[0, modulus)`.
-            return Self {
-                value: limbs_to_biguint(&result_u64),
-            };
+            // result is already in `[0, modulus)` per risc0's bigint
+            // chip constraints (the rv32im circuit's bigint accumulator
+            // enforces the reduction; opaque Zirgen output but
+            // production-audited).
+            let value = limbs_to_biguint(&result_u64);
+            debug_assert!(
+                value < *MODULUS,
+                "risc0 sys_bigint returned non-canonical Fp192 (>= p); upstream bigint chip changed?"
+            );
+            return Self { value };
         }
 
         // Host / non-SP1-zkvm fallback: multi-limb emulation via

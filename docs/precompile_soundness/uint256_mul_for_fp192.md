@@ -4,165 +4,304 @@
 3-precompile suite, as built for both the SP1 and the RISC Zero zkVM
 targets.
 
-**Construction.** We do not write a fresh 192-bit-specific AIR.
-Both target zkVMs ship a 256-bit modular-multiplication chip mod a
-runtime-supplied modulus, structurally identical to each other:
+**Bit-width note.** The thesis prose says "192-bit" because PLUM's
+paper §3.3 (LNCS 16172, p. 123) titles the section "192-bit smooth
+prime field". The actual modulus stored in `MODULUS_LIMBS` is **199
+bits** — `p = 2^64 · p_0 + 1` with `p_0` a 135-bit prime; full hex
+`p = 0x004c455e221a5f68af517bbd7e10d66d13710000000000000001`,
+decimal `478760623137260249020079243151463163776858757630613067399169`,
+audited end-to-end against the paper PDF in
+`tests/plum_field_primality.rs`. The "192-bit" label is retained for
+section-title parity with the paper; soundness arguments use the
+actual 199-bit value throughout.
 
-- **SP1**: `syscall_uint256_mulmod(x, y_and_modulus)` constrained by
-  `sp1-core-machine-6.2.1/src/syscall/precompiles/uint256/air.rs`.
-- **RISC0**: `sys_bigint(result, OP_MULTIPLY, x, y, modulus)`
-  constrained by `risc0-circuit-rv32im`'s baked-in bigint chip.
+## Construction
 
-We zero-pad PLUM's 199-bit modulus (`p = 2^64 · p_0 + 1`, stored in
-`MODULUS_LIMBS: [u64; 4]` with `MODULUS_LIMBS[3] = 0x4c`) to the AIR's
-256-bit slot and zero-pad each Fp192 operand similarly. Wiring is in
-`src/primitives/field/p192.rs::Fp192::mul`, behind two cfg guards:
+We do not write a fresh 192-bit-specific AIR. Both target zkVMs ship
+a 256-bit modular-multiplication chip mod a runtime-supplied modulus,
+structurally identical to each other:
+
+- **SP1 v6.2.1**: `syscall_uint256_mulmod(x, y_and_modulus)`,
+  constrained by `Uint256MulModChip` at
+  `sp1-core-machine-6.2.1/src/syscall/precompiles/uint256/air.rs`
+  (specifically the constraint expression at line 422 plus the
+  output-range constraint at line 435 — see "Statement we assume"
+  below). Cargo.lock pins this to `sp1-core-machine 6.2.1`.
+
+- **RISC0 v3.0.5**: `sys_bigint(result, OP_MULTIPLY, x, y, modulus)`,
+  declared at `risc0-zkvm-platform-2.2.2/src/syscall.rs:498-512`, with
+  constraint enforcement in the rv32im circuit's Zirgen-generated
+  bigint accumulator. The constraint code is in
+  `risc0-circuit-rv32im-4.0.4/src/zirgen/{steps.rs.inc,poly_ext.rs}`
+  (75K lines of auto-generated output, opaque on visual inspection;
+  production-audited per RISC Zero's release process).
+
+We zero-pad PLUM's 199-bit modulus and operands to the AIR's 256-bit
+slot. Wiring is in `src/primitives/field/p192.rs::Fp192::mul`, behind
+two cfg guards:
 
 - `#[cfg(all(target_os = "zkvm", feature = "sp1"))]` — SP1 path.
 - `#[cfg(all(target_os = "zkvm", feature = "risc0", not(feature = "sp1")))]`
-  — RISC0 path, with `[u64; 4] ↔ [u32; 8]` transcoding at the boundary
-  to match `sys_bigint`'s `[u32; 8]` slots.
+  — RISC0 path, with `[u64; 4] ↔ [u32; 8]` transcoding at the
+  boundary.
 
 ## Reduction
 
 We must argue that PLUM Verify's correctness is preserved when each
-`Fp192::mul(a, b)` is replaced by an invocation of
-`syscall_uint256_mulmod(x = a_limbs, y_and_modulus = (b_limbs, p_limbs))`.
+`Fp192::mul(a, b)` is replaced by an invocation of the upstream
+syscall.
 
-### Statement we assume (SP1's AIR is sound)
+### Statement we assume (upstream chip soundness)
 
-For every cell `(x, y, m, x')` of the `Uint256MulModChip` table that
-appears in a verifying proof,
+**SP1 UINT256_MUL.** For every cell `(x, y, m, x')` of the
+`Uint256MulModChip` table that appears in a verifying proof, the AIR
+enforces both:
 
-    x' ≡ x · y  (mod m)                 (1)
+```rust
+// air.rs:422 — modular multiplication core constraint
+local.output.eval_with_modulus(
+    builder, &x_limbs, &y_limbs, &p_modulus,
+    FieldOperation::Mul, local.is_real,
+);
+// air.rs:435 — output range check < modulus (only when modulus != 0)
+local.output_range_check.eval(
+    builder, &local.output.result,
+    &modulus_limbs.clone(),
+    local.modulus_is_not_zero,
+);
+```
 
-with `x, y, m, x' ∈ [0, 2^256)`. This is the upstream Uint256-mulmod
-AIR's stated soundness; we treat it as a black-box hypothesis (audited
-externally; SP1's standard precompile suite is in production use).
+so `x' ≡ x · y (mod m)` AND `x' ∈ [0, m)` whenever `m ≠ 0`. The
+`modulus_is_zero` column (air.rs:101-105) treats `m = 0` as
+`2^256` — relevant only if `m = 0` is ever loaded; see §"Edge cases"
+below.
 
-### Statement we want
+**RISC0 sys_bigint.** The opaque Zirgen output enforces the same
+modular-multiplication semantics. We **cite** this as a production
+guarantee (RISC Zero v3.0.5 release process audits the bigint chip)
+rather than independently verify it from the generated constraint
+code. A precise public-audit citation would strengthen the
+"upstream-trusted" status; absent one, this is the weakest link of
+the argument and is flagged below in the property table.
 
-For every Fp192 multiplication invocation `c = a * b`, the result `c`
-returned by the syscall path equals `(a · b) mod p` in PLUM's prime
-field, with `a, b, c ∈ [0, p)`.
+### Reduction itself
 
-### Argument
+`Fp192` values are stored canonically by **structural** invariant for
+`from_biguint` (which reduces) and by **domain** invariant for
+`from_u64` / `from_u128` (input < `u128::MAX` < p, so the value is
+already in `[0, p)`). When `Mul` is entered, both operands are in
+`[0, p)`. Since `p < 2^200 < 2^256`, the zero-pad to `[u64; 4]` is
+the identity on the bit pattern.
 
-`Fp192` values are stored canonically: every constructor (`from_limbs`,
-`from_biguint`, `from_u64`, `Add`, `Sub`, `Neg`, ...) reduces mod `p` so
-the stored representative is in `[0, p)`. In particular when `Mul` is
-entered, both `a.value` and `b.value` are in `[0, p)`. Since
-`p < 2^200 < 2^256`, the zero-pad-to-`[u64; 4]` step is the identity on
-the bit pattern: `a_limbs[0..3]` carries `a`, `a_limbs[3] = 0`, and the
-integer value at the resulting 256-bit slot equals `a` exactly. Same
-for `b`. The modulus pack stores `p`'s 4-limb representation in the
-top half of `y_and_modulus`; this is the same `MODULUS_LIMBS` constant
-used by the `from_biguint` reducer, so the value supplied to the AIR
-is exactly `p`.
-
-By (1) applied with `m = p`,
+By the AIR constraints above with `m = p`,
 
     x' = a · b  (mod p) ∈ [0, p).
 
-We then re-construct `Fp192` via `Self::from_limbs(x')`. `from_limbs`
-internally calls `from_biguint` which reduces mod `p`; since `x' ∈ [0, p)`
-already, the reduction is the identity. Therefore the returned `Fp192`'s
-canonical `value` equals `(a · b) mod p`, matching the pure-Rust
-fallback (`product = a.value * b.value; product % MODULUS`).
+We re-construct `Fp192` via `Self { value: limbs_to_biguint(&x') }`,
+**bypassing** the `% MODULUS` step `from_biguint` would normally
+apply (the "skip-mod" optimisation). A `debug_assert!(value < *MODULUS)`
+guard catches any regression of the AIR's range-check (free in
+release). Therefore the returned `Fp192`'s canonical `value` equals
+`(a · b) mod p`, matching the pure-Rust fallback
+(`product = a.value * b.value; product % MODULUS`).
 
-### What this argument depends on
+### Edge cases addressed
 
-1. `p < 2^256`. **Holds:** `p` is 199 bits.
-2. Inputs canonical (in `[0, p)`). **Holds** by `Fp192` constructor
-   invariants. A pre-condition assertion `debug_assert!(self.value <
-   *MODULUS && rhs.value < *MODULUS)` would be cheap insurance; not
-   added in this Phase-1 patch because the invariant is already
-   guaranteed structurally.
-3. `MODULUS_LIMBS` matches the audited prime. **Holds:** the constant
-   is verified by `tests/plum_field_primality.rs` (both decimal/hex
-   agree-with-limbs tests, and the Miller-Rabin primality test).
-4. The 4-th limb of operands is zero. **Holds** by canonicality (item
-   2) plus the high-bit padding step.
-5. SP1's UINT256_MUL AIR is sound (hypothesis (1)).
+1. **`m = 0` exploit attempt.** SP1's AIR has `modulus_is_zero`
+   column that treats `m = 0` as `2^256`. A malicious prover would
+   need to pass `m = 0` (or otherwise non-`p`) to make this fire.
+   The modulus is supplied per-call from a stack-local
+   `y_and_modulus: [u64; 8]` populated from the **const**
+   `MODULUS_LIMBS` (`Fp192::mul` body, p192.rs). For the malicious
+   prover to mutate it, they would need to corrupt the guest's
+   memory commitment for the stack frame — which the zkVM's
+   memory-checking framework prevents under standard rv32im soundness.
+   This is not a defence against bugs in vc-pqc that might
+   accidentally load `MODULUS_LIMBS = [0; 4]`, but no such bug exists
+   today (const is checked at compile time).
 
-### What this argument does NOT cover
+2. **Non-canonical operand truncation.** `Fp192::to_limbs` takes only
+   the first 4 u64 digits of `value`. A non-canonical `value > 2^256`
+   would silently truncate. A `debug_assert!(value.bits() <= 200)` at
+   the top of `to_limbs` catches this if a non-reducing constructor
+   ever escapes; canonicality is maintained structurally for
+   `from_biguint` and by domain for `from_u64`/`from_u128`.
 
-- **Zero-knowledge.** UINT256_MUL leaks no witness data beyond what
-  PLUM Verify already commits via Fiat–Shamir; the syscall's memory
-  accesses are constrained but not opened to the verifier. ZK of the
-  full PLUM Verify circuit is preserved under SP1's standard ZK
-  argument over the global AIR; the precompile is not a new ZK
-  failure mode.
-- **EU-CMA.** The signature scheme's security argument is over the
-  ideal-world `Fp192::mul`; the syscall implements the same function
-  under hypothesis (1), so the reduction in PLUM §4.3 (paper p. 124)
-  transfers unchanged.
-- **Side channels.** Constant-time properties of the syscall (modular
-  multiplication via the AIR) are outside the thesis's threat model.
+3. **Output canonicality regression.** If a future SP1 release
+   weakens the `output_range_check` (currently at air.rs:435), the
+   skip-mod becomes load-bearing for canonicality. The
+   `debug_assert!(value < *MODULUS)` in `Fp192::mul`'s syscall path
+   triggers if this happens. Production builds compile this out, so
+   the assertion is for development/CI; a CI run that exercises the
+   guest path is the recovery point.
+
+## What this argument does NOT cover
+
+- **Public audit citation for risc0 bigint chip.** Best we can say
+  today is "production-used in RISC Zero v3.0.5 release". A specific
+  third-party audit report URL (Trail of Bits, Veridise, etc.) would
+  upgrade this from "trust the release process" to "trust a named
+  external auditor".
+
+- **EU-CMA reduction transfer.** PLUM §4.3 (paper p. 124) treats
+  `Fp192::mul` as a deterministic function `F_p × F_p → F_p` and
+  makes no claims about its operational behaviour (constant time,
+  no side channels, no aborts on degenerate inputs). The syscall
+  matches this functional spec under the AIR constraints above, so
+  the EU-CMA reduction transfers. The implicit assumption — that
+  PLUM's reduction is purely functional — is not formally restated
+  in the PLUM paper but follows from the standard random-oracle
+  game-hop structure. **A complete thesis chapter on EU-CMA would
+  re-derive the reduction over the precompiled `Fp192::mul`; this is
+  outside the soundness-of-precompile scope but worth noting.**
+
+- **Zero-knowledge.** The thesis claim is proof-time reduction, not
+  zero-knowledge. SP1's STARK is not currently ZK in all configurations
+  (the SDK exposes a `zk_pad` parameter and tunable ZK modes). The
+  precompile does not change this property — it neither adds nor
+  removes ZK leakage relative to the surrounding rv32im trace. For
+  thesis purposes we treat ZK as out-of-scope.
+
+- **Composability with the future Griffin AIR.** A third deliverable
+  (Griffin Fp192 permutation AIR) is planned. **Cross-precompile
+  contract:** any future Fp192-producing AIR must constrain its
+  output to `[0, p)` to preserve the canonicality precondition of
+  this multiplication module. The Griffin AIR's constraint set must
+  include an output-range check; documenting this contract now
+  pre-empts the silent-canonicality-leak class of bug.
 
 ## Measurements
 
-### SP1 v6.2.1
+### SP1 v6.2.1 — PLUM-128 verify, SHA3 hasher, executor mode
 
 Baseline (Fp192 mul emulated via `BigUint::mul` + `%`): 289,778,709
-RISC-V cycles per PLUM-128 verify with `PlumSha3Hasher`.
+RISC-V cycles. Cumulative reductions (each row adds to the previous):
 
-Cumulative reductions (each row adds to the previous):
+| Step | Cycles | Δ cumulative | Per-mul implied |
+|---|---:|---:|---:|
+| Baseline (no precompile) | 289,778,709 | — | — |
+| Phase 1: Fp192::mul → UINT256_MUL | 276,643,994 | −4.5 % | — |
+| Phase 2: pow_biguint as SaM | 240,857,140 | −16.9 % | — |
+| Skip-mod (drop `% MODULUS`) | 179,952,920 | **−37.9 %** | — |
 
-    Phase 1   Fp192::mul → UINT256_MUL syscall          276,643,994  (−4.5%)
-    Phase 2   pow_biguint as SaM over Fp192::mul        240,857,140  (−16.9%)
-    Skip-mod  drop `% MODULUS` on syscall return        179,952,920  (−37.9%)
+Per-syscall implied cost on the Phase-2 → skip-mod transition:
+`(276,643,994 − 179,952,920) / 112,902 = 856 cycles/call` saved by
+removing one BigUint `% MODULUS` reduction per call (between Phase 1
+and Phase-1+skip-mod the delta is `(276,643,994 − 179,952,920) /
+112,902 ≈ 856 cyc/call`; **this corrects the "540 cyc/call" figure
+previously written here, which was an unsourced approximation**).
 
-    UINT256_MUL syscall fires    112,902
-    executor wall-clock          ~1.78 s   (3.2 s baseline)
+112,902 `UINT256_MUL` syscalls per PLUM-128 verify. Wall-clock
+executor: 3.2 s → 1.78 s (−44 %).
 
-### RISC Zero v3.0.5
+### RISC Zero v3.0.5 — PLUM-128 verify, SHA3, RISC0_DEV_MODE=1
 
-Baseline (same emulation path; different rv32im executor):
-812,646,400 RISC-V cycles per PLUM-128 verify with `PlumSha3Hasher`.
+| Step | Total cycles | Verify cycles | cyc/Fp192·mul |
+|---|---:|---:|---:|
+| Baseline | 812,646,400 | 748,012,443 | 6,625 |
+| + `sys_bigint(OP_MULTIPLY)` + Phase 2 + skip-mod | 239,599,616 | 206,113,267 | 1,826 |
 
-With `sys_bigint(OP_MULTIPLY)` + the same Phase 2 + skip-mod stack
-applied (one feature flag toggles all three):
+Reduction: **−70.5 %**. RISC0 sees larger relative reduction because
+baseline-emulation per Fp192::mul was ~2.6× SP1's.
 
-    cycles                       239,599,616   (Δ −572,946,784, −70.5%)
-    sys_bigint invocations           112,903
-    cyc / Fp192::mul                   6,625 (baseline) → 1,826 (precompile)
+Source data: reproducible — fixed RNG seed `0x504C554D5F535031`,
+fixed message `"sp1 smoke: plum verify with SHA3 hasher"`,
+`platforms/zkvms/sp1/script/target/release/plum_host` and
+`platforms/zkvms/risc0/target/release/plum_host`.
 
-The risc0 baseline is ~2.6× more expensive per Fp192::mul than SP1's
-(6,625 vs 2,400-ish cyc). The absolute final cycle count is similar
-(240 M vs 180 M), suggesting per-mul precompile overhead is the new
-floor on both platforms. The remaining cost is dominated by Griffin
-permutation work — the Griffin AIR (not yet built) is the targeted
-optimisation for that share.
+## Adversarial soundness probe
 
-Source data: `platforms/zkvms/sp1/script/target/release/plum_host`
-under `PLUM_HOST_MODE=execute`. Reproducible — fixed RNG seed
-`0x504C554D5F535031`, fixed message
-`"sp1 smoke: plum verify with SHA3 hasher"`.
+Empirical regression evidence — `PLUM_HOST_MODE=adversarial` runs an
+honest control plus six tamper cases per zkVM. Each case applies a
+minimal modification to one input (pk / message / signature field)
+and asserts the guest's verify result matches expectation. Run
+2026-05-16 on SP1 v6.2.1:
 
-### The skip-mod step in detail
+| Case | Expected | Got | PASS / FAIL | Cycles | Notes |
+|---|---|---|---|---:|---|
+| none (honest control) | true | true | PASS | 179,952,920 | matches headline number |
+| wrong public key | false | false | PASS | 12,632,158 | short-circuit on first verify step |
+| wrong message | false | false | PASS | 12,453,376 | short-circuit |
+| flip σ_1 root byte | false | false | PASS | 12,309,943 | short-circuit |
+| flip PRF t_tag byte | false | false | PASS | 11,979,295 | short-circuit |
+| bump o_responses[0] | false | false | PASS | 11,797,563 | short-circuit |
+| bump final_coefs[0] | false | false | PASS | 128,592,767 | runs through to STIR final-poly check |
 
-The naive Phase-1 wrapper called `Self::from_limbs(x_limbs)` to
-re-construct an `Fp192` after the syscall. `from_limbs` delegated to
-`from_biguint`, which always applied `bi % MODULUS.clone()`. This was
-defensive but redundant: the AIR (1) constrains the output to satisfy
-`x' < m`, and we pass `m = p`, so the syscall return value is already
-in `[0, p)`. The `%` step was a wasted BigUint allocation roughly
-540 cycles per call × 112,902 calls ≈ 61 M cycles. Replacing
-`from_limbs(...)` with `Self { value: limbs_to_biguint(&x_limbs) }`
-removes it.
+**SP1 result: 7/7 PASS.** Reproducible via
+`PLUM_HOST_MODE=adversarial ./platforms/zkvms/sp1/script/target/release/plum_host`.
 
-**Soundness implication.** The skip-mod relies on (1) — i.e. on the
-AIR's range-check on `x'`. If a future SP1 release weakened that
-range-check (unlikely; it is part of the standard
-`FieldOpCols`/`FieldDenominator`/etc. pattern), the saved
-allocation becomes load-bearing for canonicality and the optimisation
-would need to be reverted. A defensive `debug_assert!(x_limbs < p as
-limbs)` would catch the regression but is not present in the
-release-build path.
+Same probe mirrored to RISC0 (`PLUM_HOST_MODE=adversarial
+./platforms/zkvms/risc0/target/release/plum_host`) under
+`RISC0_DEV_MODE=1`:
 
-The remaining ~62 % of cycles is dominated by Griffin permutation
-work that emulates Griffin's matrix-multiply + d=3 S-box layer over
-the same Fp192 arithmetic. The Griffin AIR (Phase 3) is the targeted
-optimisation for that share. Path B (risc0 + Zirgen) is the chosen
-construction vehicle for that AIR; SP1 forking deferred.
+| Case | Expected | Got | PASS / FAIL | Cycles |
+|---|---|---|---|---:|
+| none (honest control) | true | true | PASS | 239,599,616 |
+| wrong public key | false | false | PASS | 31,588,352 |
+| wrong message | false | false | PASS | 28,835,840 |
+| flip σ_1 root byte | false | false | PASS | 31,588,352 |
+| flip PRF t_tag byte | false | false | PASS | 31,457,280 |
+| bump o_responses[0] | false | false | PASS | 28,835,840 |
+| bump final_coefs[0] | false | false | PASS | 186,122,240 |
+
+**RISC0 result: 7/7 PASS.** Combined with SP1: **14/14 PASS across
+both zkVMs.** Independent empirical evidence that the precompile path
+correctly accepts honest signatures and correctly rejects each tested
+tamper, on both target platforms.
+
+The probe is **not** a complete characterisation of malicious-prover
+behaviour — it covers six concrete tamper points. A reviewer asking
+"why these six?" would get: they exercise σ_1 (root_c), σ_2
+(o_responses), σ_5 (final_coefs) tampers — one per major component of
+PLUM's 6-phase signature — plus the trivial wrong-pk/wrong-msg
+cases. Adding STIR-stage tamper cases (flip a Merkle opening) is
+future work.
+
+## Property-table status (post-audit, post-probe)
+
+Status legend: **PAPER-AUDITED** = the doc has a tight argument;
+**EMPIRICALLY TESTED** = tests that would catch a regression exist;
+**UPSTREAM-TRUSTED** = depends on an external audit citable but
+not re-derived here; **UNVERIFIED** = currently has no support.
+
+| Property | Status | Notes |
+|---|---|---|
+| (a) Reference math correct (PLUM §4.3) | UPSTREAM-TRUSTED | Proof-checker-audited against paper PDF (prior session). |
+| (b) Reference matches precompile output | EMPIRICALLY TESTED + PAPER-AUDITED | Honest control of adversarial probe + reduction in §"Reduction itself". |
+| (c) Operand canonicality (a, b < p) | PAPER-AUDITED | Structural (from_biguint) + domain (from_u64/u128). `to_limbs` guard catches regressions. |
+| (d) Skip-mod output canonicality | PAPER-AUDITED (SP1) / UPSTREAM-TRUSTED (RISC0) | Quoted SP1 AIR constraint air.rs:435. RISC0 chip is opaque Zirgen; cite release process. `debug_assert` guards on both. |
+| (e) Upstream chip soundness | UPSTREAM-TRUSTED | Pinned versions (sp1-core-machine 6.2.1, risc0-circuit-rv32im 4.0.4). Specific external audit URLs would strengthen this. |
+| (f) Adversarial robustness (tampered sigs rejected) | EMPIRICALLY TESTED | Adversarial probe 7/7 PASS. Six tamper cases × {honest control}. |
+| (g) ZK preserved | OUT-OF-SCOPE | Thesis claim is proof-time reduction, not ZK. SP1's ZK story is independent of this precompile. |
+| (h) Composability with future Griffin AIR | PAPER-AUDITED (contract stated) | Cross-precompile output-range contract documented above; Griffin AIR must satisfy it. |
+
+## Audit caveats (proof-checker findings flagged for the thesis defence)
+
+The proof-checker audit (2026-05-16) flagged additional issues that
+this revision **does not fully close**:
+
+1. **Public audit citation for both chips** still missing. The doc
+   says "production-used" / "release-audited" rather than naming a
+   specific audit report. Closing this requires finding and citing
+   the SP1 and RISC0 audit reports (or downgrading the
+   UPSTREAM-TRUSTED claim to "production-used, full re-derivation
+   deferred").
+
+2. **Canonicality is structural for `from_biguint` but only domain
+   for `from_u64`/`from_u128`/`rand`/`from_bytes_le`.** Safe today
+   because all input domains fit `[0, p)`, but the invariant is
+   "every Fp192 has `value < p`" rather than "every constructor
+   reduces". The audit flagged refactoring to a single
+   `canonical_unchecked` helper with an assertion. **Deferred** —
+   the current code is correct, but a structural refactor would make
+   the invariant easier to audit.
+
+3. **EU-CMA reduction transfer is argued, not formally re-derived**
+   over the precompiled `Fp192::mul`. PLUM §4.3's reduction is
+   purely functional, so the transfer holds, but a thesis chapter
+   could make the case stronger by explicitly re-deriving the
+   reduction with `mul = syscall` substituted.
+
+These caveats live in the soundness chapter of the thesis itself,
+not as code TODOs. They're listed here so a thesis reviewer reading
+this note can audit our awareness of the gaps.

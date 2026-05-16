@@ -85,6 +85,16 @@ fn main() {
         message.len()
     );
 
+    // Adversarial soundness probe mode: empirical evidence for row (f)
+    // of the soundness property table. Sibling of the SP1 host's
+    // `PLUM_HOST_MODE=adversarial`. Generates an honest SHA3 signature,
+    // then runs six tamper cases, asserting the guest's verify result
+    // matches expectation.
+    if std::env::var("PLUM_HOST_MODE").as_deref() == Ok("adversarial") {
+        run_adversarial(&pp, &sk, &pk, &message);
+        return;
+    }
+
     let hasher_filter = std::env::var("PLUM_HOST_HASHER").ok();
     let run_sha3 = hasher_filter.as_deref().map_or(true, |s| s == "sha3");
     let run_griffin = hasher_filter.as_deref().map_or(true, |s| s == "griffin");
@@ -185,6 +195,141 @@ fn sign_with<H: vc_pqc::plum::hasher::PlumHasher>(
     let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
     let counters = read_counters_with_cycles(0);
     (signature, counters, elapsed_ms)
+}
+
+// ─── Adversarial soundness probe (risc0 side) ────────────────────────
+
+/// One tamper case for the soundness probe. Same set as the SP1 host.
+#[derive(Clone, Copy)]
+enum Tamper {
+    None,
+    WrongPk,
+    WrongMessage,
+    FlipRootC,
+    FlipTTag,
+    BumpOResponse,
+    BumpFinalCoef,
+}
+
+impl Tamper {
+    fn name(&self) -> &'static str {
+        match self {
+            Tamper::None => "none (control)",
+            Tamper::WrongPk => "wrong public key",
+            Tamper::WrongMessage => "wrong message",
+            Tamper::FlipRootC => "flip σ_1 root byte",
+            Tamper::FlipTTag => "flip PRF t_tag byte",
+            Tamper::BumpOResponse => "bump o_responses[0]",
+            Tamper::BumpFinalCoef => "bump final_coefs[0]",
+        }
+    }
+    fn expected_accept(&self) -> bool {
+        matches!(self, Tamper::None)
+    }
+}
+
+fn apply_tamper(
+    case: Tamper,
+    pk: &mut PlumPublicKey,
+    message: &mut Vec<u8>,
+    sig: &mut PlumSignature,
+    alt_pk: &PlumPublicKey,
+    alt_message: &[u8],
+) {
+    use vc_pqc::primitives::field::p192::Fp192;
+    match case {
+        Tamper::None => {}
+        Tamper::WrongPk => *pk = alt_pk.clone(),
+        Tamper::WrongMessage => *message = alt_message.to_vec(),
+        Tamper::FlipRootC => sig.root_c[0] ^= 0x01,
+        Tamper::FlipTTag => {
+            if let Some(b) = sig.t_tags.first_mut() {
+                *b ^= 0x01;
+            }
+        }
+        Tamper::BumpOResponse => {
+            if let Some(o) = sig.o_responses.first_mut() {
+                *o = o.clone() + Fp192::from_u64(1);
+            }
+        }
+        Tamper::BumpFinalCoef => {
+            if let Some(c) = sig.final_coefs.first_mut() {
+                *c = c.clone() + Fp192::from_u64(1);
+            }
+        }
+    }
+}
+
+fn run_adversarial(
+    pp: &PlumPublicParams,
+    sk: &PlumSecretKey,
+    pk: &PlumPublicKey,
+    message: &[u8],
+) {
+    // Honest signature once (SHA3 hasher, mirrors SP1 host).
+    let mut sign_rng = ChaCha20Rng::seed_from_u64(0x504C_554D_5348_4133);
+    let signature = plum_sign::<PlumSha3Hasher, _>(pp, sk, message, &mut sign_rng);
+
+    // Second keypair for the wrong-pk case.
+    let mut alt_rng = ChaCha20Rng::seed_from_u64(0xA1_4504C554D_u64);
+    let (_alt_sk, alt_pk) = plum_keygen(pp, &mut alt_rng);
+    let alt_message = b"risc0 adversarial: a DIFFERENT message that was never signed".to_vec();
+
+    let cases = [
+        Tamper::None,
+        Tamper::WrongPk,
+        Tamper::WrongMessage,
+        Tamper::FlipRootC,
+        Tamper::FlipTTag,
+        Tamper::BumpOResponse,
+        Tamper::BumpFinalCoef,
+    ];
+
+    println!("\n=== PLUM Verify RISC0 adversarial soundness probe ===");
+    println!(
+        "control honest signature length: {} bytes",
+        bincode::serialize(&signature).expect("serialize sig").len()
+    );
+    println!();
+
+    let mut all_pass = true;
+    for case in cases {
+        let mut t_pk = pk.clone();
+        let mut t_msg = message.to_vec();
+        let mut t_sig = signature.clone();
+        apply_tamper(case, &mut t_pk, &mut t_msg, &mut t_sig, &alt_pk, &alt_message);
+
+        let (verified, _counters, invoke_ms, total_cycles) = invoke_guest(
+            PLUM_VERIFY_ELF,
+            PLUM_VERIFY_ID,
+            pp,
+            &t_pk,
+            &t_msg,
+            &t_sig,
+        );
+
+        let expected = case.expected_accept();
+        let pass = verified == expected;
+        if !pass {
+            all_pass = false;
+        }
+        println!(
+            "{:24}  expected={:5}  got={:5}  {:>4}  total_cycles={:>11}  elapsed={:.0}ms",
+            case.name(),
+            expected,
+            verified,
+            if pass { "PASS" } else { "FAIL" },
+            total_cycles.unwrap_or(0),
+            invoke_ms,
+        );
+    }
+    println!();
+    if all_pass {
+        println!("=== ALL {} CASES PASS — adversarial probe held ===", cases.len());
+    } else {
+        println!("=== ADVERSARIAL PROBE FAILED — at least one case did not match expected outcome ===");
+        std::process::exit(1);
+    }
 }
 
 fn invoke_guest(
