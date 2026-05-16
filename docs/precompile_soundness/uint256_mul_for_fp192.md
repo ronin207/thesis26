@@ -155,12 +155,20 @@ release). Therefore the returned `Fp192`'s canonical `value` equals
   re-derive the reduction over the precompiled `Fp192::mul`; this is
   outside the soundness-of-precompile scope but worth noting.**
 
-- **Zero-knowledge.** The thesis claim is proof-time reduction, not
-  zero-knowledge. SP1's STARK is not currently ZK in all configurations
-  (the SDK exposes a `zk_pad` parameter and tunable ZK modes). The
-  precompile does not change this property — it neither adds nor
-  removes ZK leakage relative to the surrounding rv32im trace. For
-  thesis purposes we treat ZK as out-of-scope.
+- **Zero-knowledge — orthogonal to the thesis claim.** The thesis goal
+  (per the project CLAUDE.md and the §"A→B template") is
+  *proof-generation time reduction* on a personal PC, not
+  zero-knowledge. Routing `Fp192::mul` through `UINT256_MUL` /
+  `sys_bigint` is ZK-neutral: the precompile chip's trace columns are
+  bound by the same AIR commitment scheme as the rest of the rv32im
+  execution; it neither adds nor removes leakage relative to the
+  surrounding trace. Both SP1 and RISC0 expose configurable ZK modes
+  (SP1's `zk_pad` and ZK proof types; RISC0's `ZK` proof variant) that
+  can be enabled orthogonally without changing this precompile suite.
+  ZK analysis is therefore not pursued in this thesis and is filed as
+  future work for downstream applications (e.g. private signature
+  verification, anonymous credentials) that build on top of this
+  precompile suite.
 
 - **Composability with the future Griffin AIR.** A third deliverable
   (Griffin Fp192 permutation AIR) is planned. **Cross-precompile
