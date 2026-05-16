@@ -75,7 +75,15 @@ fn main() {
         .init();
     info!("PLUM zkVM Phase 11 — three-level attribution measurement");
 
-    let pp = plum_setup(128).expect("setup");
+    // Security-level sweep: λ=80 fits cycle/memory budget; λ=128 hits
+    // RAM ceiling on 24 GB M5 Pro. Override via PLUM_SECURITY env var
+    // (80 / 100 / 128). Default to 80 for on-device measurability.
+    let security_level: usize = std::env::var("PLUM_SECURITY")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(80);
+    info!("PLUM security level: {}", security_level);
+    let pp = plum_setup(security_level).expect("setup");
     let mut keygen_rng = ChaCha20Rng::seed_from_u64(0x504C_554D_0000_0001);
     let (sk, pk) = plum_keygen(&pp, &mut keygen_rng);
     let message = b"plum-zkvm-phase-11".to_vec();

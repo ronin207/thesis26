@@ -41,7 +41,15 @@ fn main() {
     sp1_sdk::utils::setup_logger();
 
     let mut rng = ChaCha20Rng::seed_from_u64(0x504C554D5F535031);
-    let pp: PlumPublicParams = plum_setup(128).expect("setup");
+    // Security-level sweep: λ=80 fits on 24 GB M5 Pro; λ=128 OOMs
+    // (per docs/precompile_soundness measurements, May 2026).
+    // Override at runtime via PLUM_SECURITY env var (80/100/128).
+    let security_level: usize = std::env::var("PLUM_SECURITY")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(80);
+    let pp: PlumPublicParams = plum_setup(security_level).expect("setup");
+    println!("=== PLUM-{} verify on SP1 ===", security_level);
     let (sk, pk): (PlumSecretKey, PlumPublicKey) = plum_keygen(&pp, &mut rng);
 
     let message = b"sp1 smoke: plum verify with SHA3 hasher".to_vec();

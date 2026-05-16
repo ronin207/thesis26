@@ -80,9 +80,15 @@ pub fn security_profile(security_level: usize) -> Option<PlumSecurityProfile> {
         80 => PlumSecurityProfile {
             security_level: 80,
             l: 1 << 12, // L = 4096 — matches the paper's "L = 2^12" remark
+            // B = 16 derived from λ=80 / log₂(t=256) = 10 plus paper-style
+            // ~1.6× safety buffer; paper only tabulates (m, n, B) at λ=128
+            // (§3.3 p. 123), so we extend the same construction by
+            // preserving m=4 (the sumcheck dimension, paper-fixed) and
+            // setting n=4 so that m·n = B = 16. (λ=100 would need m=3 or
+            // a non-divisor decomposition; deferred until needed.)
             b: 16,
             m: 4,
-            n: 7,
+            n: 4,
             kappa_0: 16,
             d_star: 128,
             d_stop: 32,
