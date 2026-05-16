@@ -31,6 +31,11 @@ std = [
     "once_cell/std",
 ]
 guest = []
+# `sp1` routes `Fp192::mul` (and dependants) through SP1's `UINT256_MUL`
+# precompile syscall when compiled for the SP1 zkVM target. Used by the
+# `platforms/zkvms/sp1` PLUM-Verify guest. No effect on host builds or
+# other targets (the cfg also checks `target_os = "zkvm"`).
+sp1 = ["dep:sp1-zkvm"]
 snark_harness = []
 euf_cma_harness = []
 libiop_multicore = []
@@ -57,6 +62,10 @@ toml = { version = "0.8", features = ["parse"], optional = true }
 base64 = { version = "0.22", optional = true }
 flate2 = { version = "1.0", optional = true }
 rmpv = { version = "1.3", optional = true }
+
+# SP1 zkVM-side precompile syscalls (UINT256_MUL etc.). Gated by the
+# `sp1` feature; not pulled in for risc0 / Jolt builds.
+sp1-zkvm = { version = "6.0.1", optional = true }
 
 [build-dependencies]
 cmake = "0.1.54"

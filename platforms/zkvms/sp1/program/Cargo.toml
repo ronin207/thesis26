@@ -12,4 +12,4 @@ sp1-zkvm = "6.0.1"
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 bincode = "1.3"
 # vc-pqc: PLUM uses std::collections; Loquat side ignored here.
-vc-pqc = { path = "../../../..", default-features = false, features = ["guest", "std"] }
+vc-pqc = { path = "../../../..", default-features = false, features = ["guest", "std", "sp1"] }

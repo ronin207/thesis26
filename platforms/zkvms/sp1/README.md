@@ -23,11 +23,24 @@ PLUM_HOST_MODE=execute ./target/release/plum_host   # executor (fast, no proof)
 PLUM_HOST_MODE=prove   ./target/release/plum_host   # real proof + verify
 ```
 
-## Last measured baseline
+## Measurements (PLUM-128 verify, SHA3 hasher, executor mode)
 
-- Executor mode: `accepted=true`, **289,778,709 cycles**, ~3.2 s wall-clock
-  on M-series Mac. This is the field-mismatch baseline — every PLUM Fp192
-  operation is emulated as multi-limb arithmetic over BabyBear.
+| Variant                                  | Cycles      | UINT256_MUL | Δ vs baseline |
+|------------------------------------------|------------:|------------:|--------------:|
+| Baseline (Fp192 mul emulated, no precompile) | 289,778,709 | 0          | —            |
+| + Phase 1: `Fp192::mul → UINT256_MUL`        | 276,643,994 | 16,920     | −4.5 %       |
+| + Phase 2: PRF as square-and-multiply over Fp192::mul | 240,857,140 | 112,902 | **−16.9 %**  |
+
+All measurements: fixed RNG seed `0x504C554D5F535031`, message
+`"sp1 smoke: plum verify with SHA3 hasher"`, executor mode (no proof).
+M-series Mac wall-clock ~2.1 s (Phase 1+2) vs 3.2 s (baseline).
+
+The remaining ~83 % of cycles is Griffin permutation work (matrix-mul
++ d=3 S-box layer). The Griffin AIR (Phase 3, not yet built) is the
+targeted optimisation for that share.
+
+Soundness arg for Phase 1 + Phase 2 lives at
+`docs/precompile_soundness/uint256_mul_for_fp192.md`.
 
 ## Not yet ported from RISC0
 

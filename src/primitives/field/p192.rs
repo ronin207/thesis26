@@ -148,7 +148,18 @@ impl Fp192 {
     }
 
     pub fn to_limbs(&self) -> [u64; 4] {
-        biguint_to_limbs(&self.value)
+        // Allocation-free fast path: walk `BigUint`'s internal u64 digits
+        // directly. The previous `to_bytes_le` path heap-allocated a
+        // `Vec<u8>` per call, dominating the cost of the SP1
+        // `UINT256_MUL` syscall in the precompile path. Each `Fp192::mul`
+        // calls `to_limbs` twice and `from_limbs` once; killing the
+        // allocations there is what makes the syscall actually faster
+        // than `BigUint::modpow` per-mul.
+        let mut out = [0u64; 4];
+        for (i, d) in self.value.iter_u64_digits().enumerate().take(4) {
+            out[i] = d;
+        }
+        out
     }
 
     pub fn from_biguint(bi: BigUint) -> Self {
@@ -212,21 +223,32 @@ impl Fp192 {
     /// is what zkVM-rv32im would see; the concrete BigUint implementation
     /// is a Phase 1.5 hot-path concern).
     pub fn pow_biguint(&self, exp: &BigUint) -> Self {
+        // Square-and-multiply over `Fp192::mul`, so every multiplication
+        // routes through the precompile path when one is active (Phase-1
+        // SP1 UINT256_MUL syscall). This is the "t-th Power Residue PRF
+        // module" deliverable: PLUM's PRF is exactly `(a + K)^((p-1)/t)`,
+        // an `199-bit` exponentiation that boils down to ~200 squarings
+        // + ~100 mid-folds. With Phase-1 active each Fp192 mul becomes
+        // a single syscall, so PRF cost drops from ~300 BigUint-modpow
+        // emulated muls to ~300 syscalls.
+        //
+        // Under no precompile this loop is slower than `BigUint::modpow`
+        // (the latter has carrysave-style optimisations); the comment
+        // before this change deliberately deferred that as a "Phase 1.5
+        // hot-path concern". Phase 1 here resolves it.
         let bits = exp.bits();
-        if bits > 0 {
-            let mut popcount: u64 = 0;
-            for i in 0..bits {
-                if exp.bit(i) {
-                    popcount += 1;
-                }
+        if bits == 0 {
+            return Self::one();
+        }
+        let mut result = Self::one();
+        // Iterate MSB-down for left-to-right square-and-multiply.
+        for i in (0..bits).rev() {
+            result = result.clone() * result.clone();
+            if exp.bit(i) {
+                result = result * self.clone();
             }
-            // Square-and-multiply: (bits - 1) squarings, popcount muls.
-            let muls = bits.saturating_sub(1).saturating_add(popcount);
-            FP192_MUL_COUNT.fetch_add(muls, AtomicOrdering::Relaxed);
         }
-        Self {
-            value: self.value.modpow(exp, &MODULUS),
-        }
+        result
     }
 
     /// Convenience wrapper for small (u128-fitting) exponents.
@@ -337,9 +359,46 @@ impl Mul for Fp192 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
         FP192_MUL_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
-        let product = self.value * rhs.value;
-        Self {
-            value: product % MODULUS.clone(),
+
+        // Phase-1 precompile path. When compiled for the SP1 zkVM with the
+        // `sp1` feature on, route the multiplication through SP1's
+        // `UINT256_MUL` precompile (~10 cycles vs ~243 cycles for the
+        // emulated multi-limb path). The modulus is supplied per-call in
+        // the syscall's `y_and_modulus` block; we pad the 199-bit modulus
+        // and operands to 256 bits with a zero top limb.
+        //
+        // This is the "192-bit modular arithmetic module" deliverable.
+        // Soundness: SP1's `UINT256_MUL` AIR is upstream-audited; we are
+        // a consumer, not the AIR author. A short note in
+        // `docs/precompile_soundness/uint256_mul.md` records the
+        // reduction (PLUM Fp192 mul ↦ uint256_mulmod with PLUM's modulus
+        // in the runtime-supplied `modulus` slot).
+        #[cfg(all(target_os = "zkvm", feature = "sp1"))]
+        {
+            let mut x_limbs = self.to_limbs();
+            let y_limbs = rhs.to_limbs();
+            // SP1's syscall reads 8 u64s starting at the second pointer:
+            // first 4 = y, second 4 = modulus.
+            let mut y_and_modulus = [0u64; 8];
+            y_and_modulus[..4].copy_from_slice(&y_limbs);
+            y_and_modulus[4..].copy_from_slice(&MODULUS_LIMBS);
+            unsafe {
+                sp1_zkvm::syscalls::syscall_uint256_mulmod(
+                    &mut x_limbs as *mut [u64; 4],
+                    y_and_modulus.as_ptr() as *const [u64; 4],
+                );
+            }
+            return Self::from_limbs(x_limbs);
+        }
+
+        // Host / non-SP1-zkvm fallback: multi-limb emulation via
+        // num_bigint. ~243 rv32im cycles per call without precompile.
+        #[cfg(not(all(target_os = "zkvm", feature = "sp1")))]
+        {
+            let product = self.value * rhs.value;
+            Self {
+                value: product % MODULUS.clone(),
+            }
         }
     }
 }

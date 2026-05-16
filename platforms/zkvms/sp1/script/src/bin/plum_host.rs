@@ -65,11 +65,20 @@ fn main() {
                 .expect("execute failed");
             let accepted: bool =
                 bincode::deserialize(output.as_slice()).expect("decode commit");
+            let total_syscalls = report.total_syscall_count();
+            let uint256_mul_count = report
+                .syscall_counts
+                .iter()
+                .find(|(code, _)| format!("{:?}", code) == "UINT256_MUL")
+                .map(|(_, &n)| n)
+                .unwrap_or(0);
             println!(
-                "accepted={} cycles={} elapsed_ms={}",
+                "accepted={} cycles={} elapsed_ms={} syscalls={} uint256_mul={}",
                 accepted,
                 report.total_instruction_count(),
                 t.elapsed().as_millis() as u64,
+                total_syscalls,
+                uint256_mul_count,
             );
             assert!(accepted, "guest rejected an honest PLUM signature");
         }
