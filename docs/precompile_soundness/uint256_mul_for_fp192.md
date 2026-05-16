@@ -95,21 +95,43 @@ fallback (`product = a.value * b.value; product % MODULUS`).
 Baseline (Fp192 mul emulated via `BigUint::mul` + `%`): 289,778,709
 RISC-V cycles per PLUM-128 verify with `PlumSha3Hasher`.
 
-With this precompile module enabled (Phase 1 + Phase 2 — Phase 2 is the
-sibling "t-th PRF" deliverable, which rewrites `pow_biguint` as
-square-and-multiply over the `Fp192::mul` that's now syscall-backed,
-so PRF lookups inherit the speedup):
+Cumulative reductions (each row adds to the previous):
 
-    cycles                   240,857,140   (Δ −48,921,569,  −16.9%)
-    UINT256_MUL syscall  fires    112,902
-    executor wall-clock          ~2.1 s   (3.2 s baseline)
+    Phase 1   Fp192::mul → UINT256_MUL syscall          276,643,994  (−4.5%)
+    Phase 2   pow_biguint as SaM over Fp192::mul        240,857,140  (−16.9%)
+    Skip-mod  drop `% MODULUS` on syscall return        179,952,920  (−37.9%)
+
+    UINT256_MUL syscall fires    112,902
+    executor wall-clock          ~1.78 s   (3.2 s baseline)
 
 Source data: `platforms/zkvms/sp1/script/target/release/plum_host`
 under `PLUM_HOST_MODE=execute`. Reproducible — fixed RNG seed
 `0x504C554D5F535031`, fixed message
 `"sp1 smoke: plum verify with SHA3 hasher"`.
 
-The remaining 83 % of cycles are dominated by Griffin permutation
+### The skip-mod step in detail
+
+The naive Phase-1 wrapper called `Self::from_limbs(x_limbs)` to
+re-construct an `Fp192` after the syscall. `from_limbs` delegated to
+`from_biguint`, which always applied `bi % MODULUS.clone()`. This was
+defensive but redundant: the AIR (1) constrains the output to satisfy
+`x' < m`, and we pass `m = p`, so the syscall return value is already
+in `[0, p)`. The `%` step was a wasted BigUint allocation roughly
+540 cycles per call × 112,902 calls ≈ 61 M cycles. Replacing
+`from_limbs(...)` with `Self { value: limbs_to_biguint(&x_limbs) }`
+removes it.
+
+**Soundness implication.** The skip-mod relies on (1) — i.e. on the
+AIR's range-check on `x'`. If a future SP1 release weakened that
+range-check (unlikely; it is part of the standard
+`FieldOpCols`/`FieldDenominator`/etc. pattern), the saved
+allocation becomes load-bearing for canonicality and the optimisation
+would need to be reverted. A defensive `debug_assert!(x_limbs < p as
+limbs)` would catch the regression but is not present in the
+release-build path.
+
+The remaining ~62 % of cycles is dominated by Griffin permutation
 work that emulates Griffin's matrix-multiply + d=3 S-box layer over
 the same Fp192 arithmetic. The Griffin AIR (Phase 3) is the targeted
-optimisation for that share.
+optimisation for that share. Path B (risc0 + Zirgen) is the chosen
+construction vehicle for that AIR; SP1 forking deferred.

@@ -388,7 +388,13 @@ impl Mul for Fp192 {
                     y_and_modulus.as_ptr() as *const [u64; 4],
                 );
             }
-            return Self::from_limbs(x_limbs);
+            // Skip the `% MODULUS` step that `Self::from_limbs` would
+            // normally apply via `from_biguint`: SP1's UINT256_MUL AIR
+            // already constrains the result to `[0, modulus)`, so the
+            // re-reduction is a wasted BigUint allocation.
+            return Self {
+                value: limbs_to_biguint(&x_limbs),
+            };
         }
 
         // Host / non-SP1-zkvm fallback: multi-limb emulation via

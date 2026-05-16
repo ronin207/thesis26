@@ -29,11 +29,16 @@ PLUM_HOST_MODE=prove   ./target/release/plum_host   # real proof + verify
 |------------------------------------------|------------:|------------:|--------------:|
 | Baseline (Fp192 mul emulated, no precompile) | 289,778,709 | 0          | —            |
 | + Phase 1: `Fp192::mul → UINT256_MUL`        | 276,643,994 | 16,920     | −4.5 %       |
-| + Phase 2: PRF as square-and-multiply over Fp192::mul | 240,857,140 | 112,902 | **−16.9 %**  |
+| + Phase 2: PRF as square-and-multiply over Fp192::mul | 240,857,140 | 112,902 | −16.9 %      |
+| + skip redundant `% MODULUS` on syscall return | 179,952,920 | 112,902  | **−37.9 %**  |
 
 All measurements: fixed RNG seed `0x504C554D5F535031`, message
 `"sp1 smoke: plum verify with SHA3 hasher"`, executor mode (no proof).
-M-series Mac wall-clock ~2.1 s (Phase 1+2) vs 3.2 s (baseline).
+M-series Mac wall-clock ~1.78 s (full Phase-A stack) vs 3.2 s (baseline).
+The last step is a one-line fix: SP1's UINT256_MUL AIR already
+constrains the result to `[0, modulus)`, so `from_limbs`'s call into
+`from_biguint`'s `bi % MODULUS.clone()` was a wasted BigUint allocation
+×113K syscalls. Saves ~540 cycles per syscall.
 
 The remaining ~83 % of cycles is Griffin permutation work (matrix-mul
 + d=3 S-box layer). The Griffin AIR (Phase 3, not yet built) is the
