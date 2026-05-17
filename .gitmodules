@@ -1,3 +1,6 @@
 [submodule "libiop"]
 	path = submodules/libiop
 	url = https://github.com/scipr-lab/libiop.git
+[submodule "sp1"]
+	path = submodules/sp1
+	url = https://github.com/succinctlabs/sp1.git

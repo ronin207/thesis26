@@ -6,3 +6,41 @@ members = ["program", "script"]
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+
+# ─── Phase 3 (Griffin Fp192 AIR) — SP1 fork override ──────────────────
+#
+# Route all sp1-* dependencies through our forked SP1 checkout at
+# `submodules/sp1` (pinned to v6.2.1 commit 98a376e8). This lets us
+# add a custom Griffin Fp192 precompile chip without waiting on
+# upstream SP1 to merge it.
+#
+# Scope of the fork: additive only. We add a new chip
+# (`griffin_fp192/`) + new SyscallCode + PrecompileEvent variants +
+# user-facing syscall stub. All existing SP1 functionality (rv32im
+# ISA, STARK prover, other precompiles, SDK API) stays identical to
+# upstream v6.2.1. If those Cargo.lock-pinned versions ever drift,
+# `cd submodules/sp1 && git status` will surface the mismatch.
+[patch.crates-io]
+sp1-build              = { path = "../../../submodules/sp1/crates/build" }
+sp1-cli                = { path = "../../../submodules/sp1/crates/cli" }
+sp1-core-executor      = { path = "../../../submodules/sp1/crates/core/executor" }
+sp1-core-executor-runner = { path = "../../../submodules/sp1/crates/core/runner" }
+sp1-core-machine       = { path = "../../../submodules/sp1/crates/core/machine" }
+sp1-cuda               = { path = "../../../submodules/sp1/crates/cuda" }
+sp1-curves             = { path = "../../../submodules/sp1/crates/curves" }
+sp1-derive             = { path = "../../../submodules/sp1/crates/derive" }
+sp1-helper             = { path = "../../../submodules/sp1/crates/helper" }
+sp1-hypercube          = { path = "../../../submodules/sp1/crates/hypercube" }
+sp1-jit                = { path = "../../../submodules/sp1/crates/core/jit" }
+sp1-lib                = { path = "../../../submodules/sp1/crates/zkvm/lib" }
+sp1-primitives         = { path = "../../../submodules/sp1/crates/primitives" }
+sp1-prover             = { path = "../../../submodules/sp1/crates/prover" }
+sp1-prover-types       = { path = "../../../submodules/sp1/crates/prover-types" }
+sp1-recursion-circuit  = { path = "../../../submodules/sp1/crates/recursion/circuit" }
+sp1-recursion-compiler = { path = "../../../submodules/sp1/crates/recursion/compiler" }
+sp1-recursion-executor = { path = "../../../submodules/sp1/crates/recursion/executor" }
+sp1-recursion-gnark-ffi = { path = "../../../submodules/sp1/crates/recursion/gnark-ffi" }
+sp1-recursion-machine  = { path = "../../../submodules/sp1/crates/recursion/machine" }
+sp1-sdk                = { path = "../../../submodules/sp1/crates/sdk" }
+sp1-verifier           = { path = "../../../submodules/sp1/crates/verifier" }
+sp1-zkvm               = { path = "../../../submodules/sp1/crates/zkvm/entrypoint" }
