@@ -180,6 +180,37 @@ release). Therefore the returned `Fp192`'s canonical `value` equals
 
 ## Measurements
 
+### First reported real on-device proof-gen — RISC0 PLUM-80, M5 Pro 24 GB
+
+Recorded 2026-05-17 06:41 JST after 6 h 19 m 22 s of continuous
+local proving on a 24 GB M5 Pro MacBook (no network prover, no
+RISC0_DEV_MODE):
+
+| Metric | Value |
+|---|---:|
+| Verified | `true` |
+| Wall-clock proof gen | **22,761,726 ms** = 6 h 19 m 22 s |
+| Total cycles | 143,654,912 |
+| Verify cycles | 121,524,143 |
+| Signature size | 47,976 B (47 KB) |
+| cyc / Fp192·mul | 1,751 |
+| UINT256_MUL (sys_bigint) calls | 69,402 |
+| Sign-side wall clock (host-native) | 344 ms |
+
+This is, to our knowledge, the **first reported real on-device proof
+generation of a PLUM signature verification inside a zkVM**. Search
+returned no comparators (Loquat paper measures pure-Rust + Aurora
+aggregation, not in-zkVM). PLUM-128 at the same precompile suite
+remains out of reach on 24 GB (memory wall, OOM/silent-kill at
+1m55s SP1 / 2hr RISC0).
+
+For comparator context: classical signature verification in
+production zkVMs (ECDSA secp256k1 with precompile in SP1, Ed25519
+in RISC0) typically completes in ~3–5 M cycles and seconds-of-prove
+time. PLUM-80 here is ~30× more cycles and ~10³× longer real-prove
+time — the inherent cost of a 199-bit-field PQ scheme inside a
+small-field zkVM, partially offset by our precompile suite.
+
 ### SP1 v6.2.1 — PLUM-128 verify, SHA3 hasher, executor mode
 
 Baseline (Fp192 mul emulated via `BigUint::mul` + `%`): 289,778,709
