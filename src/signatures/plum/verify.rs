@@ -68,13 +68,16 @@
 //! test." For deployment-grade EUF-CMA security, the STIR portion
 //! (Phase 9c, follow-up commit) must land.
 
+use core::sync::atomic::Ordering as AtomicOrdering;
+
 use serde::{Deserialize, Serialize};
 
-use super::field_p192::Fp192;
-use super::hasher::PlumHasher;
+use super::field_p192::{Fp192, FP192_ADD_COUNT, FP192_MUL_COUNT};
+use super::griffin::PLUM_GRIFFIN_PERM_COUNT;
+use super::hasher::{PLUM_HASHER_COMPRESS_COUNT, PlumHasher};
 use super::keygen::PlumPublicKey;
 use super::merkle::PlumMerkleTree;
-use super::prf::DEFAULT_PARAMS;
+use super::prf::{DEFAULT_PARAMS, PLUM_PRF_EVAL_COUNT};
 use super::setup::PlumPublicParams;
 use super::sign::PlumSignature;
 use super::stir_poly::{degree_correction_polynomial, evaluate, lagrange_interpolate};
@@ -170,8 +173,11 @@ pub fn plum_verify<H: PlumHasher>(
 ) -> VerificationOutcome {
     let m = pp.m;
     let n = pp.n;
-    let b = pp.b;
-    if sig.t_tags.len() != b || sig.o_responses.len() != b {
+    let _b = pp.b;
+    // Signature carries m·n PRF tests + m·n residuosity responses
+    // (one per (i,j) grid position). b is the security parameter
+    // (minimum tests required) — `m·n ≥ b` is the soundness condition.
+    if sig.t_tags.len() != m * n || sig.o_responses.len() != m * n {
         return VerificationOutcome::Reject(VerificationFailure::MalformedSignatureShape);
     }
     if pk.symbols.len() != pp.l {
@@ -184,14 +190,17 @@ pub fn plum_verify<H: PlumHasher>(
         pp.t
     );
 
+    snapshot_record("start");
+
     // ─── Step 1: replay FS transcript through Phase 5 ───
     let mut transcript = PlumTranscript::<H>::new(b"PLUM/sign/v1");
     transcript.append_bytes(b"M", message);
     transcript.append_root(b"root_c", &sig.root_c);
     transcript.append_bytes(b"T", &sig.t_tags);
-    // Phase 2: challenge indices into I.
+    // Phase 2: challenge indices into I. Must match sign — m·n indices,
+    // not b (security parameter); see relaxed assertion in sign.rs.
     let challenge_indices: Vec<usize> =
-        transcript.challenge_indices(b"phase2/indices", b, pp.l);
+        transcript.challenge_indices(b"phase2/indices", m * n, pp.l);
     let i_values: Vec<Fp192> = challenge_indices
         .iter()
         .map(|&idx| pp.challenge_set[idx].clone())
@@ -222,6 +231,8 @@ pub fn plum_verify<H: PlumHasher>(
         return VerificationOutcome::Reject(VerificationFailure::MalformedSignatureShape);
     }
 
+    snapshot_record("after_step1_fs_replay");
+
     // ─── Step 3 residuosity (Alg 6 line 21) ───
     let prf = &*DEFAULT_PARAMS;
     for j in 0..n {
@@ -249,6 +260,8 @@ pub fn plum_verify<H: PlumHasher>(
             }
         }
     }
+
+    snapshot_record("after_step3_residuosity");
 
     // ─── Step 2 (Alg 6 lines 4–12) + Step 3 STIR portion (lines 13–18) ───
     //
@@ -768,7 +781,142 @@ pub fn plum_verify<H: PlumHasher>(
         }
     }
 
+    snapshot_record("end");
+
     VerificationOutcome::Accept
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Per-phase cycle attribution for "where does verify spend its cycles?"
+// ─────────────────────────────────────────────────────────────────────
+
+/// Snapshot of all instrumentation counters at a single point in time.
+/// Reading the global atomics is ~10 cycles each; cheap to insert at
+/// phase boundaries even in release builds.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PlumPhaseSnapshot {
+    pub label: String,
+    pub fp192_muls: u64,
+    pub fp192_adds: u64,
+    pub griffin_perms: u64,
+    pub prf_evals: u64,
+    pub hash_compresses: u64,
+}
+
+impl PlumPhaseSnapshot {
+    fn take(label: &str) -> Self {
+        Self {
+            label: label.to_string(),
+            fp192_muls: FP192_MUL_COUNT.load(AtomicOrdering::Relaxed),
+            fp192_adds: FP192_ADD_COUNT.load(AtomicOrdering::Relaxed),
+            griffin_perms: PLUM_GRIFFIN_PERM_COUNT.load(AtomicOrdering::Relaxed),
+            prf_evals: PLUM_PRF_EVAL_COUNT.load(AtomicOrdering::Relaxed),
+            hash_compresses: PLUM_HASHER_COMPRESS_COUNT.load(AtomicOrdering::Relaxed),
+        }
+    }
+
+    /// Compute `self - earlier` componentwise. Used to get per-phase
+    /// deltas from a sequence of snapshots.
+    pub fn delta(&self, earlier: &Self) -> Self {
+        Self {
+            label: self.label.clone(),
+            fp192_muls: self.fp192_muls.saturating_sub(earlier.fp192_muls),
+            fp192_adds: self.fp192_adds.saturating_sub(earlier.fp192_adds),
+            griffin_perms: self.griffin_perms.saturating_sub(earlier.griffin_perms),
+            prf_evals: self.prf_evals.saturating_sub(earlier.prf_evals),
+            hash_compresses: self
+                .hash_compresses
+                .saturating_sub(earlier.hash_compresses),
+        }
+    }
+}
+
+/// Result of `plum_verify_phased`: outcome + per-phase delta counters.
+/// The labels correspond to the PLUM Algorithm-6 steps as the codebase
+/// implements them:
+///   - `step1_fs_replay` — Step 1, Alg 6 lines 2–3. Transcript hashing,
+///     challenge expansion (h_1..h_R), φ + ε sampling.
+///   - `step3_residuosity` — Step 3, Alg 6 line 21. For each (i,j),
+///     `L_0^t(o_{i,j}) =? pk_{I_{i,j}} + T_{i,j}`. m·n PRF evals.
+///   - `step2_plus_stir` — Step 2 (Alg 6 lines 4–12, sumcheck identity
+///     via Lagrange interpolation over H) + Step 3 STIR portion
+///     (lines 13–18, fold-consistency + final-polynomial check). Most
+///     of the algebraic work lives here.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlumVerifyPhaseReport {
+    pub outcome: VerificationOutcome,
+    pub step1_fs_replay: PlumPhaseSnapshot,
+    pub step3_residuosity: PlumPhaseSnapshot,
+    pub step2_plus_stir: PlumPhaseSnapshot,
+}
+
+/// Side channel used by `plum_verify` to record snapshots at each
+/// Step boundary. `plum_verify_phased` swaps the contents into a
+/// `PlumVerifyPhaseReport` after the verify call returns.
+///
+/// Single-threaded only — concurrent verifies will race. Within the
+/// zkVM guest this is fine (guests are single-threaded by
+/// construction). Host-side callers must serialise.
+static VERIFY_PHASE_SNAPSHOTS: std::sync::Mutex<Vec<PlumPhaseSnapshot>> =
+    std::sync::Mutex::new(Vec::new());
+
+fn snapshot_record(label: &str) {
+    if let Ok(mut v) = VERIFY_PHASE_SNAPSHOTS.lock() {
+        v.push(PlumPhaseSnapshot::take(label));
+    }
+}
+
+/// Same semantics as `plum_verify`, but additionally returns per-phase
+/// counter deltas (Fp192::mul/add, Griffin perm, PRF eval, hasher
+/// compress). The verify itself is unchanged — we record snapshots at
+/// the three Step boundaries via `snapshot_record` calls inserted in
+/// `plum_verify` and read them out here. Atomic-counter overhead is
+/// ~40 cycles per snapshot × 4 snapshots = ~160 cycles vs ~10⁸ for
+/// the verify itself; negligible.
+///
+/// Useful for "where do PLUM verify cycles concentrate?" diagnostics
+/// in both host and zkVM-guest contexts.
+pub fn plum_verify_phased<H: PlumHasher>(
+    pp: &PlumPublicParams,
+    pk: &PlumPublicKey,
+    message: &[u8],
+    sig: &PlumSignature,
+) -> PlumVerifyPhaseReport {
+    // Clear any leftover snapshots from a prior call, then run verify
+    // (which pushes 4 snapshots at the phase boundaries).
+    if let Ok(mut v) = VERIFY_PHASE_SNAPSHOTS.lock() {
+        v.clear();
+    }
+    let outcome = plum_verify::<H>(pp, pk, message, sig);
+    let snaps = VERIFY_PHASE_SNAPSHOTS
+        .lock()
+        .map(|v| v.clone())
+        .unwrap_or_default();
+
+    // Expected snapshot sequence (if verify ran past the length
+    // checks): start, after-step1, after-step3-residuosity, end.
+    // Compute deltas. If verify rejected early (malformed length),
+    // we'll have just the start snapshot — return zeros.
+    let (step1, step3res, step2_stir) = if snaps.len() >= 4 {
+        (
+            snaps[1].delta(&snaps[0]),
+            snaps[2].delta(&snaps[1]),
+            snaps[3].delta(&snaps[2]),
+        )
+    } else {
+        (
+            PlumPhaseSnapshot::default(),
+            PlumPhaseSnapshot::default(),
+            PlumPhaseSnapshot::default(),
+        )
+    };
+
+    PlumVerifyPhaseReport {
+        outcome,
+        step1_fs_replay: step1,
+        step3_residuosity: step3res,
+        step2_plus_stir: step2_stir,
+    }
 }
 
 #[cfg(test)]
@@ -792,6 +940,85 @@ mod tests {
         let sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, b"hello", &mut rng);
         let outcome = plum_verify::<PlumSha3Hasher>(&pp, &pk, b"hello", &sig);
         assert_eq!(outcome, VerificationOutcome::Accept);
+    }
+
+    /// Per-phase cycle attribution diagnostic. Runs an honest verify
+    /// at each supported security level and prints the per-phase
+    /// counter deltas. Helps answer "where does verify spend its
+    /// cycles?" — useful for deciding whether Phase 3 Griffin AIR is
+    /// the right precompile target or if e.g. STIR is the bigger
+    /// chunk. Always passes (sanity), but the cycle accounting prints
+    /// only with `cargo test ... -- --nocapture`.
+    #[test]
+    fn per_phase_attribution_across_security_levels() {
+        for &lambda in &[80usize, 100, 128] {
+            let pp = plum_setup(lambda).expect("setup");
+            let mut rng = ChaCha20Rng::seed_from_u64(0xE000_0000 + lambda as u64);
+            let (sk, pk) = plum_keygen(&pp, &mut rng);
+            let msg = format!("phase attribution probe λ={}", lambda);
+            let sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, msg.as_bytes(), &mut rng);
+            let report = plum_verify_phased::<PlumSha3Hasher>(
+                &pp,
+                &pk,
+                msg.as_bytes(),
+                &sig,
+            );
+            assert_eq!(
+                report.outcome,
+                VerificationOutcome::Accept,
+                "λ={} phased verify rejected honest sig",
+                lambda
+            );
+            println!("\n── PLUM-{} verify phase attribution (host-native counts) ──", lambda);
+            println!("phase                  fp192_muls  fp192_adds  griffin  prf  hash");
+            for (name, snap) in [
+                ("step1_fs_replay", &report.step1_fs_replay),
+                ("step3_residuosity", &report.step3_residuosity),
+                ("step2_plus_stir", &report.step2_plus_stir),
+            ] {
+                println!(
+                    "{:22} {:>10} {:>11} {:>8} {:>4} {:>5}",
+                    name,
+                    snap.fp192_muls,
+                    snap.fp192_adds,
+                    snap.griffin_perms,
+                    snap.prf_evals,
+                    snap.hash_compresses,
+                );
+            }
+            let total_muls = report.step1_fs_replay.fp192_muls
+                + report.step3_residuosity.fp192_muls
+                + report.step2_plus_stir.fp192_muls;
+            if total_muls > 0 {
+                println!(
+                    "share of muls in step2+stir: {:.1}%",
+                    100.0 * report.step2_plus_stir.fp192_muls as f64 / total_muls as f64
+                );
+            }
+        }
+    }
+
+    /// Full sign+verify roundtrip for every supported security level.
+    /// Catches profile bugs that only manifest end-to-end (the λ=80
+    /// (m, n) bug fixed in May 2026 was discovered exactly this way —
+    /// the unit tests at λ=128 never exercised the smaller profiles).
+    #[test]
+    fn sign_then_verify_accepts_all_security_levels() {
+        for &lambda in &[80usize, 100, 128] {
+            let pp = plum_setup(lambda)
+                .unwrap_or_else(|e| panic!("setup λ={}: {:?}", lambda, e));
+            let mut rng = ChaCha20Rng::seed_from_u64(0xD000_0000 + lambda as u64);
+            let (sk, pk) = plum_keygen(&pp, &mut rng);
+            let msg = format!("hello at λ={}", lambda);
+            let sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, msg.as_bytes(), &mut rng);
+            let outcome = plum_verify::<PlumSha3Hasher>(&pp, &pk, msg.as_bytes(), &sig);
+            assert_eq!(
+                outcome,
+                VerificationOutcome::Accept,
+                "honest sign+verify roundtrip failed at λ={}",
+                lambda
+            );
+        }
     }
 
     #[test]

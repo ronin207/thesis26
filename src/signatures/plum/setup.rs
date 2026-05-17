@@ -99,9 +99,26 @@ pub fn security_profile(security_level: usize) -> Option<PlumSecurityProfile> {
         100 => PlumSecurityProfile {
             security_level: 100,
             l: 1 << 12,
+            // B = 21 derived from λ=100 / log₂(t=256) = 12.5 plus
+            // paper-style ~1.6× buffer.
+            //
+            // Decomposition: keep m=4 (so |H| = 2m = 8 stays a power
+            // of 2 — the sumcheck FFT requires this; |H|=6 was tried
+            // and failed because PLUM's prime p = 2^64·p_0 + 1 has
+            // no guaranteed order-6 subgroup). With m=4 fixed,
+            // n=6 gives m·n = 24 ≥ B = 21: the protocol stores 24
+            // PRF tests, B=21 of them are required for soundness,
+            // the extra 3 give a free security buffer (~24 bits over
+            // the λ=100 target). This is the relaxation of the
+            // `m·n = B` invariant to `m·n ≥ B` (still gives at-least
+            // λ-bit soundness; over-tested is harmless beyond a
+            // marginal signature-size cost).
+            //
+            // Paper §3.3 only tabulates λ=128 explicitly. This profile
+            // extends that construction conservatively.
             b: 21,
             m: 4,
-            n: 7,
+            n: 6,
             kappa_0: 21,
             d_star: 128,
             d_stop: 32,

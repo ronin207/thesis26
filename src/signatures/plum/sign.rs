@@ -136,14 +136,29 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     let m = pp.m;
     let n = pp.n;
     let b = pp.b;
-    assert_eq!(m * n, b, "setup invariant: m·n = B");
+    // Relaxed from `assert_eq!(m * n, b)` (May 2026): m·n is the actual
+    // number of PRF tests the signature carries; B is the security
+    // parameter (minimum tests required for soundness). m·n > B gives
+    // free security buffer at the cost of slightly larger signatures.
+    // λ=80 has m·n = B exactly (m=4, n=4). λ=100 has m·n = 24 > B = 21
+    // (m=4, n=6 — 3 spare tests) because m=3 would break |H| = 2m = 6
+    // as a power-of-2 (sumcheck FFT requires it). λ=128 has m·n = B
+    // exactly (m=4, n=7).
+    assert!(
+        m * n >= b,
+        "setup invariant violated: m·n ({}) < B ({}); under-tested signature would not meet λ-bit security",
+        m * n,
+        b
+    );
 
     // ============================================================
     // Phase 1 — Commit to secret key and randomness
     // ============================================================
     // r_{i,j} ←$ F_p^* and T_{i,j} = L_0^t(r_{i,j}).
     let mut r_witnesses: Vec<Vec<Fp192>> = Vec::with_capacity(n);
-    let mut t_tags: Vec<u8> = Vec::with_capacity(b);
+    // Capacity = m·n (actual tests stored), not b (security parameter).
+    // These can differ when m·n > b (e.g. λ=100: m·n=24, b=21).
+    let mut t_tags: Vec<u8> = Vec::with_capacity(m * n);
     for _ in 0..n {
         let mut col = Vec::with_capacity(m);
         for _ in 0..m {
@@ -244,14 +259,17 @@ pub fn plum_sign<H: PlumHasher, R: Rng + CryptoRng>(
     // Phase 2 — Residuosity symbols (Alg 3 lines 12–17)
     // ============================================================
     // h_1 = H_1(σ_1, M), then (I_{i,j}) ← Expand(h_1) ∈ I^{B}.
+    // Generate m·n challenge indices (one per (i,j) grid position),
+    // not b: when m·n > b (relaxed assertion case), we need full
+    // i_values coverage of the grid.
     let challenge_indices: Vec<usize> =
-        transcript.challenge_indices(b"phase2/indices", b, pp.l);
+        transcript.challenge_indices(b"phase2/indices", m * n, pp.l);
     let i_values: Vec<Fp192> = challenge_indices
         .iter()
         .map(|&idx| pp.challenge_set[idx].clone())
         .collect();
     // o_{i,j} = (K + I_{i,j}) · r_{i,j}.
-    let mut o_responses = Vec::with_capacity(b);
+    let mut o_responses = Vec::with_capacity(m * n);
     for j in 0..n {
         for i in 0..m {
             let idx = j * m + i;
@@ -755,8 +773,11 @@ mod tests {
         let mut rng = ChaCha20Rng::seed_from_u64(0xC000_0001);
         let (sk, _pk) = plum_keygen(&pp, &mut rng);
         let sig = plum_sign::<PlumSha3Hasher, _>(&pp, &sk, b"hello world", &mut rng);
-        assert_eq!(sig.t_tags.len(), pp.b);
-        assert_eq!(sig.o_responses.len(), pp.b);
+        // At λ=128, m·n = 4·7 = 28 = b exactly. At λ=80 same (m·n=16=b).
+        // At λ=100, m·n=24 > b=21 — see relaxed-assertion comment in
+        // `plum_sign`. The wire format carries m·n entries.
+        assert_eq!(sig.t_tags.len(), pp.m * pp.n);
+        assert_eq!(sig.o_responses.len(), pp.m * pp.n);
         assert_eq!(sig.stir_roots.len(), pp.r_rounds);
         assert_eq!(sig.stir_betas.len(), pp.r_rounds);
         // Semantic degree of f̂_{R+1} is < d_stop = 32 per Algorithm 5
