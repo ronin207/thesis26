@@ -16,3 +16,10 @@ path = "src/lib.rs"
 [dependencies]
 vc-pqc = { path = "../../../.." }
 sp1-core-executor = "6.0.1"
+
+[dev-dependencies]
+# Deterministic randomness for the property test — `rand_chacha`
+# keeps the random vectors reproducible across runs so a CI failure
+# can be re-played locally without flake.
+rand = "0.8"
+rand_chacha = "0.3"

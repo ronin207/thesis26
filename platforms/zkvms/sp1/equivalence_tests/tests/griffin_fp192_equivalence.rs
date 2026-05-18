@@ -144,3 +144,49 @@ fn permutation_matches_reference_on_high_entropy_input() {
         "high-entropy Griffin permutation diverged (suspect: limb ordering)",
     );
 }
+
+#[test]
+fn permutation_matches_reference_on_random_inputs() {
+    // Phase 3d-stage-3 prep: address audit finding A-2
+    // (`docs/precompile_soundness/griffin_fp192.md`). The three
+    // hand-picked vectors above can in principle agree by coincidence
+    // if the executor and reference share a subtle bug that only
+    // shows up on inputs they don't exercise (e.g., a limb-position
+    // mistake that happens to be self-cancelling on the chosen
+    // patterns).
+    //
+    // This test draws 256 random valid `Fp192` states and asserts
+    // byte-equality after one permutation each. With 4 lanes × 199
+    // bits = ~796 bits of input entropy per state, the probability of
+    // a directional bug surviving 256 random vectors is negligible
+    // (any limb/round/parameter mistake produces a uniformly different
+    // output on random inputs, so the false-pass probability per
+    // vector is at most ~1/p ≈ 2^-199, times 256 vectors).
+    //
+    // Deterministic seed: a CI failure is reproducible locally
+    // without flake.
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
+
+    const VECTORS: usize = 256;
+    let mut rng = ChaCha20Rng::seed_from_u64(0x6772_6966_6669_6e21); // "griffin!"
+
+    for vector_idx in 0..VECTORS {
+        // Sample 4 random Fp192 lanes (rejection sampling on a 200-bit
+        // candidate; `Fp192::rand` does this internally).
+        let mut reference_lanes: [Fp192; PLUM_GRIFFIN_STATE_WIDTH] =
+            core::array::from_fn(|_| Fp192::rand(&mut rng));
+        let mut state_words = state_words_from_lanes(&reference_lanes);
+
+        plum_griffin_permutation_raw(&mut reference_lanes);
+        griffin_fp192_compute::permute_in_place(&mut state_words);
+
+        let executor_lanes = lanes_from_state_words(&state_words);
+        assert_eq!(
+            executor_lanes, reference_lanes,
+            "Griffin permutation diverged at random vector index {vector_idx}; \
+             reproduce by seeding ChaCha20Rng with 0x6772_6966_6669_6e21 \
+             and consuming {vector_idx} prior states",
+        );
+    }
+}

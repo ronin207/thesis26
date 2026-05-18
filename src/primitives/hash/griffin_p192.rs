@@ -476,7 +476,18 @@ fn get_number_of_rounds(d: u64) -> usize {
         }
     }
     let base = (rgb + 1).max(6);
-    ((base as f64 * 1.2).ceil()) as usize
+    // Round count = ceil(base * 1.2). The Griffin paper gives this as
+    // the 20% safety margin over the security-bound floor. Computed in
+    // integer arithmetic: `ceil(base * 12 / 10) = (base * 12 + 9) / 10`.
+    //
+    // Previously this was `((base as f64 * 1.2).ceil()) as usize`. The
+    // f64 cast is bounded today (`base <= 26` from the loop cap at
+    // line 470), but the round count is the security-bearing parameter
+    // of the construction; computing a security-bearing parameter
+    // through f64 is a category error that becomes a silent footgun if
+    // the prime ever changes. See `docs/precompile_soundness/
+    // griffin_fp192.md` finding A-4.
+    (base * 12).div_ceil(10)
 }
 
 fn binomial(n: usize, k: usize) -> BigUint {
@@ -549,6 +560,32 @@ mod tests {
         // Document this explicitly so future parameter tweaks notice.
         let params = plum_griffin_params();
         assert_eq!(params.d, 3);
+    }
+
+    #[test]
+    fn round_count_matches_integer_formula() {
+        // Pins the round count after migrating
+        // `get_number_of_rounds` from f64 to integer arithmetic (audit
+        // finding A-4, `docs/precompile_soundness/griffin_fp192.md`).
+        // If this test ever fails, either (a) the security argument
+        // for our prime moved `rgb` (legitimate, write new test), or
+        // (b) someone reverted the integer formula (refuse the diff —
+        // f64 in security-bearing parameters is rejected).
+        let params = plum_griffin_params();
+        // For d=3, state_width=4, security_level=128, modulus = the
+        // PLUM 199-bit prime: the loop in `get_number_of_rounds`
+        // terminates at rgb such that base = (rgb + 1).max(6) and
+        // rounds = ceil(base * 1.2). Empirically rgb = 10 for these
+        // parameters → base = 11 → rounds = (11 * 12 + 9) / 10 =
+        // 141 / 10 = 14. Matches both the thesis brief ("~14 rounds")
+        // and the f64 path previously in use ((11.0 * 1.2).ceil() =
+        // 14.0). We pin 14 and re-pin only if a formally-derived
+        // change in the security argument moves it.
+        assert_eq!(
+            params.rounds, 14,
+            "Griffin round count drifted from pinned value 14; \
+             confirm security argument before updating",
+        );
     }
 
     #[test]
