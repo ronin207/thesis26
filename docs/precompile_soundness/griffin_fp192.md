@@ -161,15 +161,47 @@ host-side Griffin compute is pending integration commit.
 
 ### B-2 — Inverse S-box on lane 0 (degree-3 backward)
 
-For each round, `state_before[0] = state_after[0]³ (mod p)`. The AIR
-cannot raise to `d_inv` directly (199-bit exponent → unboundedly high
-constraint degree); instead it constrains the *backward* relation
-`out₀^d = in₀`, which is equivalent in a permutation. **PLANNED.**
-- Failure mode: omit the backward check; constrain forward `in₀³ =
-  out₀` instead of backward — these aren't equivalent because the
-  S-box is `x → x^d_inv` here, not `x → x^d`.
-- Attacker capability: same forgery vector as B-1 but on lane 0.
-- Source spec: `src/primitives/hash/griffin_p192.rs:245`.
+For each round, `state_before[0] = state_after_nonlinear[0]³ (mod p)`.
+The AIR cannot raise to `d_inv` directly (199-bit exponent → degree
+blowup well past SP1's `MAX_CONSTRAINT_DEGREE = 3`); instead it
+constrains the *backward* relation, which is equivalent in a
+permutation when `gcd(d, p-1) = 1` (the case for our PLUM 199-bit
+prime — see `griffin_p192.rs::pick_d_and_inverse:341` for the
+proof-witness construction). **IMPLEMENTED** (SP1 fork commit ⟨TBD⟩).
+
+Encoding:
+
+  - `sbox0_sq`, `sbox0_cube`: two chained `FieldOpCols<T, Fp192FieldParams>`,
+    same shape as B-1's forward S-box on lane 1 with operands
+    swapped:
+      `sbox0_sq.result    = state_after_nonlinear[0] * state_after_nonlinear[0]  mod p`
+      `sbox0_cube.result  = sbox0_sq.result * state_after_nonlinear[0]            mod p`
+  - Backward bytewise binding: `sbox0_cube.result.0[i] == state_before[0].0[i]`
+    for all 32 limb bytes, under `is_real`. This bytewise equality
+    IS the backward constraint:
+      `state_before[0] = state_after_nonlinear[0]^3 mod p`
+    which, by the permutation property, uniquely determines
+      `state_after_nonlinear[0] = state_before[0]^{d_inv} mod p`.
+
+Soundness anchor:
+
+  - The "forward direction = degree 3, backward = degree 3" symmetry
+    is what makes the backward-constraint trick work. For d = 3
+    specifically (PLUM's prime), the AIR's per-cell constraint
+    degree budget is met both directions; for d ≥ 5 we'd need
+    `eval_with_polynomials` with explicit fold (or higher
+    `MAX_CONSTRAINT_DEGREE`).
+
+- Failure mode: omit the backward check; constrain forward
+  `state_before[0]³ = state_after_nonlinear[0]` instead of backward.
+  This is the WRONG identity — the S-box is `x → x^{d_inv}` (raise
+  to inverse), so checking the forward `x → x^d` direction on the
+  same operand pair would constrain something different. (E.g.,
+  `state_after_nonlinear[0] = state_before[0]^3` would yield a chip
+  that constrains a FORWARD S-box on lane 0, contradicting Griffin's
+  spec of an INVERSE S-box on lane 0.)
+- Attacker capability: lane-0 collision → forgery (same as B-1).
+- Source spec: `vc-pqc::primitives::hash::griffin_p192::nonlinear_layer:245`.
 
 ### B-3 — Quadratic layer on lanes 2, 3
 
