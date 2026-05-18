@@ -530,15 +530,27 @@ Constraints landed:
     Closes "row is simultaneously first AND last" attack — would require
     NB_ROUNDS = 1, not the case.
 
-Cross-row `round_idx` coherence (next.round_idx == local.round_idx + 1
-on real rows, or 0 if local.is_last_round) is deferred to B-5 with the
-round-constants constraint, since RC indexing is what makes the
-round_idx semantically load-bearing.
+Cross-row `round_idx` coherence and cross-row state threading
+**landed in integration-A** (SP1 fork commit ⟨TBD⟩). Constraints
+in `Air::eval`:
+
+  - `local.is_real ∧ next.is_real ∧ ¬local.is_last_round  ⇒  next.round_idx = local.round_idx + 1`
+  - `local.is_real ∧ local.is_last_round  ⇒  local.round_idx = NB_ROUNDS - 1`
+  - `local.is_real ∧ local.is_first_round  ⇒  local.round_idx = 0`
+  - `local.is_real ∧ next.is_real ∧ ¬local.is_last_round
+    ⇒  next.state_before[ℓ].limb[i] = local.rc_add[ℓ].result.limb[i]`
+    (128 byte equalities per continuing-row pair)
+
+Combined effect: within one syscall (NB_ROUNDS = 14 consecutive
+real rows), `round_idx` walks 0, 1, …, 13 with each row's
+`state_before` bound to the previous row's `rc_add` output. The
+first row's `state_before` and the last row's `rc_add.result`
+remain to be bound to memory via the cross-chip lookup — that's
+integration-B.
 
 The lookup-argument hookup that emits the syscall-receive token on
-`is_last_round` is deferred to the integration commit at the end of
-stage-3 (because emitting the token is only safe when the AIR fully
-constrains the permutation).
+`is_last_round` is deferred to integration-B (because emitting the
+token is only safe when the AIR fully constrains the permutation).
 
 - Failure mode (closed by above): padding row falsely claims
   `is_real = 1`. Attacker capability: "ghost permutation" — claim a
