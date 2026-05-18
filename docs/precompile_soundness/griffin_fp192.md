@@ -236,23 +236,44 @@ plus this commit). Structure landed:
   - Trivial `assert_bool(is_real)` constraint to satisfy
     `Chip::from_air`'s `max_constraint_degree > 0`.
 
-**Pending (next commit, B-7b):**
+**B-7b landed** (SP1 fork commit ⟨TBD⟩, this revision):
 
-  - `SyscallAddrOperation::eval` on `state_addr`.
-  - `AddrAddOperation::eval` for each `addrs[i]`.
+  - `SyscallAddrOperation::eval` on `state_addr` with size=128
+    (16 u64 words). Constrains 8-byte alignment + address bounds.
+  - `AddrAddOperation::eval` for each `addrs[i]`,
+    enforcing `addrs[i].value = state_addr + 8 * i`.
   - `eval_memory_access_slice_write` binding `memory[i].prev_value`
-    (= input state at clk) and `memory[i].value` (= output state at
-    clk).
-  - `AddressSlicePageProtOperation::eval` for user-mode protection.
+    (= input state at clk) and `memory[i].value = final_value[i]`
+    (= output state at clk). Single-shot R/W pattern (poseidon2
+    style) rather than keccak's split read-at-clk + write-at-clk+1,
+    because our executor handler emits paired `MemoryWriteRecord`s.
+  - `AddressSlicePageProtOperation::eval` for user-mode protection
+    over the full state range `[state_addr, state_addr + 8*(N-1)]`
+    with `PROT_READ | PROT_WRITE`.
   - `builder.receive_syscall(...)` — the chip's reception of the
-    GRIFFIN_FP192_PERMUTE event from `SyscallChip`.
+    GRIFFIN_FP192_PERMUTE event from `SyscallChip` (balances the
+    rv32im CPU chip's ECALL send).
+  - Trace generation: `generate_trace_into` populates columns from
+    `GriffinFp192PrecompileEvent`s, with parallel chunking and
+    padding to power-of-2 row count. `generate_dependencies`
+    emits the byte lookups required by AddrAddOperation +
+    page-prot.
+
+**Pending (integration commit):**
+
   - Cross-chip lookup interaction with the per-round chip: control
     chip sends `(input_state, clk, ptr)`, per-round chip receives;
     per-round chip sends `(output_state, clk, ptr)`, control chip
     receives. Wires the algebraic claim from one chip to the memory
-    binding on the other.
-  - Trace generation populating these columns from
-    `GriffinFp192PrecompileEvent`.
+    binding on the other. Today the controller's memory binding is
+    self-consistent but NOT linked to a Griffin permutation — a
+    malicious prover with `included()=true` could produce a
+    controller-chip trace with arbitrary `memory[i].prev_value` and
+    `memory[i].value` (any input/output pair subject to memory
+    consistency), claiming a "Griffin permutation" the per-round
+    chip never validated. The integration commit closes this with
+    the lookup hookup.
+  - Flipping `included()` to `true`.
 
 - Failure mode (closed by B-7b): chip reads from wrong address; chip
   claims a write was at clk `c` but actually fired at clk `c'`.
@@ -396,7 +417,7 @@ not a substitute for stage-3's structural proof of `chip ≡ executor`.**
 | (b) Executor compute ≡ reference compute | EMPIRICALLY TESTED | 256 random vectors + 3 hand-picked + modulus check. |
 | (c) Modulus, d, round count, MDS matrix, SHAKE seed string drift detection | PAPER-AUDITED + EMPIRICALLY TESTED | Module-doc constants quoted from spec; tests pin values. |
 | (d) Chip ≡ executor (witness ≡ constraint) | **UNVERIFIED — stage-3 deliverable** | This is the work. |
-| (e) AIR memory binding | PARTIALLY IMPLEMENTED | Two-chip architecture (controller + per-round) landed; columns declared; constraint logic in B-7b. |
+| (e) AIR memory binding | MOSTLY IMPLEMENTED | Two-chip architecture + columns + constraint logic + trace generation all landed (B-7a + B-7b). Cross-chip lookup with per-round chip pending integration commit. |
 | (f) Output canonicality (per-lane `< p`) | **UNVERIFIED — stage-3 deliverable** | Satisfies cross-precompile contract. |
 | (g) Parameter immutability | PARTIALLY IMPLEMENTED | `Fp192FieldParams::MODULUS` + `NB_ROUNDS` constants landed (B-10). α/β/RC preprocessing tables land with B-5. |
 | (h) `is_real` discipline + row-position scheduling | IMPLEMENTED | All 5 row-position constraints landed (B-9). Lookup hookup deferred to integration commit. |
