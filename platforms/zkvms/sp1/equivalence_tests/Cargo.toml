@@ -1,0 +1,18 @@
+[package]
+name = "sp1_equivalence_tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Host-side cross-codebase tests that exercise the patched SP1 fork
+# against the vc-pqc reference. No SP1 guest build (no build.rs), so
+# tests run with stock stable rustc — no `+succinct` toolchain
+# required. Sibling to `script/`, which has a `build.rs` and is the
+# wrong place for these tests for that reason.
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+vc-pqc = { path = "../../../.." }
+sp1-core-executor = "6.0.1"
