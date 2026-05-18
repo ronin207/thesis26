@@ -203,18 +203,65 @@ prior f64 path was retired in commit ⟨TBD⟩ as audit finding A-4.
 
 ### B-7 — Memory binding
 
-Each non-padding row reads exactly the 16 `u64` words at
-`arg1 = event.ptr` recorded in the
-`GriffinFp192PrecompileEvent`, and writes the permuted state to the
-same 16 words. The address arithmetic must match the
-`AddrAddOperation` pattern in `poseidon2/air.rs:483-558` so the
-multi-table lookup argument balances. **PLANNED.**
-- Failure mode: chip reads from wrong address; chip claims a write
-  was at clk `c` but actually fired at clk `c'`.
+Memory binding handled by a separate **controller chip**
+(`GriffinFp192ControlChip`, 1 row per syscall), not the per-round
+algebra chip. Pattern lifted from keccak's two-chip split at
+`submodules/sp1/.../keccak256/controller.rs`. Reasoning: with 14
+rows-per-syscall on the per-round chip, putting memory binding on
+each round-row would waste 13 × 16 = 208 cells per syscall on
+padding; the keccak pattern moves all per-syscall plumbing to a
+dedicated control chip.
+
+**PARTIALLY IMPLEMENTED** (SP1 fork commits 299b588, bc74da9,
+plus this commit). Structure landed:
+
+  - `GriffinFp192ControlChip<M: TrustMode>` in
+    `submodules/sp1/.../griffin_fp192/controller.rs`.
+  - `GriffinFp192ControlCols` declares the columns needed for memory
+    binding:
+      - `clk_high`, `clk_low`, `state_addr` (SyscallAddrOperation)
+      - `addrs[16]` (AddrAddOperation per state word)
+      - `memory[16]` (MemoryAccessCols per state word)
+      - `final_value[16]` (Word<T> per state word, for write-side)
+      - `address_slice_page_prot_access` (page-prot for user mode)
+      - `is_real`
+  - Registered as `RiscvAir::GriffinFp192Control` /
+    `RiscvAir::GriffinFp192ControlUser`, with matching
+    `RiscvAirId` (124 / 125) + cost-table entries (placeholder 682 /
+    730, mirrored from keccak's controller).
+  - `RiscvAirId::GriffinFp192.control_air_id(...)` mapping wired —
+    `cost_and_height_per_syscall` now correctly looks up both the
+    per-round and controller chips.
+  - `rows_per_event(GriffinFp192) = 14`.
+  - Trivial `assert_bool(is_real)` constraint to satisfy
+    `Chip::from_air`'s `max_constraint_degree > 0`.
+
+**Pending (next commit, B-7b):**
+
+  - `SyscallAddrOperation::eval` on `state_addr`.
+  - `AddrAddOperation::eval` for each `addrs[i]`.
+  - `eval_memory_access_slice_write` binding `memory[i].prev_value`
+    (= input state at clk) and `memory[i].value` (= output state at
+    clk).
+  - `AddressSlicePageProtOperation::eval` for user-mode protection.
+  - `builder.receive_syscall(...)` — the chip's reception of the
+    GRIFFIN_FP192_PERMUTE event from `SyscallChip`.
+  - Cross-chip lookup interaction with the per-round chip: control
+    chip sends `(input_state, clk, ptr)`, per-round chip receives;
+    per-round chip sends `(output_state, clk, ptr)`, control chip
+    receives. Wires the algebraic claim from one chip to the memory
+    binding on the other.
+  - Trace generation populating these columns from
+    `GriffinFp192PrecompileEvent`.
+
+- Failure mode (closed by B-7b): chip reads from wrong address; chip
+  claims a write was at clk `c` but actually fired at clk `c'`.
 - Attacker capability: claim a Griffin syscall acted on address `A`
   when the trace fires it at address `B` — witness binding broken.
-- Source spec: pattern at `poseidon2/air.rs:483-558`, event struct
-  at `submodules/sp1/crates/core/executor/src/events/precompiles/griffin_fp192.rs`.
+- Source spec: pattern at
+  `submodules/sp1/crates/core/machine/src/syscall/precompiles/keccak256/controller.rs:258-397`,
+  event struct at
+  `submodules/sp1/crates/core/executor/src/events/precompiles/griffin_fp192.rs`.
 
 ### B-8 — Output canonicality (per-lane range check)
 
@@ -349,7 +396,7 @@ not a substitute for stage-3's structural proof of `chip ≡ executor`.**
 | (b) Executor compute ≡ reference compute | EMPIRICALLY TESTED | 256 random vectors + 3 hand-picked + modulus check. |
 | (c) Modulus, d, round count, MDS matrix, SHAKE seed string drift detection | PAPER-AUDITED + EMPIRICALLY TESTED | Module-doc constants quoted from spec; tests pin values. |
 | (d) Chip ≡ executor (witness ≡ constraint) | **UNVERIFIED — stage-3 deliverable** | This is the work. |
-| (e) AIR memory binding | **UNVERIFIED — stage-3 deliverable** | Pattern from poseidon2. |
+| (e) AIR memory binding | PARTIALLY IMPLEMENTED | Two-chip architecture (controller + per-round) landed; columns declared; constraint logic in B-7b. |
 | (f) Output canonicality (per-lane `< p`) | **UNVERIFIED — stage-3 deliverable** | Satisfies cross-precompile contract. |
 | (g) Parameter immutability | PARTIALLY IMPLEMENTED | `Fp192FieldParams::MODULUS` + `NB_ROUNDS` constants landed (B-10). α/β/RC preprocessing tables land with B-5. |
 | (h) `is_real` discipline + row-position scheduling | IMPLEMENTED | All 5 row-position constraints landed (B-9). Lookup hookup deferred to integration commit. |
