@@ -233,32 +233,76 @@ the satisfaction of the cross-precompile contract documented in
   `sp1-core-machine-6.2.1/src/syscall/precompiles/uint256/air.rs:435`
   is the analog we should follow structurally.
 
-### B-9 — `is_real` discipline
+### B-9 — `is_real` discipline + row-position scheduling
 
-`is_real ∈ {0, 1}` per row. The `is_real = 0` rows are padding —
-their state columns are unconstrained and they do not participate in
-the syscall lookup argument. **PARTIALLY IMPLEMENTED** (the trivial
-`assert_bool(local.is_real)` constraint is in place from Phase 3e
-prep; the lookup-argument hookup is stage-3 work).
-- Failure mode: padding row accidentally claims `is_real = 1` and
-  emits a lookup token for a Griffin syscall that never executed.
-- Attacker capability: "ghost permutation" — claim a Griffin output
-  with no corresponding syscall, then point downstream verifier
-  computation at it.
-- Source spec: pattern at `poseidon2/air.rs:430-451`.
+`is_real ∈ {0, 1}` per row. The chip uses 14 consecutive rows per
+permutation (`NB_ROUNDS = 14`); the first row reads pre-permutation
+state from memory, the last writes post-permutation state back, the
+middle 12 thread cross-row state. **IMPLEMENTED** (SP1 fork commit
+bc74da9, `submodules/sp1/crates/core/machine/src/syscall/precompiles/griffin_fp192/air.rs`).
+
+Constraints landed:
+
+  - `assert_bool(is_real)` — row real/padding.
+  - `assert_bool(is_first_round)` — first round of perm (round_idx == 0).
+  - `assert_bool(is_last_round)` — last round of perm (round_idx == NB_ROUNDS - 1).
+  - When `is_real = 0`: assert `is_first_round = is_last_round = round_idx = 0`.
+    Closes "padding row claims first-round status" attack.
+  - When `is_real = 1`: assert `is_first_round * is_last_round = 0`.
+    Closes "row is simultaneously first AND last" attack — would require
+    NB_ROUNDS = 1, not the case.
+
+Cross-row `round_idx` coherence (next.round_idx == local.round_idx + 1
+on real rows, or 0 if local.is_last_round) is deferred to B-5 with the
+round-constants constraint, since RC indexing is what makes the
+round_idx semantically load-bearing.
+
+The lookup-argument hookup that emits the syscall-receive token on
+`is_last_round` is deferred to the integration commit at the end of
+stage-3 (because emitting the token is only safe when the AIR fully
+constrains the permutation).
+
+- Failure mode (closed by above): padding row falsely claims
+  `is_real = 1`. Attacker capability: "ghost permutation" — claim a
+  Griffin output with no corresponding syscall.
+- Source spec: pattern at `poseidon2/air.rs:430-451`, adapted for
+  multi-round row scheduling (cf. `keccak256/`).
 
 ### B-10 — Parameter immutability (preprocessing)
 
 The α, β, RC, MDS matrix entries are *committed by the verifier in
-preprocessing* — not row columns the prover supplies. **PLANNED.**
-- Failure mode: prover chooses RC per row.
-- Attacker capability: total break. For any input/output pair, find
-  a "permutation" by picking RC values that make the algebra close.
-  Trivial collision.
-- Source spec: convention; round constants live in preprocessing
-  tables (`PreprocessedAir` pattern). Witnessed by the test pinning
-  the SHAKE seed string in `griffin_p192.rs` and
-  `griffin_fp192_compute.rs`.
+preprocessing* — not row columns the prover supplies. **PARTIALLY
+IMPLEMENTED** (SP1 fork commit 299b588 + bc74da9).
+
+Implemented:
+
+  - `Fp192FieldParams::MODULUS` — PLUM prime as 32-byte const,
+    `sp1-curves/src/fp192.rs`. Pinned by
+    `modulus_matches_canonical_decimal` test. Drift-detected against
+    `vc-pqc::primitives::field::p192::MODULUS_LIMBS` and
+    `sp1-core-executor::griffin_fp192_compute::MODULUS_LIMBS` by the
+    `modulus_limbs_agree` test in `equivalence_tests`.
+  - `NB_ROUNDS = 14` — const in
+    `sp1-core-machine/.../griffin_fp192/air.rs`, pinned by
+    `round_count_matches_integer_formula` tests on both sides.
+
+Pending (lands with B-5):
+
+  - Round constants RC[0..NB_ROUNDS - 1] × 4 lanes = 52 Fp192 values,
+    SHAKE256-derived. Embedded as field constants in `Air::eval`'s
+    constraint expression (NOT as prover-supplied columns) so the
+    verifier's preprocessing commits them.
+  - α[0], α[1], β[0], β[1] — SHAKE256-derived quadratic-layer
+    coefficients. Same embedding pattern.
+  - MDS matrix (4×4 circulant [2, 1, 1, 1]). Trivial integer values,
+    embedded directly in `Air::eval`.
+
+- Failure mode: prover chooses RC per row. Attacker capability:
+  total break — trivial collision (pick RC to make algebra close).
+- Source spec: convention; round constants live in preprocessing.
+  Witnessed by the SHAKE seed string pin
+  (`"PlumGriffin({modulus},{state_width},{capacity},{security_level})"`)
+  in `griffin_p192.rs` and `griffin_fp192_compute.rs`.
 
 ## Cross-codebase agreement (current state)
 
@@ -307,8 +351,8 @@ not a substitute for stage-3's structural proof of `chip ≡ executor`.**
 | (d) Chip ≡ executor (witness ≡ constraint) | **UNVERIFIED — stage-3 deliverable** | This is the work. |
 | (e) AIR memory binding | **UNVERIFIED — stage-3 deliverable** | Pattern from poseidon2. |
 | (f) Output canonicality (per-lane `< p`) | **UNVERIFIED — stage-3 deliverable** | Satisfies cross-precompile contract. |
-| (g) Parameter immutability | **UNVERIFIED — stage-3 deliverable** | Preprocessing tables. |
-| (h) `is_real` discipline + lookup-argument balance | PARTIALLY IMPLEMENTED | Trivial bool constraint live; lookup hookup is stage-3. |
+| (g) Parameter immutability | PARTIALLY IMPLEMENTED | `Fp192FieldParams::MODULUS` + `NB_ROUNDS` constants landed (B-10). α/β/RC preprocessing tables land with B-5. |
+| (h) `is_real` discipline + row-position scheduling | IMPLEMENTED | All 5 row-position constraints landed (B-9). Lookup hookup deferred to integration commit. |
 | (i) ZK preserved | OUT-OF-SCOPE | Same as `uint256_mul_for_fp192.md`. |
 | (j) QROM analysis for our Griffin parameters | **UNVERIFIED — upstream claim** | Thesis-level check; AIR cannot rescue. |
 
