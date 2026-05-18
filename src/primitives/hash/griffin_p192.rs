@@ -150,16 +150,76 @@ pub fn plum_griffin_sponge(
 }
 
 /// One full Griffin permutation. Increments `PLUM_GRIFFIN_PERM_COUNT`.
+///
+/// ### SP1 zkVM precompile path (Phase 3e)
+///
+/// When compiled for the SP1 zkVM with the `sp1` feature enabled,
+/// the entire permutation is routed through the
+/// `GRIFFIN_FP192_PERMUTE` syscall instead of running the native
+/// rounds. The SP1 executor's vendored compute at
+/// `sp1-core-executor::griffin_fp192_compute` is bit-equivalent to
+/// the host path here — drift-tested by
+/// `platforms/zkvms/sp1/equivalence_tests/`. The performance win
+/// (the goal-aligned point of Phase 3) lives in the AIR constraints
+/// in stage-3+; under stage-2 alone the syscall is functionally
+/// correct but offers zero proof-gen speedup because the chip emits
+/// no rows yet.
 pub fn plum_griffin_permutation(params: &PlumGriffinParams, state: &mut PlumGriffinState) {
     PLUM_GRIFFIN_PERM_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
 
-    for r in 0..params.rounds - 1 {
+    #[cfg(all(target_os = "zkvm", feature = "sp1"))]
+    {
+        // `params` is unused in the syscall path — the executor side
+        // derives its own params from the same SHAKE256 seed (cross-
+        // codebase test in
+        // `platforms/zkvms/sp1/equivalence_tests/` asserts they
+        // agree).
+        let _ = params;
+
+        // Pack [Fp192; 4] state into the [u64; 16] layout the syscall
+        // expects: lane `i` occupies words [4i, 4i+4), little-endian
+        // u64 limbs (matches `griffin_fp192_compute::permute_in_place`).
+        let mut state_words: [u64; 16] = [0; 16];
+        for (i, lane) in state.lanes.iter().enumerate() {
+            let limbs = lane.to_limbs();
+            state_words[i * 4..i * 4 + 4].copy_from_slice(&limbs);
+        }
+
+        // SAFETY: `state_words` is a stack array of 16 contiguous u64
+        // words; the syscall trampoline only reads/writes that range
+        // and `state_words` outlives the call.
+        unsafe {
+            sp1_zkvm::syscalls::syscall_griffin_fp192_permute(
+                &mut state_words as *mut [u64; 16],
+            );
+        }
+
+        // Unpack back into Fp192 lanes. `Fp192::from_limbs` reduces
+        // mod p — defensive against any chip bug emitting a
+        // non-canonical limb buffer. Once the stage-3 AIR's output-
+        // range check is wired this is a free no-op.
+        for (i, lane) in state.lanes.iter_mut().enumerate() {
+            *lane = Fp192::from_limbs([
+                state_words[i * 4],
+                state_words[i * 4 + 1],
+                state_words[i * 4 + 2],
+                state_words[i * 4 + 3],
+            ]);
+        }
+        return;
+    }
+
+    // Host / non-SP1-zkvm fallback: native compute.
+    #[cfg(not(all(target_os = "zkvm", feature = "sp1")))]
+    {
+        for r in 0..params.rounds - 1 {
+            nonlinear_layer(params, state);
+            linear_layer(params, state);
+            additive_constants_layer(params, state, r);
+        }
         nonlinear_layer(params, state);
         linear_layer(params, state);
-        additive_constants_layer(params, state, r);
     }
-    nonlinear_layer(params, state);
-    linear_layer(params, state);
 }
 
 /// Raw-array entry point — same shape as `loquat::griffin::griffin_permutation_raw`.
