@@ -461,20 +461,55 @@ plus this commit). Structure landed:
 
 ### B-8 — Output canonicality (per-lane range check)
 
-Each output limb buffer `[l₀, l₁, l₂, l₃]` satisfies the four-limb
-inequality `[l₀, l₁, l₂, l₃] < MODULUS_LIMBS`. **PLANNED — this is
-the satisfaction of the cross-precompile contract documented in
-`uint256_mul_for_fp192.md`.**
+Each post-RC limb buffer `rc_add[ℓ].result.0[0..32]` is strictly
+less than `Fp192FieldParams::MODULUS`. **IMPLEMENTED** (SP1 fork
+commit ⟨TBD⟩).
+
+Encoding: 4 `FieldLtCols<T, Fp192FieldParams>` cells, one per lane.
+Each cell:
+
+  - Has 32 byte-flag cells encoding which byte is the "first less-
+    than" position in a byte-by-byte comparison `result < modulus`.
+  - Constrains the flags via the standard one-hot pattern (bool +
+    sum-equals-one) plus byte-by-byte equality up to the first-less
+    position and strict-less at that position.
+  - Active only when `is_real` (padding rows skip).
+
+Pattern lifted from SP1's `Uint256MulModChip`'s
+`output_range_check` (`uint256/air.rs:435`), reused unchanged.
+
+  for lane in 0..4 {
+      local.rc_add_range_check[lane].eval(
+          builder,
+          &local.rc_add[lane].result,
+          &p_modulus,   // built earlier for B-4
+          local.is_real,
+      );
+  }
+
+Total: 4 × ~32 = ~128 byte-flag cells per row + constraint-eval
+overhead.
+
+**This is the satisfaction of the cross-precompile contract from
+`uint256_mul_for_fp192.md` AND closes audit finding A-1.** Before
+B-8, downstream consumers of the Griffin chip's output (most
+notably any future `Fp192::mul` call on guest side, which routes
+through UINT256_MUL) would have to TRUST that the AIR produced a
+canonical output — but FieldOpCols's polynomial-vanishing
+constraint alone admits non-canonical representations. B-8 closes
+that gap.
+
 - Failure mode: output lane is non-canonical; the guest then calls
   `Fp192::to_limbs` on it (`p192.rs:189-197`) which silently
-  truncates digits beyond the 4th in release builds (audit finding
-  A-1). Downstream Fp192::mul receives a wrong-modulus value;
-  signature acceptance becomes meaningless.
+  truncates digits beyond the 4th in release builds. Downstream
+  Fp192::mul receives a wrong-modulus value; signature acceptance
+  becomes meaningless.
 - Attacker capability: field-mismatch — verifier sees one value,
   prover proved another. Direct path to forgery.
 - Source spec: SP1's `Uint256MulModChip` output range check at
-  `sp1-core-machine-6.2.1/src/syscall/precompiles/uint256/air.rs:435`
-  is the analog we should follow structurally.
+  `sp1-core-machine/.../uint256/air.rs:435`, reused via the same
+  `FieldLtCols<T, P>` machinery instantiated for our
+  `Fp192FieldParams`.
 
 ### B-9 — `is_real` discipline + row-position scheduling
 
@@ -593,7 +628,7 @@ not a substitute for stage-3's structural proof of `chip ≡ executor`.**
 | (c) Modulus, d, round count, MDS matrix, SHAKE seed string drift detection | PAPER-AUDITED + EMPIRICALLY TESTED | Module-doc constants quoted from spec; tests pin values. |
 | (d) Chip ≡ executor (witness ≡ constraint) | **UNVERIFIED — stage-3 deliverable** | This is the work. |
 | (e) AIR memory binding | MOSTLY IMPLEMENTED | Two-chip architecture + columns + constraint logic + trace generation all landed (B-7a + B-7b). Cross-chip lookup with per-round chip pending integration commit. |
-| (f) Output canonicality (per-lane `< p`) | **UNVERIFIED — stage-3 deliverable** | Satisfies cross-precompile contract. |
+| (f) Output canonicality (per-lane `< p`) | IMPLEMENTED | B-8 landed with FieldLtCols per lane. Closes audit finding A-1 and the cross-precompile contract from uint256_mul_for_fp192.md. |
 | (g) Parameter immutability | PARTIALLY IMPLEMENTED | `Fp192FieldParams::MODULUS` + `NB_ROUNDS` constants landed (B-10). α/β/RC preprocessing tables land with B-5. |
 | (h) `is_real` discipline + row-position scheduling | IMPLEMENTED | All 5 row-position constraints landed (B-9). Lookup hookup deferred to integration commit. |
 | (i) ZK preserved | OUT-OF-SCOPE | Same as `uint256_mul_for_fp192.md`. |
@@ -601,11 +636,13 @@ not a substitute for stage-3's structural proof of `chip ≡ executor`.**
 
 ## Audit caveats from proof-checker (2026-05-18, pre-stage-3)
 
-1. **A-1 (HIGH).** `Fp192::to_limbs` silently truncates digits beyond
-   the 4th in release builds (`debug_assert!` is a no-op). Safe today
-   only by transitive reliance on every constructor reducing mod p.
-   **Mitigation:** stage-3 must enforce B-8 (output canonicality)
-   strictly so the dependency on transitive canonicality is broken.
+1. **A-1 (HIGH) — CLOSED by B-8.** `Fp192::to_limbs` silently
+   truncates digits beyond the 4th in release builds (`debug_assert!`
+   is a no-op). Previously safe only by transitive reliance on every
+   constructor reducing mod p. B-8's `FieldLtCols<T,
+   Fp192FieldParams>` per-lane range check now enforces strict
+   `< p` on the chip's output, breaking the transitive-canonicality
+   dependency at the AIR boundary.
 
 2. **A-2 (MEDIUM).** Cross-codebase tests verify executor ≡ reference,
    not chip ≡ executor. **Mitigation (partial):** the 256-vector
