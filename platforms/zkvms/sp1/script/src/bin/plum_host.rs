@@ -223,6 +223,22 @@ fn run_prove(
     message: &[u8],
     signature: &PlumSignature,
 ) {
+    // Phase 3f Cell-1 / Cell-2 selector. Set
+    // PLUM_PROVE_ARM=emulated to prove the rv32im-Griffin ELF
+    // (Cell 1 — the "without custom precompile" baseline). Default
+    // is `syscall`, which proves the GRIFFIN_FP192_PERMUTE-routed
+    // ELF (Cell 2 — the with-precompile arm). Cell 2 currently
+    // FAILS because the Griffin AIR is a stage-2 skeleton (no rows
+    // emitted; interaction-balance check fires). Cell 1 should
+    // succeed up to memory limits.
+    let arm = std::env::var("PLUM_PROVE_ARM").unwrap_or_else(|_| "syscall".into());
+    let (elf, arm_label) = match arm.as_str() {
+        "syscall" => (syscall_elf(), "syscall (Cell 2 — Griffin via precompile)"),
+        "emulated" => (emulated_elf(), "emulated (Cell 1 — Griffin via rv32im)"),
+        other => panic!("unknown PLUM_PROVE_ARM={other:?}; use syscall or emulated"),
+    };
+    println!("PROVE arm: {arm_label}");
+
     let input = GuestInput {
         pp: pp.clone(),
         pk: pk.clone(),
@@ -230,16 +246,21 @@ fn run_prove(
         signature: signature.clone(),
     };
     let bytes = bincode::serialize(&input).expect("serialize input");
+    println!("input bytes: {}", bytes.len());
     let mut stdin = SP1Stdin::new();
     stdin.write_vec(bytes);
 
     let t_setup = Instant::now();
-    let pk_proof = client.setup(syscall_elf()).expect("setup elf failed");
+    let pk_proof = client.setup(elf).expect("setup elf failed");
     println!("setup_ms={}", t_setup.elapsed().as_millis() as u64);
 
     let t_prove = Instant::now();
     let proof = client.prove(&pk_proof, stdin).run().expect("prove failed");
-    println!("prove_ms={}", t_prove.elapsed().as_millis() as u64);
+    let prove_ms = t_prove.elapsed().as_millis() as u64;
+    println!("prove_ms={prove_ms} (= {:.2} min = {:.2} h)",
+        prove_ms as f64 / 60_000.0,
+        prove_ms as f64 / 3_600_000.0,
+    );
 
     let t_verify = Instant::now();
     client

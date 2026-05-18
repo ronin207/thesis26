@@ -5,3 +5,5 @@ elf
 # Phase 3f A/B build artifacts (sp1_build output_directory copies).
 elf-syscall/
 elf-emulated/
+# Phase 3f measurement logs (machine-specific, regenerable).
+measurements/
