@@ -121,15 +121,43 @@ math** / **failure mode if missing or weak** / **attacker capability**
 
 ### B-1 — Forward S-box on lane 1 (degree-3)
 
-For each round, `state_after[1] = state_before[1]³ (mod p)`. **PLANNED.**
-- Failure mode: wrong `d` parameter; or `out₁ = in₁ · in₁ · in₁'` with
-  `in₁' ≠ in₁`.
+For each round, `state_after[1] = state_before[1]³ (mod p)`.
+**IMPLEMENTED** (SP1 fork commit ⟨TBD⟩).
+
+Encoding: two chained `FieldOpCols<T, Fp192FieldParams>` instances
+on the per-round chip (`GriffinFp192Chip`):
+
+  - `sbox1_sq.result    = state_before[1] * state_before[1] mod p`
+  - `sbox1_cube.result  = sbox1_sq.result * state_before[1]   mod p`
+
+Each `FieldOpCols::eval` emits a polynomial-identity constraint of
+degree 2 (two limb-polynomial product) plus byte-range checks on
+result, carry, and witness limbs. With `is_real` as the activating
+selector, total constraint degree stays ≤ 3 (= SP1's
+`MAX_CONSTRAINT_DEGREE`). `Fp192FieldParams::MODULUS` is embedded as
+preprocessing (B-10), so the prover cannot choose the modulus per
+row.
+
+The post-nonlinear-layer state for lane 1 IS `sbox1_cube.result`;
+downstream B-3 (quadratic layer for lanes 2, 3) and B-4 (MDS) read
+from this directly. Trace generation populating these columns from
+host-side Griffin compute is pending integration commit.
+
+- Failure mode: wrong `d` parameter (e.g., d=5 if someone forgets
+  PLUM's prime uses d=3) — would be a single-character change in
+  the FieldOperation chain. Caught by the cross-codebase
+  equivalence tests in `platforms/zkvms/sp1/equivalence_tests/`
+  IF integration tests cover proof generation; today only execute-
+  mode is tested, so the AIR's `d=3` is not yet test-bound.
+  Mitigation in soundness audit: stage-3 integration commit MUST
+  add a "AIR output matches executor output on a fixed permutation"
+  test that runs the full prove path.
 - Attacker capability: find a `state'` whose forward S-box differs
   from the spec → collision under the broken Griffin → PLUM EU-CMA
   forgery.
 - Source spec: `src/primitives/hash/griffin_p192.rs:247` (forward
   S-box), Griffin paper §2.3, our `d = 3` derivation in
-  `pick_d_and_inverse`.
+  `pick_d_and_inverse:347`.
 
 ### B-2 — Inverse S-box on lane 0 (degree-3 backward)
 
