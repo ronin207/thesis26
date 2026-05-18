@@ -190,15 +190,54 @@ where `z₀ = state_after[0]`, `z₁ = state_after[1]`, `z_{i-1} = state_after[i
 
 For each row of the matrix-vector product:
 
-    next[row] = Σ_{col=0..4} matrix[row][col] · state[col]
+    next[row] = Σ_{col=0..4} matrix[row][col] · state_after_nonlinear[col]
 
-where `matrix = circulant([2, 1, 1, 1])`. **PLANNED.**
-- Failure mode: wrong matrix (e.g., `[1, 1, 1, 1]` — not MDS, only
-  rank 1).
-- Attacker capability: low-weight differential trail attacks; reduced-
-  round collision.
-- Source spec: `griffin_p192.rs:496-505` (circulant), mirrored at
-  `griffin_fp192_compute.rs:360-374`.
+where `matrix = circulant([2, 1, 1, 1])`. **IMPLEMENTED**
+(SP1 fork commit ⟨TBD⟩).
+
+Concretely (after expanding the circulant):
+
+  mds_out[0].result = 2·s[0] + s[1] + s[2] + s[3]  mod p
+  mds_out[1].result = s[0] + 2·s[1] + s[2] + s[3]  mod p
+  mds_out[2].result = s[0] + s[1] + 2·s[2] + s[3]  mod p
+  mds_out[3].result = s[0] + s[1] + s[2] + 2·s[3]  mod p
+
+where `s[i] = state_after_nonlinear[i]`.
+
+Encoding: ONE `FieldOpCols<T, Fp192FieldParams>` cell per output
+lane, via `FieldOpCols::eval_with_polynomials`. The 4-way linear
+combination `2·s[r] + s[r+1] + s[r+2] + s[r+3]` is built as a
+single `Polynomial<AB::Expr>` and passed as the `op` argument; the
+cell internally constrains `op - result ≡ 0 (mod p)` plus
+result/carry/witness range checks. **4 cells per row × 14 rows =
+56 cells total for MDS** — vs 16 chained binary adds (= 224 cells)
+if we used `FieldOpCols::eval` naively.
+
+The Fp192FieldParams modulus is embedded via `modulus_field_iter`
+(preprocessing — B-10).
+
+B-1 binding: separately constrains `state_after_nonlinear[1] =
+sbox1_cube.result` byte-by-byte (32 limb equalities) so the MDS
+input on lane 1 is bound to the S-box output. Lanes 0, 2, 3
+remain unconstrained until B-2 (inverse S-box backward) and B-3
+(quadratic layer) land — until then a malicious prover with
+`included()=true` could set those lanes to anything; the integration
+commit closes this when all four nonlinear-layer families are in
+place.
+
+- Failure mode: wrong matrix entry (e.g., `[1, 1, 1, 1]` — not
+  MDS, only rank 1; would let differential trails propagate
+  through the linear layer with weight 0 instead of weight ≥ 4).
+  Witnessed in code: the matrix entries `2` and `1` are baked into
+  the polynomial expression (`s_poly[row].clone() + s_poly[row].clone()`
+  is `2·s[row]`; cross-row terms have unit coefficient). Any future
+  edit changes the polynomial directly → drift detector lives in
+  the trace-gen test plan (integration commit).
+- Attacker capability: low-weight differential trail; reduced-round
+  collision; ultimately PLUM EU-CMA forgery.
+- Source spec: `vc-pqc::primitives::hash::griffin_p192::linear_layer:218-228`
+  + `build_matrix:444-449`, mirrored at
+  `sp1-core-executor::griffin_fp192_compute::linear_layer:415-422`.
 
 ### B-5 — Round constants from SHAKE256
 
