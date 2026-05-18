@@ -176,15 +176,51 @@ constraint degree); instead it constrains the *backward* relation
 For each round and each `i ∈ {2, 3}`:
 
     L_i      = (i - 1) · z₀ + z₁ + z_{i-1}
-    state_after[i] = state_before[i] · (L_i² + α_{i-2}·L_i + β_{i-2})
+    state_after_nonlinear[i] = state_before[i] · (L_i² + α_{i-2}·L_i + β_{i-2})
 
-where `z₀ = state_after[0]`, `z₁ = state_after[1]`, `z_{i-1} = state_after[i-1]`
-(reading from after-S-box state per the reference's `nonlinear_layer`).
-**PLANNED.**
+where `z₀ = state_after_nonlinear[0]`, `z₁ = state_after_nonlinear[1]`,
+`z_{i-1} = state_after_nonlinear[i-1]`. **IMPLEMENTED** (SP1 fork
+commit ⟨TBD⟩).
+
+Encoding:
+
+  - `L_2 = z₀ + z₁` and `L_3 = 2·z₀ + z₁ + state_after_nonlinear[2]`
+    built inline as `Polynomial<AB::Expr>` (no separate cell).
+  - `l_sq_2`, `l_sq_3`: two `FieldOpCols<T, Fp192FieldParams>` cells
+    constraining `L_i² mod p` via `eval_with_polynomials` with
+    `op = L_i * L_i`.
+  - `quad_mul_2`, `quad_mul_3`: two `FieldOpCols` cells constraining
+    `state_after_nonlinear[i] = state_before[i] * (L_i² + α[i-2]·L_i + β[i-2]) mod p`
+    via `eval_with_polynomials` with `op = state_before[i] * quad_factor`.
+  - α and β values lifted from
+    `sp1-core-executor::griffin_fp192_compute::{quadratic_alphas_limbs, quadratic_betas_limbs}()`
+    as degree-0 polynomial constants. Same preprocessing-bound
+    pattern as RC in B-5.
+  - Bytewise binding: `state_after_nonlinear[2].0[i] == quad_mul_2.result.0[i]`
+    and similarly for lane 3. Same pattern as B-1's lane-1 binding.
+
+Soundness anchors:
+
+  - α[0], α[1], β[0], β[1] are field constants in the eval body —
+    prover cannot choose them per row (B-10 property).
+  - The lane-3 L₃ correctly reads the UPDATED lane-2 value
+    (`state_after_nonlinear[2]`), matching the sequential dependency
+    in the reference at `griffin_p192.rs:259`. If we read
+    `state_before[2]` instead, the AIR's nonlinear-layer math would
+    drift from the spec by one input.
+  - The constants in `L_i = (i-1)·z₀ + z₁ + z_{i-1}` are baked into
+    the polynomial expression (`z0.clone() + z0.clone()` for the
+    2·z₀ in L₃). Any edit to those coefficients changes the
+    polynomial directly — visible in the diff.
+
 - Failure mode: wrong α/β; wrong L formula (off-by-one in the index
-  multiplier); missing the multiplication by `state_before[i]`.
-- Attacker capability: collide on lanes 2/3.
-- Source spec: `griffin_p192.rs:250-267`, `li()` at 293.
+  multiplier); missing the multiplication by `state_before[i]`;
+  reading `state_before[2]` instead of `state_after_nonlinear[2]`
+  in L₃ (sequential-dependency mistake).
+- Attacker capability: collide on lanes 2/3 → reduced-round collision
+  → forgery.
+- Source spec: `vc-pqc::primitives::hash::griffin_p192::nonlinear_layer:249-272`,
+  `li():293`.
 
 ### B-4 — MDS linear layer
 
