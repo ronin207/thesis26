@@ -1,15 +1,19 @@
-//! SP1 PLUM verification host (smoke + adversarial soundness probe).
+//! SP1 PLUM verification host (Phase 3f — Griffin variant + A/B
+//! comparison).
 //!
-//! Three modes (selected via `PLUM_HOST_MODE`, default `execute`):
+//! Four modes (selected via `PLUM_HOST_MODE`, default `compare`):
 //!
-//!   - `execute` — single honest verify in executor mode (no proof).
-//!     Used for cycle-count measurement; baseline measurement target.
-//!   - `prove` — full prove + verify round-trip. Slow.
-//!   - `adversarial` — run the soundness probe: an honest verify (must
-//!     accept) followed by seven tamper cases (each must reject).
-//!     Empirical evidence for row (f) of the soundness property table
-//!     in `docs/precompile_soundness/uint256_mul_for_fp192.md` and a
-//!     regression net against precompile-introduced false-accept bugs.
+//!   - `execute` — single honest verify in executor mode (no proof),
+//!     using the Griffin-syscall ELF. Single number; cycle attribution.
+//!   - `compare` — Phase 3f deliverable: execute the SAME signature
+//!     under both ELFs (Griffin-via-syscall vs Griffin-via-rv32im) and
+//!     print the side-by-side cycle/syscall delta.
+//!   - `prove` — full prove + verify round-trip on the syscall ELF.
+//!     Currently broken until stage-3 lands the Griffin AIR
+//!     constraints; left in for completeness.
+//!   - `adversarial` — soundness probe: honest verify (must accept)
+//!     followed by tamper cases (each must reject). Regression net
+//!     against precompile-introduced false-accept bugs.
 
 use std::time::Instant;
 
@@ -19,15 +23,32 @@ use serde::{Deserialize, Serialize};
 use sp1_sdk::{
     Elf, ProvingKey, SP1Stdin,
     blocking::{ProveRequest, Prover, ProverClient},
-    include_elf,
 };
 
-use vc_pqc::signatures::plum::hasher::PlumSha3Hasher;
+use vc_pqc::signatures::plum::hasher::PlumGriffinHasher;
 use vc_pqc::signatures::plum::keygen::{PlumPublicKey, PlumSecretKey, plum_keygen};
 use vc_pqc::signatures::plum::setup::{PlumPublicParams, plum_setup};
 use vc_pqc::signatures::plum::sign::{PlumSignature, plum_sign};
 
-const PLUM_VERIFY_ELF: Elf = include_elf!("plum_verify");
+/// Bytes of the SYSCALL-arm ELF (Griffin → `GRIFFIN_FP192_PERMUTE`
+/// syscall). Path is set by `build.rs` so we read from our copied
+/// directory rather than `target/elf-compilation/.../plum_verify`,
+/// which gets overwritten by whichever `build_program_with_args`
+/// invocation ran last (cf. `build.rs` doc-comment).
+const PLUM_VERIFY_SYSCALL_ELF_BYTES: &[u8] =
+    include_bytes!(env!("PLUM_VERIFY_SYSCALL_ELF_PATH"));
+/// Bytes of the EMULATED-arm ELF (`griffin-emulated` feature → Griffin
+/// in rv32im, `UINT256_MUL` precompile still on).
+const PLUM_VERIFY_EMULATED_ELF_BYTES: &[u8] =
+    include_bytes!(env!("PLUM_VERIFY_EMULATED_ELF_PATH"));
+
+fn syscall_elf() -> Elf {
+    Elf::Static(PLUM_VERIFY_SYSCALL_ELF_BYTES)
+}
+
+fn emulated_elf() -> Elf {
+    Elf::Static(PLUM_VERIFY_EMULATED_ELF_BYTES)
+}
 
 #[derive(Serialize, Deserialize)]
 struct GuestInput {
@@ -52,19 +73,70 @@ fn main() {
     println!("=== PLUM-{} verify on SP1 ===", security_level);
     let (sk, pk): (PlumSecretKey, PlumPublicKey) = plum_keygen(&pp, &mut rng);
 
-    let message = b"sp1 smoke: plum verify with SHA3 hasher".to_vec();
+    let message = b"sp1 phase3f: plum verify with Griffin hasher".to_vec();
     let signature: PlumSignature =
-        plum_sign::<PlumSha3Hasher, _>(&pp, &sk, &message, &mut rng);
+        plum_sign::<PlumGriffinHasher, _>(&pp, &sk, &message, &mut rng);
 
     let client = ProverClient::from_env();
-    let mode = std::env::var("PLUM_HOST_MODE").unwrap_or_else(|_| "execute".into());
+    let mode = std::env::var("PLUM_HOST_MODE").unwrap_or_else(|_| "compare".into());
 
     match mode.as_str() {
         "execute" => run_execute(&client, &pp, &pk, &message, &signature),
+        "compare" => run_compare(&client, &pp, &pk, &message, &signature),
         "prove" => run_prove(&client, &pp, &pk, &message, &signature),
         "adversarial" => run_adversarial(&client, &pp, &sk, &pk, &message, &signature, &mut rng),
-        other => panic!("unknown PLUM_HOST_MODE={other:?}; use execute, prove, or adversarial"),
+        other => panic!(
+            "unknown PLUM_HOST_MODE={other:?}; use execute, compare, prove, or adversarial"
+        ),
     }
+}
+
+/// One execute-mode measurement on a given ELF. Returns (cycles,
+/// uint256_mul_count, griffin_count, total_syscalls, elapsed_ms,
+/// accepted).
+fn execute_once(
+    client: &impl Prover,
+    elf: Elf,
+    input_bytes: &[u8],
+) -> (u64, u64, u64, u64, u64, bool) {
+    let mut stdin = SP1Stdin::new();
+    stdin.write_vec(input_bytes.to_vec());
+
+    let t = Instant::now();
+    let (output, report) = client.execute(elf, stdin).run().expect("execute failed");
+    let elapsed_ms = t.elapsed().as_millis() as u64;
+    let accepted: bool = bincode::deserialize(output.as_slice()).expect("decode commit");
+
+    let cycles = report.total_instruction_count();
+    let total_syscalls = report.total_syscall_count();
+    let uint256_mul = count_syscall(&report, "UINT256_MUL");
+    let griffin = count_syscall(&report, "GRIFFIN_FP192_PERMUTE");
+
+    (cycles, uint256_mul, griffin, total_syscalls, elapsed_ms, accepted)
+}
+
+fn count_syscall(report: &sp1_sdk::ExecutionReport, code_name: &str) -> u64 {
+    report
+        .syscall_counts
+        .iter()
+        .find(|(code, _)| format!("{:?}", code) == code_name)
+        .map(|(_, &n)| n)
+        .unwrap_or(0)
+}
+
+fn serialize_input(
+    pp: &PlumPublicParams,
+    pk: &PlumPublicKey,
+    message: &[u8],
+    signature: &PlumSignature,
+) -> Vec<u8> {
+    let input = GuestInput {
+        pp: pp.clone(),
+        pk: pk.clone(),
+        message: message.to_vec(),
+        signature: signature.clone(),
+    };
+    bincode::serialize(&input).expect("serialize input")
 }
 
 fn run_execute(
@@ -74,40 +146,74 @@ fn run_execute(
     message: &[u8],
     signature: &PlumSignature,
 ) {
-    let input = GuestInput {
-        pp: pp.clone(),
-        pk: pk.clone(),
-        message: message.to_vec(),
-        signature: signature.clone(),
-    };
-    let bytes = bincode::serialize(&input).expect("serialize input");
+    let bytes = serialize_input(pp, pk, message, signature);
     println!("input bytes: {}", bytes.len());
 
-    let mut stdin = SP1Stdin::new();
-    stdin.write_vec(bytes);
+    let (cycles, uint256_mul, griffin, total_syscalls, elapsed_ms, accepted) =
+        execute_once(client, syscall_elf(), &bytes);
 
-    let t = Instant::now();
-    let (output, report) = client
-        .execute(PLUM_VERIFY_ELF, stdin)
-        .run()
-        .expect("execute failed");
-    let accepted: bool = bincode::deserialize(output.as_slice()).expect("decode commit");
-    let total_syscalls = report.total_syscall_count();
-    let uint256_mul_count = report
-        .syscall_counts
-        .iter()
-        .find(|(code, _)| format!("{:?}", code) == "UINT256_MUL")
-        .map(|(_, &n)| n)
-        .unwrap_or(0);
     println!(
-        "accepted={} cycles={} elapsed_ms={} syscalls={} uint256_mul={}",
-        accepted,
-        report.total_instruction_count(),
-        t.elapsed().as_millis() as u64,
-        total_syscalls,
-        uint256_mul_count,
+        "accepted={} cycles={} elapsed_ms={} syscalls={} uint256_mul={} griffin_fp192={}",
+        accepted, cycles, elapsed_ms, total_syscalls, uint256_mul, griffin,
     );
     assert!(accepted, "guest rejected an honest PLUM signature");
+}
+
+fn run_compare(
+    client: &impl Prover,
+    pp: &PlumPublicParams,
+    pk: &PlumPublicKey,
+    message: &[u8],
+    signature: &PlumSignature,
+) {
+    let bytes = serialize_input(pp, pk, message, signature);
+    println!("input bytes: {}", bytes.len());
+
+    println!("\n--- arm A: Griffin via GRIFFIN_FP192_PERMUTE syscall ---");
+    let (cyc_a, mul_a, grf_a, tot_a, ms_a, acc_a) =
+        execute_once(client, syscall_elf(), &bytes);
+    println!(
+        "accepted={} cycles={} elapsed_ms={} syscalls={} uint256_mul={} griffin_fp192={}",
+        acc_a, cyc_a, ms_a, tot_a, mul_a, grf_a,
+    );
+
+    println!("\n--- arm B: Griffin via rv32im emulation (UINT256_MUL still on) ---");
+    let (cyc_b, mul_b, grf_b, tot_b, ms_b, acc_b) =
+        execute_once(client, emulated_elf(), &bytes);
+    println!(
+        "accepted={} cycles={} elapsed_ms={} syscalls={} uint256_mul={} griffin_fp192={}",
+        acc_b, cyc_b, ms_b, tot_b, mul_b, grf_b,
+    );
+
+    assert!(acc_a, "syscall arm rejected honest signature");
+    assert!(acc_b, "emulated arm rejected honest signature");
+    assert_eq!(
+        grf_b, 0,
+        "emulated arm should fire zero Griffin syscalls; got {grf_b} (cfg toggle broken?)",
+    );
+    assert!(
+        grf_a > 0,
+        "syscall arm should fire >0 Griffin syscalls; got 0 (cfg gate not active?)",
+    );
+
+    println!("\n--- delta ---");
+    let cycle_delta = cyc_b as i64 - cyc_a as i64;
+    let cycle_pct = if cyc_b > 0 {
+        (cycle_delta as f64 / cyc_b as f64) * 100.0
+    } else {
+        0.0
+    };
+    let cycles_per_griffin = if grf_a > 0 { cycle_delta as f64 / grf_a as f64 } else { 0.0 };
+    println!("griffin permutations: syscall_arm={} (each replaces ~{} rv32im cycles)",
+        grf_a, cycles_per_griffin as i64);
+    println!(
+        "cycle delta: {:+} ({:+.2}% relative to emulated arm)",
+        cycle_delta, cycle_pct,
+    );
+    println!(
+        "uint256_mul delta: syscall_arm={} emulated_arm={} (should differ — Griffin in emulated arm calls Fp192::mul which still syscalls)",
+        mul_a, mul_b,
+    );
 }
 
 fn run_prove(
@@ -128,7 +234,7 @@ fn run_prove(
     stdin.write_vec(bytes);
 
     let t_setup = Instant::now();
-    let pk_proof = client.setup(PLUM_VERIFY_ELF).expect("setup elf failed");
+    let pk_proof = client.setup(syscall_elf()).expect("setup elf failed");
     println!("setup_ms={}", t_setup.elapsed().as_millis() as u64);
 
     let t_prove = Instant::now();
@@ -235,7 +341,7 @@ fn run_adversarial(
 
         let t = Instant::now();
         let (output, report) = client
-            .execute(PLUM_VERIFY_ELF, stdin)
+            .execute(syscall_elf(), stdin)
             .run()
             .expect("execute failed");
         let accepted: bool = bincode::deserialize(output.as_slice()).expect("decode commit");

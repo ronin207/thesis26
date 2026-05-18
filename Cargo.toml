@@ -36,6 +36,14 @@ guest = []
 # `platforms/zkvms/sp1` PLUM-Verify guest. No effect on host builds or
 # other targets (the cfg also checks `target_os = "zkvm"`).
 sp1 = ["dep:sp1-zkvm"]
+# `sp1-no-griffin-syscall` — A/B-test escape hatch for Phase 3f cycle
+# measurement. When set ALONGSIDE `sp1`, disables ONLY the Griffin
+# permutation syscall route in `primitives/hash/griffin_p192.rs`; the
+# `UINT256_MUL` route stays on. Lets us measure the cycle delta of
+# Griffin-via-syscall vs Griffin-via-rv32im with the `uint256_mul`
+# precompile held constant in both arms (clean isolation of the
+# Griffin precompile's contribution). No effect when `sp1` is off.
+sp1-no-griffin-syscall = []
 # `risc0` is the same idea for the RISC Zero zkVM: routes `Fp192::mul`
 # (and dependants) through risc0's `sys_bigint(OP_MULTIPLY)` syscall
 # when compiled for the risc0 zkVM target. Used by the

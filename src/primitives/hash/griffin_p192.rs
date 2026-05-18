@@ -167,7 +167,11 @@ pub fn plum_griffin_sponge(
 pub fn plum_griffin_permutation(params: &PlumGriffinParams, state: &mut PlumGriffinState) {
     PLUM_GRIFFIN_PERM_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
 
-    #[cfg(all(target_os = "zkvm", feature = "sp1"))]
+    #[cfg(all(
+        target_os = "zkvm",
+        feature = "sp1",
+        not(feature = "sp1-no-griffin-syscall")
+    ))]
     {
         // `params` is unused in the syscall path — the executor side
         // derives its own params from the same SHAKE256 seed (cross-
@@ -209,8 +213,12 @@ pub fn plum_griffin_permutation(params: &PlumGriffinParams, state: &mut PlumGrif
         return;
     }
 
-    // Host / non-SP1-zkvm fallback: native compute.
-    #[cfg(not(all(target_os = "zkvm", feature = "sp1")))]
+    // Host / non-SP1-zkvm / opt-out fallback: native compute.
+    #[cfg(not(all(
+        target_os = "zkvm",
+        feature = "sp1",
+        not(feature = "sp1-no-griffin-syscall")
+    )))]
     {
         for r in 0..params.rounds - 1 {
             nonlinear_layer(params, state);

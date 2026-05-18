@@ -13,3 +13,13 @@ serde = { version = "1.0", default-features = false, features = ["alloc", "deriv
 bincode = "1.3"
 # vc-pqc: PLUM uses std::collections; Loquat side ignored here.
 vc-pqc = { path = "../../../..", default-features = false, features = ["guest", "std", "sp1"] }
+
+[features]
+default = []
+# Phase 3f A/B switch: disable ONLY the Griffin-permutation syscall
+# route in the guest, falling back to rv32im-emulated Griffin. Lets
+# us measure the cycle delta of the Griffin precompile while holding
+# the `UINT256_MUL` precompile on in both arms (clean isolation of
+# Griffin's contribution). See `../script/src/bin/plum_host.rs` for
+# the comparison harness.
+griffin-emulated = ["vc-pqc/sp1-no-griffin-syscall"]
