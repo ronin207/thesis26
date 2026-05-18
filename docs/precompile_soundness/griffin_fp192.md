@@ -245,15 +245,55 @@ After round `r ∈ 0..rounds-1`, lane `ℓ ∈ 0..4` is offset by
 `RC[r * 4 + ℓ]`, where `RC` is derived from
 `SHAKE256("PlumGriffin({modulus},{state_width},{capacity},{security_level})")`
 unrolled into `(rounds - 1) * 4 = 13 * 4 = 52` field elements.
-**PLANNED.**
+**IMPLEMENTED** (SP1 fork commit ⟨TBD⟩).
+
+Encoding:
+
+  - **Preprocessing table** at
+    `sp1-core-executor::griffin_fp192_compute::round_constants_limbs()`.
+    Returns 56 × 32-byte little-endian limb buffers, indexed by
+    `round * 4 + lane`. The first 52 entries are the SHAKE256-
+    derived constants (rounds 0..12, all 4 lanes); the last 4
+    entries are zero (round 13 — the Griffin spec skips RC after
+    the final linear layer, but the AIR uses a uniform constraint
+    that naturally yields zero on the last row).
+  - **One-hot round flags** `is_round_r: [T; NB_ROUNDS]` on the
+    per-round chip. Each is bool, `Σ is_round_r = is_real`,
+    `Σ r * is_round_r = round_idx`. Padding rows have all flags 0.
+  - **Active RC polynomial** built per lane as
+      `active_rc[ℓ] = Σ_{r=0..NB_ROUNDS} is_round_r[r] * RC[r*4+ℓ]_polynomial`
+    where `RC[r*4+ℓ]_polynomial` is the 32-coefficient
+    `Polynomial<AB::F>` lifted from the constant bytes (degree 0 in
+    chip variables). Total polynomial has degree 1 in chip variables.
+  - **RC addition** per lane via
+    `rc_add[ℓ].eval(builder, &mds_out[ℓ].result, &active_rc[ℓ], FieldOperation::Add, is_real)`.
+    `rc_add[ℓ].result` is the post-round-constants state for lane ℓ.
+
+Soundness pins:
+
+  - The RC table is committed via `OnceLock` in the executor — the
+    same code that the host's reference compute uses. Drift between
+    host and executor RC is checked by the `equivalence_tests`
+    256-vector property test.
+  - The bool + sum constraints on `is_round_r` rule out the
+    "multiple round flags set" attack — a malicious prover can't
+    add two RCs at once.
+  - The `Σ r * is_round_r = round_idx` cross-check ties the one-hot
+    encoding to B-9's round_idx column. Combined with the
+    integration commit's cross-row `round_idx` coherence
+    (`next.round_idx == local.round_idx + 1` on real rows), the
+    sequence of round indices through one syscall is pinned to
+    `0, 1, 2, ..., NB_ROUNDS - 1`.
+
 - Failure mode: RC silently zeroed (test
   `zero_state_is_not_a_fixed_point` would catch all-zero, but a
   single wrong constant slips through); RC supplied per-row by the
-  prover rather than fixed in preprocessing (this is B-10).
-- Attacker capability: slide attacks, fixed-point exploitation.
-- Source spec: `griffin_p192.rs:344-402`
-  (`compute_plum_griffin_params`), `griffin_fp192_compute.rs:217-247`
-  on the executor side.
+  prover rather than fixed in preprocessing (B-10).
+- Attacker capability: slide attacks, fixed-point exploitation,
+  reduced-round attacks.
+- Source spec: `vc-pqc::primitives::hash::griffin_p192:344-402`
+  (compute_plum_griffin_params), mirrored at
+  `sp1-core-executor::griffin_fp192_compute:217-247`.
 
 ### B-6 — Round count
 
