@@ -47,16 +47,31 @@ fn main() {
         },
     );
 
-    fn canonical(dir: &str) -> PathBuf {
-        let p = Path::new(dir).join("plum_verify");
+    fn canonical(dir: &str, bin: &str) -> PathBuf {
+        let p = Path::new(dir).join(bin);
         p.canonicalize().unwrap_or(p)
     }
     println!(
         "cargo:rustc-env=PLUM_VERIFY_SYSCALL_ELF_PATH={}",
-        canonical(syscall_dir).display(),
+        canonical(syscall_dir, "plum_verify").display(),
     );
     println!(
         "cargo:rustc-env=PLUM_VERIFY_EMULATED_ELF_PATH={}",
-        canonical(emulated_dir).display(),
+        canonical(emulated_dir, "plum_verify").display(),
+    );
+
+    // ─── Griffin Fp192 smoke-prove guest (C4 end-to-end validation) ─
+    let smoke_dir = "../program_griffin_smoke/elf-out";
+    build_program_with_args(
+        "../program_griffin_smoke",
+        BuildArgs {
+            elf_name: Some("griffin_smoke".into()),
+            output_directory: Some(smoke_dir.into()),
+            ..Default::default()
+        },
+    );
+    println!(
+        "cargo:rustc-env=GRIFFIN_SMOKE_ELF_PATH={}",
+        canonical(smoke_dir, "griffin_smoke").display(),
     );
 }

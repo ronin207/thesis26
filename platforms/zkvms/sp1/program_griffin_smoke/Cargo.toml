@@ -1,0 +1,17 @@
+[package]
+name = "griffin_smoke_program"
+version = "0.1.0"
+edition = "2021"
+
+# Minimal smoke-test guest: invoke GRIFFIN_FP192_PERMUTE once on a
+# hardcoded `[u64; 16]` state and commit the permuted result. No
+# dependencies on `vc-pqc` — keeps the prover surface as small as
+# possible so memory pressure is dominated by the chip itself, not
+# unrelated guest code.
+
+[[bin]]
+name = "griffin_smoke"
+path = "src/main.rs"
+
+[dependencies]
+sp1-zkvm = "6.0.1"

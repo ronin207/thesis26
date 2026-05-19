@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["program", "script", "equivalence_tests"]
+members = ["program", "program_griffin_smoke", "script", "equivalence_tests"]
 
 [profile.release]
 opt-level = 3
