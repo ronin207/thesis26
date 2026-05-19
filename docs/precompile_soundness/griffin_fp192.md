@@ -434,21 +434,54 @@ plus this commit). Structure landed:
     emits the byte lookups required by AddrAddOperation +
     page-prot.
 
-**Pending (integration commit):**
+**Cross-chip lookup landed in integration-B** (SP1 fork commit
+⟨TBD⟩). `InteractionKind::GriffinFp192 = 22` registered in
+`sp1-hypercube` (`num_values = 70`).
 
-  - Cross-chip lookup interaction with the per-round chip: control
-    chip sends `(input_state, clk, ptr)`, per-round chip receives;
-    per-round chip sends `(output_state, clk, ptr)`, control chip
-    receives. Wires the algebraic claim from one chip to the memory
-    binding on the other. Today the controller's memory binding is
-    self-consistent but NOT linked to a Griffin permutation — a
-    malicious prover with `included()=true` could produce a
-    controller-chip trace with arbitrary `memory[i].prev_value` and
-    `memory[i].value` (any input/output pair subject to memory
-    consistency), claiming a "Griffin permutation" the per-round
-    chip never validated. The integration commit closes this with
-    the lookup hookup.
-  - Flipping `included()` to `true`.
+Controller chip (1 row per syscall):
+  - Sends initial state with `direction = 0`, payload =
+    `memory[i].prev_value` u16 limbs (= 16 Word × 4 limbs = 64).
+  - Receives final state with `direction = NB_ROUNDS = 14`,
+    payload = `final_value` u16 limbs.
+
+Per-round chip:
+  - Receives on `is_first_round = 1` rows. The payload state
+    limbs come from composing `lo + 256·hi` over
+    `state_before[lane].0` byte cells, using the byte mapping
+    derived in `docs/phase3_griffin_integration_b_design.md`.
+  - Sends on `is_last_round = 1` rows with `direction = NB_ROUNDS`
+    (`= round_idx + 1` on the last row, matching keccak's
+    `index + 1` send convention — audit-confirmed against
+    `keccak256/controller.rs:347` and `keccak256/air.rs:185` on
+    2026-05-19).
+
+**Soundness gap closed alongside** (proof-checker audit 2026-05-19,
+finding #3): `state_before[lane].0` cells are now explicitly
+u8-range-checked via `slice_range_check_u8` in the per-round chip's
+eval. Without this, on row 0 of each syscall (lanes 1/2/3 — lane 0
+is transitively bounded via B-2's backward binding), a malicious
+prover could pack non-byte field values into `(lo, hi)` pairs that
+compose to a target u16, defeating the cross-chip binding's
+soundness.
+
+Three new per-round-chip columns landed alongside the cross-chip
+lookup: `clk_high`, `clk_low`, `ptr_addr: [T; 3]`. Cross-row
+coherence (`next.X == local.X` under the `continuing` selector)
+pins these constant across the 14 rows of one syscall; combined
+with the lookup-balance argument that binds them on
+`is_first_round` and `is_last_round` rows, every row's clk/ptr is
+tied to the controller's single row.
+
+**Still pending (integration-C):**
+
+  - Trace generation for the per-round chip (populates all 12
+    column families × 14 rows × N syscalls). Most columns use
+    `FieldOpCols::populate*`; B-3 and B-4 use
+    `eval_with_polynomials` and need manual
+    `populate_carry_and_witness`.
+  - Flipping `included()` to `true` on both chips when there are
+    `GRIFFIN_FP192_PERMUTE` events.
+  - First Cell 2 prove attempt.
 
 - Failure mode (closed by B-7b): chip reads from wrong address; chip
   claims a write was at clk `c` but actually fired at clk `c'`.
