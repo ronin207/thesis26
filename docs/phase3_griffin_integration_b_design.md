@@ -312,10 +312,17 @@ builder.send(
 );
 
 // Receive final state from per-round chip.
+//
+// Direction marker = NB_ROUNDS (not NB_ROUNDS - 1). Matches keccak's
+// pattern: per-round chip's last row sends at index = round_idx + 1,
+// so the SEND value on the last row is (NB_ROUNDS - 1) + 1 = NB_ROUNDS.
+// See keccak256/controller.rs:347 and keccak256/air.rs:185 for the
+// reference. Audit-confirmed by proof-checker (2026-05-19) —
+// the off-by-one in the prior revision of this doc was caught here.
 let recv_final = once(local.clk_high.into())
     .chain(once(local.clk_low.into()))
     .chain(state_addr.map(Into::into))
-    .chain(once(AB::Expr::from_canonical_u32(NB_ROUNDS as u32 - 1)))  // direction = NB_ROUNDS-1 (final)
+    .chain(once(AB::Expr::from_canonical_u32(NB_ROUNDS as u32)))  // direction = NB_ROUNDS (final)
     .chain(
         local.final_value.into_iter()
             .flat_map(|word| word.into_iter())
@@ -385,7 +392,9 @@ controller's send/receive. Either:
 
 The first option is simpler. Let's add them.
 
-3. Symmetric SEND on `is_last_round = 1`:
+3. Symmetric SEND on `is_last_round = 1` with direction marker
+   `= NB_ROUNDS` (matches keccak's `index + 1` send convention —
+   audit-confirmed 2026-05-19):
 
 ```rust
 let send_final_state: Vec<AB::Expr> = (0..16).flat_map(|w| {
@@ -400,7 +409,10 @@ let send_final_state: Vec<AB::Expr> = (0..16).flat_map(|w| {
 }).collect();
 ```
 
-(Plus prefix as above, with direction = `NB_ROUNDS - 1`.)
+(Plus prefix: clk_high, clk_low, ptr_addr × 3, direction marker
+`= NB_ROUNDS` for final state. Equivalently, send at
+`round_idx + 1`, which on the `is_last_round = 1` row equals
+`(NB_ROUNDS - 1) + 1 = NB_ROUNDS`.)
 
 ### Per-round chip columns to add (integration-B)
 
@@ -449,14 +461,51 @@ constraints in integration-A's existing block.
 
 - **First Cell 2 prove attempt.** Integration-C's verification.
 
-## Audit gate (before any code lands)
+## Audit gate (proof-checker pass 2026-05-19)
 
-Operator must confirm:
+Independent audit by `proof-checker` agent on 2026-05-19 against
+this document. Five-checkbox status:
 
-1. [ ] Worked example matches the formula (lane=2, b=5 → Word[8].0[2] high byte).
-2. [ ] Option B (per-round composes) is the right choice vs Option A (controller decomposes).
-3. [ ] The u8 range-check gap is real and the fix is appropriate.
-4. [ ] The 5 new per-round-chip columns (clk_high, clk_low, ptr_addr×3) are acceptable.
-5. [ ] `InteractionKind::GriffinFp192 = 22` with `num_values = 70` is correct.
+1. [x] **Worked example matches the formula.** Three independent
+   derivations performed (lane=2,b=5; lane=0,b=15; lane=3,b=31) —
+   all consistent. CONFIRMED.
+2. [x] **Option B is the right choice.** Composition expression is
+   degree 1; lookup-payload soundness is independent of payload
+   degree (lookup-balance argument constrains the fingerprint, not
+   the polynomial degree). CONFIRMED, conditional on (3).
+3. [x] **u8 range-check gap is real.** Specifically affects row 0
+   of each syscall on lanes 1, 2, 3 (lane 0 is transitively
+   u8-bounded via B-2's backward binding to `sbox0_cube.result`,
+   itself range-checked by FieldOpCols). On rows r > 0, all four
+   lanes are bound by integration-A's threading to the previous
+   row's `rc_add[ℓ].result` (range-checked). The proposed fix
+   (`slice_range_check_u8(&local.state_before[lane].0, local.is_real)`
+   for all 4 lanes) covers all rows uniformly. CONFIRMED real,
+   CONFIRMED fix.
+4. [x] **`InteractionKind::GriffinFp192` with `num_values = 70`.**
+   Arithmetic 1+1+3+1+64=70 verified against keccak's analog
+   (1+1+3+1+100=106, matching `interaction.rs:122`). CONFIRMED.
+5. [x] **Direction-marker value.** Original doc said `NB_ROUNDS - 1`
+   for final receive. Cross-checked against keccak
+   (`keccak256/controller.rs:347` receives at `index = 24 = NB_ROUNDS`,
+   not `23 = NB_ROUNDS - 1`; `keccak256/air.rs:185` per-round chip
+   sends at `local.index + 1`). **GAP-FOUND on first audit pass.**
+   **FIXED in this revision** — controller's final-receive direction
+   marker is now `NB_ROUNDS` (= 14 for Griffin), per-round chip
+   sends on `is_last_round` with direction `round_idx + 1 = NB_ROUNDS`.
 
-Once all five boxes are checked, integration-B implementation proceeds.
+Additional notes from the audit:
+
+  - **Field ordering.** Place `clk_high`, `clk_low`, `ptr_addr`
+    columns BEFORE `_marker: PhantomData<M>` in
+    `GriffinFp192Cols` to follow the conventional layout. Not a
+    bug; pin in the integration-B commit.
+  - **`state_addr` shape.** 3-element output of
+    `SyscallAddrOperation::eval`, matching keccak's controller.
+    Confirmed.
+  - **Per-round chip clk/ptr coherence within a syscall.** Lookup-
+    balance pins clk/ptr only on `is_first_round` and `is_last_round`
+    rows; middle rows are bound by cross-row coherence. Two
+    binding sources together suffice. Confirmed.
+
+**Status: GREEN. Integration-B implementation can proceed.**
