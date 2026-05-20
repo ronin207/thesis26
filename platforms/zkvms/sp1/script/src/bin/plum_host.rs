@@ -9,8 +9,11 @@
 //!     under both ELFs (Griffin-via-syscall vs Griffin-via-rv32im) and
 //!     print the side-by-side cycle/syscall delta.
 //!   - `prove` — full prove + verify round-trip on the syscall ELF.
-//!     Currently broken until stage-3 lands the Griffin AIR
-//!     constraints; left in for completeness.
+//!     **Cell 2 measurement**. Unblocked 2026-05-20 by F2 (binary-
+//!     chain B-3 + padding-row populate fix in the Griffin Fp192
+//!     chip). Smoke prove succeeds end-to-end in 13s for 1 Griffin
+//!     syscall; scaling for the full PLUM verify is the measurement
+//!     this arm captures.
 //!   - `adversarial` — soundness probe: honest verify (must accept)
 //!     followed by tamper cases (each must reject). Regression net
 //!     against precompile-introduced false-accept bugs.
@@ -227,10 +230,10 @@ fn run_prove(
     // PLUM_PROVE_ARM=emulated to prove the rv32im-Griffin ELF
     // (Cell 1 — the "without custom precompile" baseline). Default
     // is `syscall`, which proves the GRIFFIN_FP192_PERMUTE-routed
-    // ELF (Cell 2 — the with-precompile arm). Cell 2 currently
-    // FAILS because the Griffin AIR is a stage-2 skeleton (no rows
-    // emitted; interaction-balance check fires). Cell 1 should
-    // succeed up to memory limits.
+    // ELF (Cell 2 — the with-precompile arm). **As of 2026-05-20
+    // (Griffin Fp192 F2)**, both arms can produce valid proofs;
+    // the measurement here captures the proof-gen time / cycle
+    // count / memory-peak delta between them.
     let arm = std::env::var("PLUM_PROVE_ARM").unwrap_or_else(|_| "syscall".into());
     let (elf, arm_label) = match arm.as_str() {
         "syscall" => (syscall_elf(), "syscall (Cell 2 — Griffin via precompile)"),

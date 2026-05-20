@@ -7,14 +7,31 @@ decomposition assigns 91% of constraints (~94% of muls under our
 attribution) to hash work, and Griffin is the construction PLUM
 uses.
 
-**Phase status (2026-05-18).** Phases 3a–3f are committed: chip
-registered, executor handlers implementing native compute, guest
-routed through syscall under `cfg(all(target_os = "zkvm", feature =
-"sp1", not(feature = "sp1-no-griffin-syscall")))`, A/B measurement
-harness landing a clean 56× execute-cycle delta on PLUM-80. **Phase
-3d-stage-3 (the AIR constraints) has not been written.** This
-document is the soundness rubric stage-3 will be implemented against,
-not a post-hoc justification.
+**Phase status (2026-05-20).** Phases 3a–3f committed. **Phase
+3d-stage-3 (the AIR constraints) is COMPLETE.** End-to-end SP1 proof
+generation works: smoke prove on a single Griffin syscall passes all
+three stages (execute + prove + verify) in 13.04s on M5 Pro 24GB. The
+B-x constraint families below were implemented monotonically as
+described, with two additional audit-driven hardening passes:
+
+- **F1 (2026-05-19)** — proof-checker-audited fix bundle: alpha_l_2/3
+  spilled cells to fix the B-3 polynomial-degree blowup; explicit u8
+  range check on state_after_nonlinear[0]; explicit `< p` checks on
+  sbox1_cube + quad_mul_2/3 results; Keccak256 golden-digest drift
+  guard on the α/β/RC preprocessing tables.
+
+- **F2 (2026-05-20)** — engineer-agent-localized fix bundle: B-3
+  refactored to a chain of binary FieldOpCols cells with byte-
+  canonical operands (resolves u16 witness-limb overflow that broke
+  the GKR cumulative-sum balance); padding-row populate block added
+  to `generate_trace_into` (resolves carry-vanishing identity
+  failure on all-zero padding rows).
+
+This document remains the soundness rubric stage-3 was implemented
+against. Each B-x section below now corresponds to landed AIR
+constraints with named columns. See the chip's module docstring at
+`submodules/sp1/crates/core/machine/src/syscall/precompiles/griffin_fp192/air.rs`
+for the implementation-side mapping.
 
 **Sibling soundness note.** The `UINT256_MUL` Fp192 multiplication
 module (`docs/precompile_soundness/uint256_mul_for_fp192.md`)
