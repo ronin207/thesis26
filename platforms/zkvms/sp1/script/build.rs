@@ -24,6 +24,7 @@ use sp1_build::{BuildArgs, build_program_with_args};
 fn main() {
     let syscall_dir = "../program/elf-syscall";
     let emulated_dir = "../program/elf-emulated";
+    let sha3_dir = "../program/elf-sha3";
 
     // Syscall arm — Griffin routes through GRIFFIN_FP192_PERMUTE.
     build_program_with_args(
@@ -47,6 +48,20 @@ fn main() {
         },
     );
 
+    // Cell 3 arm — `plum-sha3-hasher` feature swaps the PLUM hasher
+    // to SHA3-256. Griffin is not invoked on this arm at all (cfg
+    // gate in `program/src/main.rs` selects `PlumSha3Hasher as
+    // Hasher`).
+    build_program_with_args(
+        "../program",
+        BuildArgs {
+            features: vec!["plum-sha3-hasher".into()],
+            elf_name: Some("plum_verify".into()),
+            output_directory: Some(sha3_dir.into()),
+            ..Default::default()
+        },
+    );
+
     fn canonical(dir: &str, bin: &str) -> PathBuf {
         let p = Path::new(dir).join(bin);
         p.canonicalize().unwrap_or(p)
@@ -58,6 +73,10 @@ fn main() {
     println!(
         "cargo:rustc-env=PLUM_VERIFY_EMULATED_ELF_PATH={}",
         canonical(emulated_dir, "plum_verify").display(),
+    );
+    println!(
+        "cargo:rustc-env=PLUM_VERIFY_SHA3_ELF_PATH={}",
+        canonical(sha3_dir, "plum_verify").display(),
     );
 
     // ─── Griffin Fp192 smoke-prove guest (C4 end-to-end validation) ─

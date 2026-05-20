@@ -1,33 +1,34 @@
-//! SP1 PLUM verification guest (Phase 3f — Griffin variant).
+//! SP1 PLUM verification guest (Phase 3f — Griffin variant + Cell 3
+//! SHA3 variant via `plum-sha3-hasher` feature).
 //!
 //! Reads `(pp, pk, message, sig)` over the SP1 input stream, runs
-//! `plum_verify` with `PlumGriffinHasher`, and commits a single
+//! `plum_verify` with the cfg-selected hasher, and commits a single
 //! `bool` indicating the verification outcome.
 //!
-//! ### Hash variant
+//! ### Hash variant — three build arms
 //!
-//! Switched from `PlumSha3Hasher` (Phase 1+2+A smoke) to
-//! `PlumGriffinHasher` (Phase 3f measurement target). Griffin is the
-//! load-bearing primitive on the PLUM-verify hot path (per PLUM
-//! §4.2's R1CS decomposition: 91% of constraints, ~94% of muls
-//! attributable to Step 2 / STIR Merkle work). Without this switch,
-//! the SP1 `GRIFFIN_FP192_PERMUTE` syscall is dormant — the
-//! cfg-gated route in `vc-pqc::primitives::hash::griffin_p192`
-//! compiles in but is never reached.
+//! - default features              → Griffin via `GRIFFIN_FP192_PERMUTE`
+//!   syscall (Cell 2 — load-bearing precompile path).
+//! - `--features griffin-emulated` → Griffin in rv32im (Cell 1 —
+//!   precompile-less baseline; UINT256_MUL still on).
+//! - `--features plum-sha3-hasher` → SHA3-256 in software (Cell 3 —
+//!   control arm; isolates whether Cell 2's win is Griffin-specific
+//!   or any-precompile).
 //!
-//! ### A/B isolation
-//!
-//! Built with default features → Griffin permutation routes through
-//! the syscall. Built with `--features griffin-emulated` → Griffin
-//! permutation runs natively in rv32im (UINT256_MUL precompile still
-//! on, isolating the Griffin contribution).
+//! Per PLUM §4.2's R1CS decomposition: 91% of constraints are
+//! attributable to hash work, so swapping the hash dominates the
+//! cycle-cost delta between arms.
 
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
 use serde::{Deserialize, Serialize};
 
-use vc_pqc::signatures::plum::hasher::PlumGriffinHasher;
+#[cfg(feature = "plum-sha3-hasher")]
+use vc_pqc::signatures::plum::hasher::PlumSha3Hasher as Hasher;
+#[cfg(not(feature = "plum-sha3-hasher"))]
+use vc_pqc::signatures::plum::hasher::PlumGriffinHasher as Hasher;
+
 use vc_pqc::signatures::plum::keygen::PlumPublicKey;
 use vc_pqc::signatures::plum::setup::PlumPublicParams;
 use vc_pqc::signatures::plum::sign::PlumSignature;
@@ -46,7 +47,7 @@ pub fn main() {
     let input: GuestInput =
         bincode::deserialize(&input_bytes).expect("guest: bincode decode failed");
 
-    let outcome = plum_verify::<PlumGriffinHasher>(
+    let outcome = plum_verify::<Hasher>(
         &input.pp,
         &input.pk,
         &input.message,

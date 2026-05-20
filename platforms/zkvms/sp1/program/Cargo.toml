@@ -23,3 +23,10 @@ default = []
 # Griffin's contribution). See `../script/src/bin/plum_host.rs` for
 # the comparison harness.
 griffin-emulated = ["vc-pqc/sp1-no-griffin-syscall"]
+# Cell 3 (PLUM-SHA3): swap the guest's PLUM hasher from
+# `PlumGriffinHasher` to `PlumSha3Hasher`. The Griffin precompile
+# becomes irrelevant on this arm; SHA3-256 runs in software (no
+# native SHA precompile in SP1 v6.2.1, so this is the "any hash, no
+# bespoke precompile" baseline). Isolates whether Cell 2's win is
+# Griffin-specific or any-precompile.
+plum-sha3-hasher = []

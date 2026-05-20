@@ -1,22 +1,22 @@
-//! SP1 PLUM verification host (Phase 3f — Griffin variant + A/B
-//! comparison).
+//! SP1 PLUM verification host (Phase 3f Griffin + Cell 3 SHA3
+//! control arm).
 //!
 //! Four modes (selected via `PLUM_HOST_MODE`, default `compare`):
 //!
-//!   - `execute` — single honest verify in executor mode (no proof),
-//!     using the Griffin-syscall ELF. Single number; cycle attribution.
+//!   - `execute` — single honest verify in executor mode (no proof).
+//!     Uses Griffin-syscall ELF or SHA3 ELF depending on `PLUM_HASHER`.
 //!   - `compare` — Phase 3f deliverable: execute the SAME signature
-//!     under both ELFs (Griffin-via-syscall vs Griffin-via-rv32im) and
-//!     print the side-by-side cycle/syscall delta.
-//!   - `prove` — full prove + verify round-trip on the syscall ELF.
-//!     **Cell 2 measurement**. Unblocked 2026-05-20 by F2 (binary-
-//!     chain B-3 + padding-row populate fix in the Griffin Fp192
-//!     chip). Smoke prove succeeds end-to-end in 13s for 1 Griffin
-//!     syscall; scaling for the full PLUM verify is the measurement
-//!     this arm captures.
+//!     under both Griffin ELFs (syscall vs rv32im). Griffin-only.
+//!   - `prove` — full prove + verify round-trip. `PLUM_PROVE_ARM` selects
+//!     the arm: `syscall` (Cell 2 — Griffin via precompile),
+//!     `emulated` (Cell 1 — Griffin via rv32im), or `sha3` (Cell 3 —
+//!     PLUM-SHA3, no Griffin syscall fired).
 //!   - `adversarial` — soundness probe: honest verify (must accept)
-//!     followed by tamper cases (each must reject). Regression net
-//!     against precompile-introduced false-accept bugs.
+//!     followed by tamper cases (each must reject). Runs against the
+//!     hasher selected by `PLUM_HASHER` / `PLUM_PROVE_ARM`.
+//!
+//! Hasher selection: `PLUM_HASHER` env var = "griffin" (default) or
+//! "sha3". If unset, infers "sha3" when `PLUM_PROVE_ARM=sha3`.
 
 use std::time::Instant;
 
@@ -28,7 +28,7 @@ use sp1_sdk::{
     blocking::{ProveRequest, Prover, ProverClient},
 };
 
-use vc_pqc::signatures::plum::hasher::PlumGriffinHasher;
+use vc_pqc::signatures::plum::hasher::{PlumGriffinHasher, PlumSha3Hasher};
 use vc_pqc::signatures::plum::keygen::{PlumPublicKey, PlumSecretKey, plum_keygen};
 use vc_pqc::signatures::plum::setup::{PlumPublicParams, plum_setup};
 use vc_pqc::signatures::plum::sign::{PlumSignature, plum_sign};
@@ -44,6 +44,11 @@ const PLUM_VERIFY_SYSCALL_ELF_BYTES: &[u8] =
 /// in rv32im, `UINT256_MUL` precompile still on).
 const PLUM_VERIFY_EMULATED_ELF_BYTES: &[u8] =
     include_bytes!(env!("PLUM_VERIFY_EMULATED_ELF_PATH"));
+/// Bytes of the SHA3-arm ELF (`plum-sha3-hasher` feature → guest uses
+/// `PlumSha3Hasher` in place of `PlumGriffinHasher`). Cell 3 control
+/// arm; no Griffin syscalls fired on this path.
+const PLUM_VERIFY_SHA3_ELF_BYTES: &[u8] =
+    include_bytes!(env!("PLUM_VERIFY_SHA3_ELF_PATH"));
 
 fn syscall_elf() -> Elf {
     Elf::Static(PLUM_VERIFY_SYSCALL_ELF_BYTES)
@@ -51,6 +56,31 @@ fn syscall_elf() -> Elf {
 
 fn emulated_elf() -> Elf {
     Elf::Static(PLUM_VERIFY_EMULATED_ELF_BYTES)
+}
+
+fn sha3_elf() -> Elf {
+    Elf::Static(PLUM_VERIFY_SHA3_ELF_BYTES)
+}
+
+/// Returns ("sha3" | "griffin", whether the SHA3 path is selected).
+///
+/// Selection rule: `PLUM_HASHER` env var is the explicit knob (values
+/// "sha3" or "griffin"). If unset, infer "sha3" when
+/// `PLUM_PROVE_ARM=sha3`, otherwise default to "griffin". This lets
+/// `PLUM_PROVE_ARM=sha3 cargo run --bin plum_host` work without
+/// requiring callers to also set `PLUM_HASHER=sha3`.
+fn select_hasher() -> (&'static str, bool) {
+    let explicit = std::env::var("PLUM_HASHER").ok();
+    let inferred = match std::env::var("PLUM_PROVE_ARM").as_deref() {
+        Ok("sha3") => "sha3",
+        _ => "griffin",
+    };
+    let choice = explicit.as_deref().unwrap_or(inferred);
+    match choice {
+        "sha3" => ("sha3", true),
+        "griffin" => ("griffin", false),
+        other => panic!("unknown PLUM_HASHER={other:?}; use griffin or sha3"),
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -73,21 +103,40 @@ fn main() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(80);
     let pp: PlumPublicParams = plum_setup(security_level).expect("setup");
-    println!("=== PLUM-{} verify on SP1 ===", security_level);
+    let (hasher_label, use_sha3) = select_hasher();
+    println!(
+        "=== PLUM-{} verify on SP1 (hasher: {}) ===",
+        security_level, hasher_label,
+    );
     let (sk, pk): (PlumSecretKey, PlumPublicKey) = plum_keygen(&pp, &mut rng);
 
-    let message = b"sp1 phase3f: plum verify with Griffin hasher".to_vec();
-    let signature: PlumSignature =
-        plum_sign::<PlumGriffinHasher, _>(&pp, &sk, &message, &mut rng);
+    let message = b"sp1 phase3f: plum verify".to_vec();
+    // Host signs with the hasher that matches the guest's compile-time
+    // `Hasher = PlumGriffinHasher | PlumSha3Hasher`. Mismatch ⇒ guest
+    // rejects every signature.
+    let signature: PlumSignature = if use_sha3 {
+        plum_sign::<PlumSha3Hasher, _>(&pp, &sk, &message, &mut rng)
+    } else {
+        plum_sign::<PlumGriffinHasher, _>(&pp, &sk, &message, &mut rng)
+    };
 
     let client = ProverClient::from_env();
     let mode = std::env::var("PLUM_HOST_MODE").unwrap_or_else(|_| "compare".into());
 
     match mode.as_str() {
-        "execute" => run_execute(&client, &pp, &pk, &message, &signature),
-        "compare" => run_compare(&client, &pp, &pk, &message, &signature),
+        "execute" => run_execute(&client, &pp, &pk, &message, &signature, use_sha3),
+        "compare" => {
+            assert!(
+                !use_sha3,
+                "compare mode is Griffin-only (A/B between syscall and rv32im); \
+                 SHA3 measurements use mode=execute or mode=prove with PLUM_PROVE_ARM=sha3",
+            );
+            run_compare(&client, &pp, &pk, &message, &signature)
+        }
         "prove" => run_prove(&client, &pp, &pk, &message, &signature),
-        "adversarial" => run_adversarial(&client, &pp, &sk, &pk, &message, &signature, &mut rng),
+        "adversarial" => run_adversarial(
+            &client, &pp, &sk, &pk, &message, &signature, &mut rng, use_sha3,
+        ),
         other => panic!(
             "unknown PLUM_HOST_MODE={other:?}; use execute, compare, prove, or adversarial"
         ),
@@ -148,17 +197,32 @@ fn run_execute(
     pk: &PlumPublicKey,
     message: &[u8],
     signature: &PlumSignature,
+    use_sha3: bool,
 ) {
     let bytes = serialize_input(pp, pk, message, signature);
     println!("input bytes: {}", bytes.len());
 
+    let elf = if use_sha3 { sha3_elf() } else { syscall_elf() };
+    let arm_label = if use_sha3 {
+        "sha3 (Cell 3 — PLUM-SHA3, Griffin syscall dormant)"
+    } else {
+        "syscall (Cell 2 — Griffin via GRIFFIN_FP192_PERMUTE)"
+    };
+    println!("execute arm: {arm_label}");
+
     let (cycles, uint256_mul, griffin, total_syscalls, elapsed_ms, accepted) =
-        execute_once(client, syscall_elf(), &bytes);
+        execute_once(client, elf, &bytes);
 
     println!(
         "accepted={} cycles={} elapsed_ms={} syscalls={} uint256_mul={} griffin_fp192={}",
         accepted, cycles, elapsed_ms, total_syscalls, uint256_mul, griffin,
     );
+    if use_sha3 {
+        assert_eq!(
+            griffin, 0,
+            "sha3 arm should fire zero Griffin syscalls; got {griffin} (cfg gate broken?)",
+        );
+    }
     assert!(accepted, "guest rejected an honest PLUM signature");
 }
 
@@ -238,7 +302,8 @@ fn run_prove(
     let (elf, arm_label) = match arm.as_str() {
         "syscall" => (syscall_elf(), "syscall (Cell 2 — Griffin via precompile)"),
         "emulated" => (emulated_elf(), "emulated (Cell 1 — Griffin via rv32im)"),
-        other => panic!("unknown PLUM_PROVE_ARM={other:?}; use syscall or emulated"),
+        "sha3" => (sha3_elf(), "sha3 (Cell 3 — PLUM-SHA3 control arm)"),
+        other => panic!("unknown PLUM_PROVE_ARM={other:?}; use syscall, emulated, or sha3"),
     };
     println!("PROVE arm: {arm_label}");
 
@@ -326,7 +391,11 @@ fn run_adversarial(
     message: &[u8],
     signature: &PlumSignature,
     rng: &mut ChaCha20Rng,
+    use_sha3: bool,
 ) {
+    let elf_factory: fn() -> Elf = if use_sha3 { sha3_elf } else { syscall_elf };
+    let arm_label = if use_sha3 { "sha3" } else { "griffin syscall" };
+    println!("adversarial arm: {arm_label}");
     // Build a second, unrelated keypair for the wrong-pk case.
     let (_sk2, pk2) = plum_keygen(pp, rng);
     let alt_message = b"sp1 smoke: a DIFFERENT message that was never signed".to_vec();
@@ -365,7 +434,7 @@ fn run_adversarial(
 
         let t = Instant::now();
         let (output, report) = client
-            .execute(syscall_elf(), stdin)
+            .execute(elf_factory(), stdin)
             .run()
             .expect("execute failed");
         let accepted: bool = bincode::deserialize(output.as_slice()).expect("decode commit");
