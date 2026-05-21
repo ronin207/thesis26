@@ -114,4 +114,46 @@ fn main() {
         "cargo:rustc-env=ECDSA_VERIFY_ELF_PATH={}",
         canonical(ecdsa_dir, "ecdsa_verify").display(),
     );
+
+    let sphincs_dir = "../program_sphincs/elf-out";
+    build_program_with_args(
+        "../program_sphincs",
+        BuildArgs {
+            elf_name: Some("sphincs_verify".into()),
+            output_directory: Some(sphincs_dir.into()),
+            ..Default::default()
+        },
+    );
+    println!(
+        "cargo:rustc-env=SPHINCS_VERIFY_ELF_PATH={}",
+        canonical(sphincs_dir, "sphincs_verify").display(),
+    );
+
+    let dilithium_dir = "../program_dilithium/elf-out";
+    build_program_with_args(
+        "../program_dilithium",
+        BuildArgs {
+            elf_name: Some("dilithium_verify".into()),
+            output_directory: Some(dilithium_dir.into()),
+            ..Default::default()
+        },
+    );
+    println!(
+        "cargo:rustc-env=DILITHIUM_VERIFY_ELF_PATH={}",
+        canonical(dilithium_dir, "dilithium_verify").display(),
+    );
+
+    let loquat_dir = "../program_loquat/elf-out";
+    build_program_with_args(
+        "../program_loquat",
+        BuildArgs {
+            elf_name: Some("loquat_verify".into()),
+            output_directory: Some(loquat_dir.into()),
+            ..Default::default()
+        },
+    );
+    println!(
+        "cargo:rustc-env=LOQUAT_VERIFY_ELF_PATH={}",
+        canonical(loquat_dir, "loquat_verify").display(),
+    );
 }

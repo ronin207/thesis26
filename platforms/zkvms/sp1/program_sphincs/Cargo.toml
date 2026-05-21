@@ -11,4 +11,11 @@ path = "src/main.rs"
 sp1-zkvm = "6.0.1"
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 bincode = "1.3"
-# Phase B6.2 — implementation wired in successive commit.
+# Phase B6.2 hash-based PQ anchor.
+# We avoid `slh-dsa` (incompatible signature pre-release vs k256-0.13's
+# stable signature 2.2). Instead we exercise an SLH-DSA-equivalent
+# *Merkle authentication path* workload — the dominant cost on a
+# real SPHINCS+ verify. The Phase B6.5 doc cross-cites Fenbushi 2025
+# for an actual SLH-DSA prove number on a similar zkVM, anchoring
+# our cycle count to the published "hash-based PQ" baseline.
+sha2 = { version = "0.10", default-features = false }

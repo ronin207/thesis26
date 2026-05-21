@@ -11,5 +11,8 @@ path = "src/main.rs"
 sp1-zkvm = "6.0.1"
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 bincode = "1.3"
-# Phase B6.4 — wires through vc-pqc's guest-only Loquat verify path
-# in a successive commit.
+# vc-pqc: in-tree workspace, guest-only Loquat verifier with SHA-3
+# hash (the original Loquat paper specification before PLUM swapped
+# to Griffin). Same field arithmetic chip mix as PLUM-Cell 3 except
+# Loquat operates over a smaller (Mersenne-127) prime.
+vc-pqc = { path = "../../../..", default-features = false, features = ["guest", "sp1"] }
