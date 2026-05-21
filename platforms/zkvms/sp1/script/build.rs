@@ -93,4 +93,25 @@ fn main() {
         "cargo:rustc-env=GRIFFIN_SMOKE_ELF_PATH={}",
         canonical(smoke_dir, "griffin_smoke").display(),
     );
+
+    // ─── Phase B6 PQ-bench guests (classical + 3 PQ schemes) ────────
+    //
+    // Each guest verifies one signature; the bench_pqc host generates
+    // a valid (pk, msg, sig) triple, feeds it via SP1Stdin, and the
+    // guest commits a bool. ELFs land in dedicated dirs so the host
+    // can include them by path-name without colliding through the
+    // shared `target/elf-compilation/...` location.
+    let ecdsa_dir = "../program_ecdsa/elf-out";
+    build_program_with_args(
+        "../program_ecdsa",
+        BuildArgs {
+            elf_name: Some("ecdsa_verify".into()),
+            output_directory: Some(ecdsa_dir.into()),
+            ..Default::default()
+        },
+    );
+    println!(
+        "cargo:rustc-env=ECDSA_VERIFY_ELF_PATH={}",
+        canonical(ecdsa_dir, "ecdsa_verify").display(),
+    );
 }

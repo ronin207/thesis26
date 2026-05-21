@@ -1,6 +1,15 @@
 [workspace]
 resolver = "2"
-members = ["program", "program_griffin_smoke", "script", "equivalence_tests"]
+members = [
+  "program",
+  "program_griffin_smoke",
+  "program_ecdsa",
+  "program_sphincs",
+  "program_dilithium",
+  "program_loquat",
+  "script",
+  "equivalence_tests",
+]
 
 [profile.release]
 opt-level = 3
@@ -44,3 +53,15 @@ sp1-recursion-machine  = { path = "../../../submodules/sp1/crates/recursion/mach
 sp1-sdk                = { path = "../../../submodules/sp1/crates/sdk" }
 sp1-verifier           = { path = "../../../submodules/sp1/crates/verifier" }
 sp1-zkvm               = { path = "../../../submodules/sp1/crates/zkvm/entrypoint" }
+
+# ─── Phase B6 — PQ-scheme benchmark patches ──────────────────────────
+#
+# Patched RustCrypto / k256 / sha2 / tiny-keccak versions route the
+# underlying primitives through SP1's native precompiles
+# (SECP256K1_ADD / SHA_COMPRESS+EXTEND / KECCAK_PERMUTE etc.) instead
+# of running them in software. Mirror of submodules/sp1/examples/
+# Cargo.toml's [patch.crates-io] block, scoped to the schemes we
+# benchmark in Phase B6.
+k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.2.0" }
+sha2-v0-10-8 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.10.8-sp1-6.2.0" }
+tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", tag = "patch-2.0.2-sp1-6.2.0" }

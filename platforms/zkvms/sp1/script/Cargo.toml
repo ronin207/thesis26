@@ -11,6 +11,10 @@ path = "src/bin/plum_host.rs"
 name = "griffin_smoke_host"
 path = "src/bin/griffin_smoke_host.rs"
 
+[[bin]]
+name = "bench_pqc"
+path = "src/bin/bench_pqc.rs"
+
 [dependencies]
 sp1-sdk = { version = "6.0.1", default-features = false, features = ["blocking"] }
 sp1-core-executor = "6.0.1"
@@ -21,6 +25,14 @@ rand_chacha = "0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 vc-pqc = { path = "../../../.." }
+
+# Host-side signers for the four PQ-bench schemes. Each is also a
+# dependency of its respective program/ crate but built natively (std)
+# here so the host can produce valid (pk, msg, sig) triples to feed
+# the guest. The patch table at the workspace root applies to both
+# host and guest builds.
+k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
+sha2 = "0.10"
 
 [build-dependencies]
 sp1-build = "6.0.1"
