@@ -202,11 +202,19 @@ fn run_execute(
     let bytes = serialize_input(pp, pk, message, signature);
     println!("input bytes: {}", bytes.len());
 
-    let elf = if use_sha3 { sha3_elf() } else { syscall_elf() };
-    let arm_label = if use_sha3 {
-        "sha3 (Cell 3 — PLUM-SHA3, Griffin syscall dormant)"
+    // Three execute arms: sha3 takes precedence (Cell 3 control);
+    // otherwise `PLUM_PROVE_ARM` selects between Cell 1 (emulated
+    // rv32im Griffin) and Cell 2 (precompile syscall). Default: Cell 2.
+    let arm = std::env::var("PLUM_PROVE_ARM").unwrap_or_else(|_| "syscall".into());
+    let (elf, arm_label) = if use_sha3 {
+        (sha3_elf(), "sha3 (Cell 3 — PLUM-SHA3, Griffin syscall dormant)")
     } else {
-        "syscall (Cell 2 — Griffin via GRIFFIN_FP192_PERMUTE)"
+        match arm.as_str() {
+            "syscall" => (syscall_elf(), "syscall (Cell 2 — Griffin via GRIFFIN_FP192_PERMUTE)"),
+            "emulated" => (emulated_elf(), "emulated (Cell 1 — Griffin via rv32im, no precompile)"),
+            "sha3" => (sha3_elf(), "sha3 (Cell 3 — PLUM-SHA3 control)"),
+            other => panic!("unknown PLUM_PROVE_ARM={other:?}; use syscall, emulated, or sha3"),
+        }
     };
     println!("execute arm: {arm_label}");
 
@@ -221,6 +229,11 @@ fn run_execute(
         assert_eq!(
             griffin, 0,
             "sha3 arm should fire zero Griffin syscalls; got {griffin} (cfg gate broken?)",
+        );
+    } else if arm == "emulated" {
+        assert_eq!(
+            griffin, 0,
+            "emulated arm should fire zero Griffin syscalls (Griffin runs in rv32im); got {griffin}",
         );
     }
     assert!(accepted, "guest rejected an honest PLUM signature");

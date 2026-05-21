@@ -1,4 +1,4 @@
-# Cell 1 (rv32im baseline) — attempt 2 did not terminate
+# Cell 1 (rv32im baseline) — non-termination + execute-mode cycle anchor
 
 **Date:** 2026-05-21
 **Hardware:** MacBook Pro M5 Pro, 18-core CPU, 20-core GPU, 24 GB RAM, 1 TB SSD
@@ -48,26 +48,71 @@ Griffin Fp192 precompile is not consumer-hardware-feasible on M5 Pro
 proves successfully on the same hardware in 32.53 min using identical
 memory tuning.
 
+## Cell 1 execute-mode cycle anchor (2026-05-21 22:37 JST)
+
+Captured in 40 s after the prove rethink: PLUM-80 verify in SP1
+executor with `PLUM_PROVE_ARM=emulated` (Griffin in rv32im, no
+precompile) produces a complete cycle count without proving:
+
+| Arm                                | Cycles            | UINT256_MUL syscalls | Griffin syscalls | Execute wall |
+|------------------------------------|------------------:|---------------------:|-----------------:|-------------:|
+| Cell 1 — rv32im Griffin (no precompile) | **7,082,608,888** | 4,870,724            | 0                | 40.4 s       |
+| Cell 2 — Griffin via precompile         |       125,504,123 |   69,396             | 1,052            |  1.90 s      |
+| Cell 3 — PLUM-SHA3 (control)            |       110,795,424 |   69,385             | 0                |  1.27 s      |
+
+**Cell 1 / Cell 2 = 56.4× more rv32im cycles** for the same PLUM-80
+verification.
+
+Each rv32im Griffin permutation in Cell 1 expands to ≈ (4,870,724 −
+69,396) / 1,052 ≈ **4,564 additional UINT256_MUL operations per
+permutation**, every one of which the `GRIFFIN_FP192_PERMUTE`
+precompile collapses to a single syscall on the Cell 2 arm.
+
+### Projection to prove cost
+
+SP1's prove-time and trace-memory scale roughly linearly with cycle
+count (the dominant cost is FRI / polynomial-commitment work over the
+trace; row count scales with cycle count under fixed shard size).
+Projecting Cell 2's measured prove cost forward:
+
+- **Projected Cell 1 prove time:** ≈ 56.4 × 32.53 min = **~30.6 hours**
+  on M5 Pro 24 GB at Cell 2's tuning.
+- **Projected Cell 1 trace memory:** ≈ 56.4 × the 81 % peak Cell 2
+  observed, far exceeding the 24 GB envelope. To fit, `SHARD_SIZE`
+  would need to drop by a factor of ≈ 56, increasing shard count and
+  serialization overhead proportionally.
+
+The projection mathematically confirms the two empirical failures
+(2026-05-18 OOM at 1 m 45 s, 2026-05-21 non-termination at 3 h 6 m):
+the workload doesn't fit the hardware envelope by orders of magnitude.
+
 ## What this means for the thesis
 
 This is admissible evidence for **Claim C1 (workload feasibility gap)**
-without a completion number for Cell 1. The defensible statement is:
+*with* a quantitative anchor: the cycle delta is 56.4×, the prove
+projection is > 30 hours and > 20 GB working set on consumer hardware
+that has a 24 GB total memory budget. The defensible statement is:
 
-> *"Two attempts at the precompile-less baseline (Cell 1) on M5 Pro 24 GB
-> failed to produce a proof: the first OOM-killed in 1 m 45 s under default
-> SP1 settings (2026-05-18), the second non-terminating after 3 h 6 m
-> under the memory-tuned configuration that allows the precompile arm to
-> complete in 32.5 min (2026-05-21). We therefore characterise the
-> baseline as infeasible on the target hardware. Cell 2 with the Griffin
-> precompile completes in 32.5 min on the same hardware, demonstrating a
-> qualitative feasibility recovery (infeasible → feasible) attributable
-> to the precompile."*
+> *"PLUM-80 verify produces 7.08 × 10⁹ rv32im cycles without the
+> Griffin Fp192 precompile — 56.4× the 1.25 × 10⁸ cycles of the
+> precompile arm (captured by SP1 executor on M5 Pro 24 GB,
+> 2026-05-21). Two attempts at proving the no-precompile arm on the
+> same hardware did not complete: the first OOM-killed in 1 m 45 s
+> under default SP1 settings (2026-05-18), the second non-terminating
+> after 3 h 6 m under the memory-tuned configuration that allows the
+> precompile arm to complete in 32.5 min (2026-05-21). Projected
+> linearly from the cycle delta, the Cell 1 prove would require ~30 h
+> wall and ~56× the 81 % peak memory observed in Cell 2 — exceeding
+> the 24 GB envelope by an order of magnitude. We therefore
+> characterise the baseline as infeasible on the target hardware.
+> Cell 2 with the Griffin precompile completes in 32.5 min on the
+> same hardware, demonstrating a feasibility recovery (infeasible →
+> feasible) attributable to the precompile."*
 
-This is qualitatively stronger than a numeric speedup ratio for the
-target audience (PQ-migration / AC implementers): the message is
-"the workload doesn't run at all without precompile-class support on
-24 GB-class consumer hardware," which is the structural claim, not a
-performance optimisation claim.
+This is the load-bearing C1 evidence: a quantitative cycle anchor for
+the PQ-migration / AC implementer audience, with the prove-side
+infeasibility empirically confirmed twice and explained by the
+56.4× projection.
 
 ## Log file
 
