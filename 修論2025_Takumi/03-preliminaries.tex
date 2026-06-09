@@ -1,270 +1,761 @@
-\section{Preliminaries}
-\label{sec:prelim}
+\section{Preliminaries} \label{sec:prelim}
+\subsection{Notation}
+Let $\lambda$ denote the security parameter. A function $f(\lambda)$ is negligible if for every polynomial $p$ there exists $N$ such that, for all $\lambda>N$, $f(\lambda)<1/p(\lambda)$. We write $\negl(\lambda)$ for an unspecified negligible function. All algorithms and adversaries considered below are classical probabilistic polynomial-time unless stated otherwise; security statements inherited from the underlying signature schemes hold in the classical random-oracle model, and any quantum (QROM) variant is flagged explicitly where it arises. For a randomized algorithm $A$, the notation $y\leftarrow A(x)$ means that $A$ is run on input $x$ using fresh randomness and outputs $y$. For a finite set $S$, $y\leftarrow S$ means that $y$ is sampled uniformly from $S$. We write $[n]=\{1,\ldots,n\}$. Attribute vectors are denoted by $A=(a_1,\ldots,a_m)$, and predicates over attributes are denoted by $\phi$. Public keys, secret keys, messages, and signatures are denoted by $\pk$, $\sk$, $m$, and $\sigma$, respectively.
 
-This chapter establishes the formal foundations required to understand the performance-agility trade-off in post-quantum anonymous credentials. We begin with notation and cost metrics (\S\ref{sec:notation}), then introduce the cryptographic primitives (\S\ref{sec:primitives})---zkSNARKs, digital signatures, and anonymous credentials---that form the building blocks of our system. We formalize two distinct arithmetization regimes (\S\ref{sec:arithmetizations})---constraint systems (R1CS) and execution traces (AIR)---that underpin static circuits and zkVMs, respectively. Finally, we define the toolchains (\S\ref{sec:compilers}, \S\ref{sec:zkvm}), update event models (\S\ref{sec:updates}), and privacy properties (\S\ref{sec:privacy}) central to our evaluation.
-
-
-\subsection{Notation and Cost Measures}
-\label{sec:notation}
-
-\paragraph{General Notation.} Let $\lambda \in \mathbb{N}$ denote the security parameter, $\textsf{negl}(\lambda)$ a negligible function, and PPT probabilistic polynomial-time algorithms. We write $x \xleftarrow{\$} S$ for sampling $x$ uniformly from set $S$, and $y \leftarrow \mathcal{A}(x)$ for the output of algorithm $\mathcal{A}$ on input $x$. For a relation, we write $\mathcal{R}(x, w) = 1$ where $x$ is the public statement and $w$ is the private witness.
-
-\paragraph{Cryptographic Notation.} For proof systems, $\pi$ denotes a proof (or receipt in zkVM terminology), $\textsf{pp}$ denotes public parameters, and $\textsf{Prove}$, $\textsf{Verify}$ denote the prover and verifier algorithms. For circuit-based systems, we write $pk_{\textsf{ZK}}$, $vk_{\textsf{ZK}}$ for proving and verification keys. For digital signatures, $m$ is a message, $\sigma$ is its signature, and $sk$, $pk$ denote secret and public keys.
-
-\paragraph{Algebraic Notation.} $\mathbb{F}_p$ denotes a finite field of prime order $p$, $\mathbb{F}_p^n$ the vector space of dimension $n$, and $\mathbb{F}_p^{m \times n}$ the space of $m \times n$ matrices. We write $(Az) \circ (Bz)$ for the Hadamard (component-wise) product of vectors. $\mu(f)$ denotes the \emph{multiplicative complexity} of a function $f$---the number of field multiplications required to compute $f$.
-
-\paragraph{Cost Metrics.} Throughout this thesis, we evaluate proof systems using a multi-dimensional cost model comprising six fundamental metrics. \emph{Prover time} $T_P$ quantifies the wall-clock time required to generate a proof. \emph{Verifier time} $T_V$ measures the wall-clock time needed to verify a proof. \emph{Peak memory} $M_P$ captures the maximum RAM usage during the proving process. \emph{Proof size} $|\pi|$ represents the communication complexity. \emph{Setup time} $T_S$ accounts for the time required to compile circuits and generate cryptographic keys. \emph{Update bandwidth} $B_U$ measures the data transfer required to propagate a policy change across the verifier network. The first four metrics instantiate the \emph{Runtime Cost} dimension ($D_2$), while setup time and update bandwidth instantiate the \emph{Update Churn} dimension ($D_1$) introduced in \S\ref{sec:updates}.
-
+\begin{definition}[Efficiently decidable relation]
+A relation $R\subseteq\{0,1\}^\ast\times\{0,1\}^\ast$ is efficiently decidable if there exists a deterministic polynomial-time algorithm $D_R$ such that, for every pair $(x,w)$,
+\[
+  D_R(x,w)=1
+  \quad\Longleftrightarrow\quad
+  R(x;w)=1.
+\]
+We call $x$ the public instance and $w$ the witness. The statement $R(x;w)=1$ means that $w$ is a valid witness for the public instance $x$.
+\end{definition}
 
 \subsection{Cryptographic Primitives}
-\label{sec:primitives}
+This subsection collects the primitives that appear inside both the signature schemes (Loquat, PLUM) and the BDEC construction below. We work with a single odd prime $p$ throughout; the same field is reused by every primitive in any one instantiation, eliminating field-lifting overhead.
 
-Our system combines three cryptographic primitives: (1) zero-knowledge proof systems that enable privacy-preserving verification, (2) post-quantum digital signatures that provide credential authenticity, and (3) anonymous credential protocols that compose these building blocks into a usable identity system.
-
-\subsubsection{Zero-Knowledge Relations and Arithmetizations}
-\label{sec:zk-relations}
-
-Our evaluation compares proving backends (static circuits vs.\ zkVMs) under a fixed verification semantics---they prove the same statement but via different arithmetization strategies. We therefore require a backend-agnostic specification of what is being proven, modeled as NP relations.
-
-\begin{definition}[Relation and Language]
-\label{def:relation}
-An NP relation $\mathcal{R} \subseteq \{0,1\}^* \times \{0,1\}^*$ induces a language $\mathcal{L}_\mathcal{R} = \{x : \exists w \text{ s.t. } (x, w) \in \mathcal{R}\}$. We write $\mathcal{R}(x, w) = 1$ to mean $(x, w) \in \mathcal{R}$, where $x$ is the public statement and $w$ is the private witness.
+\subsubsection{Power residue PRF.}
+\begin{definition}[\(t\)-th power residue PRF]\label{def:power-residue-prf}
+Let \(p\) be an odd prime and let \(t\ge 2\) be an integer with \(t \mid (p-1)\). Let \(g \in \mathbb{F}_p^\ast\) be a generator and let
+\[
+  \zeta_t = g^{(p-1)/t} \in \mathbb{F}_p^\ast
+\]
+be a primitive \(t\)-th root of unity, so that the cyclic subgroup
+\[
+  \mu_t = \langle \zeta_t \rangle = \{1,\zeta_t,\zeta_t^2,\ldots,\zeta_t^{t-1}\}
+\]
+is the set of \(t\)-th roots of unity in \(\mathbb{F}_p^\ast\). For a key \(K\in\mathbb{F}_p\) and an input \(a\in\mathbb{F}_p\) with \(K+a\ne 0\), define
+\[
+  \chi_t(K,a) = (K+a)^{(p-1)/t} \in \mu_t,
+\]
+and let \(L_t(K,a)\in\mathbb{Z}/t\mathbb{Z}\) be the unique exponent for which
+\[
+  \chi_t(K,a) = \zeta_t^{\,L_t(K,a)}.
+\]
+The keyed function \(L_t(K,\cdot):\mathbb{F}_p\setminus\{-K\}\to\mathbb{Z}/t\mathbb{Z}\) is the \(t\)-th power residue PRF.
 \end{definition}
 
-A zero-knowledge proof system proves membership of $x$ in $\mathcal{L}_\mathcal{R}$ without revealing $w$. Different backends implement the same relation via different arithmetizations: for example, as a constraint system (e.g., R1CS) or as an execution-trace relation (e.g., an AIR used by STARK-based zkVMs). This thesis fixes $\mathcal{R}_{\textsf{ShowVer}}$ and compares two toolchains that realize it under these different arithmetizations.
+The special case \(t=2\) makes \(\chi_2(K,a)\in\{+1,-1\}\) the Legendre symbol of \(K+a\) modulo \(p\); the corresponding \(L_2\) is the Legendre PRF used by Loquat. Taking \(t>2\) yields more entropy per evaluation. The PLUM construction described later in this section pins \(t=256\). Definition~\ref{def:power-residue-prf} only fixes the algebraic map; its use as a PRF rests on a separate hardness assumption, namely that \(L_t(K,\cdot)\) is pseudorandom for a uniformly random key \(K\). This assumption generalises the Legendre-PRF assumption underlying Loquat and inherits that assumption's cryptanalytic status rather than being implied by the map being well-defined.
 
+\subsubsection{Algebraic hash function.}
+We require an algebraic hash function whose internal computation is dominated by low-degree field operations over the same field $\mathbb{F}_p$ used by the signature scheme and the PRF. We use the Griffin family for this purpose. Following the cited literature, a Griffin instance is parameterised by a state width $t_{\mathsf{state}}$ and a number of rounds; each round consists of constant-addition, linear mixing by a fixed matrix, and a low-degree S-box substep using small-degree power maps: a forward degree-$d$ power map on one lane, its inverse $x\mapsto x^{1/d}$ (well-defined since $\gcd(d,p-1)=1$) on a second, and a Horst-type quadratic map on the remaining lanes (\S\ref{ssec:griffin-air}). Each constraint then has degree at most $d$ while the per-round map has high algebraic degree. We write
+\[
+  H_{\mathsf{Griffin}}:\mathbb{F}_p^{\ast}\to\mathbb{F}_p^{c}
+\]
+for a Griffin-based sponge or compression hash producing a $c$-element digest, following the construction of~\cite{cryptoeprint:2022/403}. The instantiation used throughout has state width $t_{\mathsf{state}}=4$, capacity $2$ (hence rate $2$ and digest length $c=2$), S-box degree $d=3$ (the smallest integer $\ge 3$ with $\gcd(d,p-1)=1$ over PLUM's prime; \S\ref{ssec:griffin-air}), and $14$ rounds, the value the Griffin round-count argument of~\cite{cryptoeprint:2022/403} yields for this width-$4$, $199$-bit instance (computed and checked in the reference implementation, \S\ref{ssec:griffin-air}). The digest length $c=2$ over the $199$-bit field is intended to provide collision resistance at the targeted security level, conditional on the security analysis of~\cite{cryptoeprint:2022/403} applying to this width-$4$, $d=3$, $14$-round instance.
 
-\subsubsection{zkSNARKs}
-\label{sec:zksnarks}
+When a zkVM exposes Griffin as a precompile we will write the corresponding syscall as $\mathsf{Griffin}_{\mathbb{F}_p^{192}}$, indicating that the precompile operates natively over the same prime field used by PLUM (nominally labelled $192$-bit; concretely the $199$-bit prime of Remark~\ref{rem:prime-substitution}). The cost of one Griffin permutation under this precompile is, by definition, one zkVM syscall.
 
-A zk-SNARK (Zero-Knowledge Succinct Non-Interactive Argument of Knowledge)~\cite{bensasson2013snarks,groth2016} is a cryptographic proof system that enables a prover to convince a verifier that they know a secret witness $\omega$ satisfying a publicly-known statement $C(x, \omega) = \textsf{true}$, without revealing $\omega$, in a succinct and non-interactive format. Concretely, a zk-SNARK consists of the following algorithms:
-\begin{enumerate}
-\item $\textsf{Setup}(1^\lambda) \to (pk, vk)$
-\item $\textsf{Prove}(pk, x, \omega) \to \pi$
-\item $\textsf{Verify}(vk, x, \pi) \in \{0, 1\}$
-\end{enumerate}
-where $\lambda$ is the security parameter, $x$ is the public input, and $\omega$ the private witness.
-
-The zk-SNARK system must satisfy completeness, soundness (with knowledge extraction), zero-knowledge (via simulation), and succinctness ($|\pi| = O(\textsf{polylog}(|C|))$).
-
-\begin{definition}[Aurora]
-\label{def:aurora}
-Aurora~\cite{bensasson2019aurora} is a transparent (no trusted setup) zk-SNARG for R1CS constraint satisfaction. It uses Interactive Oracle Proofs (IOPs) combined with Reed-Solomon polynomial commitments verified through the FRI low-degree test~\cite{bensasson2018fri}. A proof attesting to the satisfiability of $n$ constraints has size $O(\log^2 n)$; it can be produced with $O(n \log n)$ field operations and verified with $O(n)$. At 128 bits of security, proofs are less than 250~KB for several million constraints.
+\subsubsection{Merkle commitment.}
+\begin{definition}[Merkle commitment]\label{def:merkle}
+Let $H:\mathbb{F}_p^{c}\times\mathbb{F}_p^{c}\to\mathbb{F}_p^{c}$ be a collision-resistant compression function and let $\ell=(\ell_1,\ldots,\ell_n)$ with $\ell_i\in\mathbb{F}_p^{c}$ be a vector of leaves. The Merkle root
+\[
+  \mathsf{rt}=\mathsf{MerkleRoot}_H(\ell)\in\mathbb{F}_p^{c}
+\]
+is defined by iterated pairwise application of $H$ along a complete binary tree over $\ell$, padding to the next power of two as needed. For index $i\in[n]$, the membership proof $\mathsf{path}_i$ is the sequence of sibling digests along the root path. The verification predicate
+\[
+  \mathsf{MerkleVerify}(\mathsf{rt},\ell_i,\mathsf{path}_i)\in\{0,1\}
+\]
+returns $1$ iff recomputing the root from $(\ell_i,\mathsf{path}_i)$ yields $\mathsf{rt}$.
 \end{definition}
 
-\begin{remark}
-\label{rem:aurora-choice}
-We use Aurora as the proving backend for our static circuit implementation because: (1) it is transparent, avoiding trusted setup overhead; (2) it is field-agnostic, allowing us to select a field aligned with Loquat's domain $\mathbb{F}_q$; and (3) both Aurora and RISC Zero use FRI-based polynomial commitments, isolating the \emph{arithmetization choice} (R1CS vs.\ AIR) as the independent variable in our comparison.
+We instantiate the Merkle commitment used inside the BDEC relations below with $H=H_{\mathsf{Griffin}}$ over $\mathbb{F}_p$, so that membership checks reduce to a small number of algebraic-hash invocations per path step. A \emph{sparse} Merkle tree is the same structure indexed over the digest range $\{0,1\}^{\lambda}$ rather than $[n]$; non-membership is shown by a membership proof of a domain-separated sentinel leaf at the queried index, and we write $\mathsf{NonMemberVerify}(\mathsf{rt},x,\mathsf{path})$ for the corresponding predicate.
+
+\subsection{Digital Signature Scheme}
+\begin{definition}[Digital signature]
+A digital signature scheme is a tuple of probabilistic polynomial-time algorithms
+\[
+  \Sig=(\Sig.\Setup,\Sig.\KeyGen,\Sig.\Sign,\Sig.\Verify).
+\]
+On input the security parameter, the setup algorithm outputs public parameters
+\[
+  \ppSig\leftarrow\Sig.\Setup(1^\lambda).
+\]
+The parameters $\ppSig$ determine a public-key space $\PKSig$, a secret-key space $\SKSig$, a message space $\MSig$, and a signature space $\SigmaSig$. The algorithms have the following syntax:
+\[
+\begin{aligned}
+  (\sk,\pk) &\leftarrow \Sig.\KeyGen(\ppSig),
+  &&(\sk,\pk)\in\SKSig\times\PKSig,\\
+  \sigma &\leftarrow \Sig.\Sign(\ppSig,\sk,m),
+  &&m\in\MSig,\ \sigma\in\SigmaSig,\\
+  b &\leftarrow \Sig.\Verify(\ppSig,\pk,m,\sigma),
+  &&b\in\{0,1\}.
+\end{aligned}
+\]
+When a higher-level protocol uses $\Sig$, every value to be signed must first be represented as an element of the message space $\MSig$. We write
+\[
+  \EncodeSig:\{0,1\}^{\ast}\to\MSig
+\]
+for this encoding map. Thus, if a protocol value $v$ is signed, the actual message given to $\Sig.\Sign$ is
+\[
+  m=\EncodeSig(v)\in\MSig.
+\]
+
+\paragraph{Correctness.}
+Correctness requires that for all $\lambda$, all $\ppSig\leftarrow\Sig.\Setup(1^\lambda)$, all $(\sk,\pk)\leftarrow\Sig.\KeyGen(\ppSig)$, and all messages $m\in\MSig$, if $\sigma\leftarrow\Sig.\Sign(\ppSig,\sk,m)$, then
+\[
+  \Pr[\Sig.\Verify(\ppSig,\pk,m,\sigma)=1]\geq 1-\negl(\lambda),
+\]
+where the probability is over the randomness of the algorithms.
+
+\paragraph{Existential Unforgeability under Chosen Message Attack.}
+For unforgeability, define $\mathsf{Exp}^{\mathsf{euf\mbox{-}cma}}_{\Sig,\Adv}(\lambda)$ as follows. The challenger samples
+\[
+  \ppSig\leftarrow\Sig.\Setup(1^\lambda),
+  \qquad
+  (\sk,\pk)\leftarrow\Sig.\KeyGen(\ppSig),
+\]
+and gives $(\ppSig,\pk)$ to $\Adv$. The adversary has oracle access to
+\[
+  \mathcal O_{\mathsf{Sign}}(m):
+  \sigma\leftarrow\Sig.\Sign(\ppSig,\sk,m),
+\]
+for messages $m\in\MSig$, and the challenger records every queried message in a set $Q$. Eventually $\Adv$ outputs $(m^\star,\sigma^\star)$. The experiment outputs $1$ iff
+\[
+  m^\star\in\MSig
+  \quad\land\quad
+  m^\star\notin Q
+  \quad\land\quad
+  \Sig.\Verify(\ppSig,\pk,m^\star,\sigma^\star)=1.
+\]
+The signature scheme is EUF-CMA secure if for every adversary $\Adv$,
+\[
+  \Pr[\mathsf{Exp}^{\mathsf{euf\mbox{-}cma}}_{\Sig,\Adv}(\lambda)=1]\leq \negl(\lambda).
+\]
+\end{definition}
+
+Plain EUF-CMA suffices for the credential reductions of Section~\ref{sec:security}: BDEC's showing relation binds the signed message inside the proof, and the unforgeability reduction extracts a \emph{witness} (a signature on a statement outside the issued set) rather than relying on signature uniqueness or non-malleability, so neither strong unforgeability nor resistance to signature re-randomisation is required.
+
+\paragraph{Signature-Verification Predicate.}
+Fix public parameters $\ppSig\leftarrow\Sig.\Setup(1^\lambda)$. For $\pk\in\PKSig$, $m\in\MSig$, and $\sigma\in\SigmaSig$, define
+\[
+  \Pred_{\Verify}^{\Sig,\ppSig}(\pk,m,\sigma)=1
+  \quad\Longleftrightarrow\quad
+  \Sig.\Verify(\ppSig,\pk,m,\sigma)=1.
+\]
+The signature $\sigma$ is computed by $\sigma\leftarrow\Sig.\Sign(\ppSig,\sk,m)$. The predicate does not compute $\sigma$; it only checks whether a given $\sigma$ is valid for $(\pk,m)$. When this predicate is inserted into a zkSNARK relation, the public instance and private witness must be specified. For example,
+\[
+  R_{\Sig}((\pk,m);\sigma)=1
+  \quad\Longleftrightarrow\quad
+  \Pred_{\Verify}^{\Sig,\ppSig}(\pk,m,\sigma)=1,
+\]
+where $x=(\pk,m)$ is the public instance and $w=\sigma$ is the witness.
+
+\subsubsection{Loquat: a Legendre-PRF post-quantum signature with low R1CS verification cost.}
+Loquat is a post-quantum digital signature scheme based on the Legendre PRF and collision-resistant hash functions, designed so that its verification algorithm can be implemented by a relatively small R1CS circuit. Its post-quantum claim rests on the conjectured hardness of the Legendre PRF, collision resistance of the hash, and the Fiat--Shamir/BCS transform; it is a research scheme and is not standardised in the manner of ML-DSA or SLH-DSA.
+
+The Loquat literature~\cite{cryptoeprint:2024/868} describes such verification as ``SNARK-friendly''. We avoid that term as a load-bearing descriptor, since it conflates several distinct cost properties, and instead refer directly to the structural quantity that matters here: a low constraint count for the verification predicate when encoded as an R1CS.
+
+Formally, a Loquat instance is a tuple of probabilistic polynomial-time algorithms
+\[
+  \Loq = (\Loq.\Setup,\Loq.\KeyGen,\Loq.\Sign,\Loq.\Verify).
+\]
+On input the security parameter, the setup algorithm outputs public parameters
+\[
+  \ppLoq \leftarrow \Loq.\Setup(1^\lambda).
+\]
+These parameters fix, among other things, a prime field \(\mathbb{F}_p\), a public list \(I = (I_1,\ldots,I_L) \in \mathbb{F}_p^L\) for some integer \(L\), and auxiliary parameters for the underlying Legendre-PRF key-identification protocol and its compilation to a non-interactive proof system.
+
+The key-generation algorithm samples a secret Legendre-PRF key and its corresponding public key as a vector of PRF evaluations:
+\[
+  \begin{aligned}
+    \sk &= K \leftarrow \Loq.\KeyGen(\ppLoq),
+    \\
+    \pk &= \bigl(L_K(I_1),\ldots,L_K(I_L)\bigr) \in \{0,1\}^L,
+  \end{aligned}
+\]
+where \(L_K(\cdot)\) denotes the keyed Legendre pseudorandom function and each \(L_K(I_\ell) \in \{0,1\}\) is the Legendre-symbol output bit on input \(K + I_\ell\).
+
+The message space \(\MLoq\) and signature space \(\SigmaLoq\) are those induced by the non-interactive key-identification protocol obtained from the underlying interactive-oracle proof via the Fiat–Shamir/BCS transformation. On input \((\ppLoq,\sk,m)\) with \(m \in \MLoq\), the signing algorithm runs this protocol using the secret key \(K\) as the witness and outputs a signature
+\[
+  \sigma \leftarrow \Loq.\Sign(\ppLoq,\sk,m) \in \SigmaLoq.
+\]
+The verification algorithm is deterministic and checks the hash chain, Merkle-tree commitments, univariate-sumcheck proof, low-degree test, and quadratic-residuosity conditions implied by the Legendre-PRF relation:
+\[
+  b \leftarrow \Loq.\Verify(\ppLoq,\pk,m,\sigma) \in \{0,1\}.
+\]
+
+\paragraph{Loquat-Verification Predicate.}
+Fix \(\ppLoq\leftarrow\Loq.\Setup(1^\lambda)\). For \(\pk \in \PKLoq\), \(m \in \MLoq\), and \(\sigma \in \SigmaLoq\), define
+\[
+  \Pred_{\Verify}^{\Loq,\ppLoq}(\pk,m,\sigma)=1
+  \quad\Longleftrightarrow\quad
+  \Loq.\Verify(\ppLoq,\pk,m,\sigma)=1.
+\]
+When this predicate is encoded as a zkSNARK relation, we take, for example,
+\[
+  R_{\Loq}((\pk,m);\sigma)=1
+  \quad\Longleftrightarrow\quad
+  \Pred_{\Verify}^{\Loq,\ppLoq}(\pk,m,\sigma)=1,
+\]
+where \(x=(\pk,m)\) is the public instance and \(w=\sigma\) is the witness.
+
+\subsubsection{PLUM: a power-residue-PRF post-quantum signature with low R1CS verification cost.}
+PLUM is a post-quantum digital signature scheme that follows the same overall structure as Loquat but replaces the Legendre PRF and FRI-based low-degree test with a \(t\)-th power residue PRF and the STIR protocol, and selects a prime field tailored to these primitives. These substitutions reduce the polynomial degrees and query complexity in the underlying proof system, leading to smaller signatures and fewer R1CS constraints in the verification circuit while, per the PLUM authors' analysis, retaining EUF-CMA security at the claimed level (subject to the prime-instantiation caveat of Remark~\ref{rem:prime-substitution}).
+
+Formally, a PLUM instance is a tuple of probabilistic polynomial-time algorithms
+\[
+  \Plum = (\Plum.\Setup,\Plum.\KeyGen,\Plum.\Sign,\Plum.\Verify).
+\]
+On input the security parameter, the setup algorithm outputs public parameters
+\[
+  \ppPlum \leftarrow \Plum.\Setup(1^\lambda).
+\]
+The setup chooses an odd prime \(p\) and an integer \(t \ge 2\) such that \(t \mid (p-1)\), fixes a generator \(g \in \mathbb{F}_p^\ast\), and defines the \(t\)-th power residue PRF \(L_t\) as in Definition~\ref{def:power-residue-prf}.
+It then samples a public list \(I = (I_1,\ldots,I_L) \in \mathbb{F}_p^L\) and sets the parameters for the univariate-sumcheck and STIR low-degree test (including the code domain \(U\), folding parameter, degree bounds, and query-repetition parameters) as in Algorithm~1 of~\cite{10.1007/978-981-95-2961-2_6}.
+
+\begin{remark}[Prime instantiation]\label{rem:prime-substitution}
+The implementation evaluated in this thesis fixes a concrete $199$-bit prime
+$p = 2^{64}\,p_0 + 1$ with $p_0$ a $135$-bit prime,%
+\footnote{The implementation prime is $199$-bit (with an approximately
+$135$-bit $p_0$). The ``$192$-bit'' / ``$\mathbb{F}_p^{192}$'' naming used
+elsewhere in this thesis for the PLUM field and the Griffin precompile is a
+loose label rather than the exact bit-width; PLUM's own source is internally
+inconsistent on this point, the prose and the printed $p_0$ disagreeing.}
+chosen so that
+$t = 256 \mid (p-1)$ and the $2$-adicity of $p-1$ is at least $64$, as the
+STIR low-degree test requires. The value of $p_0$ used is \emph{not} the decimal
+printed in the published parameter table~\cite[\S3.3]{10.1007/978-981-95-2961-2_6}:
+that printed value is composite (its smallest prime factor is $97$, witnessed by
+a primality test in the artefact), almost certainly a typographical error in the
+manuscript, and is therefore unusable as a field modulus. We substitute a nearby
+$199$-bit value satisfying all the structural requirements above. The
+substitution is benign for the measurements of this thesis, whose cost is a
+function of the field \emph{bit-width} and smoothness rather than of the exact
+decimal value; it is recorded explicitly because any concrete security-bit claim
+that depends on the specific value of $p$ is conditional on this instantiation,
+and a paper-faithful or interoperable deployment should confirm the intended
+modulus with the PLUM authors. The security analysis (Section~\ref{sec:security})
+carries this conditionality as an explicit hypothesis.
 \end{remark}
 
+The key-generation algorithm samples a secret PRF key and derives the public key as a vector of \(t\)-th power residue PRF evaluations:
+\[
+  \begin{aligned}
+    \sk &= K \leftarrow \Plum.\KeyGen(\ppPlum),
+    \\
+    \pk &= \bigl(L_t(K,I_1),\ldots,L_t(K,I_L)\bigr) \in (\mathbb{Z}/t\mathbb{Z})^L,
+  \end{aligned}
+\]
+where each \(L_t(K,I_\ell)\in\mathbb{Z}/t\mathbb{Z}\) is a symbol of the \(t\)-th power residue PRF on input \(K + I_\ell\) (for \(t=2\) this degenerates to the Loquat binary Legendre symbol). The public key thus occupies \(L\lceil\log_2 t\rceil\) bits. Compared to Loquat, taking \(t>2\) increases the entropy per symbol and allows PLUM to use fewer public-key symbols \(L\) and fewer challenged symbols \(B\) at a given security level.
 
-\subsubsection{Digital Signatures and the Loquat Scheme}
-\label{sec:signatures}
+The message space \(\MPlum\) and signature space \(\SigmaPlum\) are induced by the non-interactive key-identification protocol obtained from the PLUM-specific interactive-oracle proof via the Fiat–Shamir/BCS transformation, with FRI replaced by STIR in the low-degree test component. On input \((\ppPlum,\sk,m)\) with \(m \in \MPlum\), the signing algorithm runs this protocol using the secret key \(K\) as the witness and outputs a signature
+\[
+  \sigma \leftarrow \Plum.\Sign(\ppPlum,\sk,m) \in \SigmaPlum.
+\]
+The verification algorithm is deterministic and checks the hash chain, Merkle-tree commitments, univariate-sumcheck proof, STIR low-degree test, and \(t\)-th-power-residue conditions implied by the PLUM PRF relation:
+\[
+  b \leftarrow \Plum.\Verify(\ppPlum,\pk,m,\sigma) \in \{0,1\}.
+\]
 
-A digital signature scheme is a tuple of PPT algorithms $(\textsf{Setup}, \textsf{KeyGen}, \textsf{Sign}, \textsf{Verify})$.
+For the 128-bit parameter set, PLUM uses \(t=256\), a public-key length of \(L=2^{12}\) PRF symbols, and \(B=28\) challenged symbols, and verifying a single signature with Griffin as the hash instantiation requires about \(1.16\times 10^5\) R1CS constraints, versus \(\approx 1.48\times 10^5\) for Loquat under comparable assumptions~\cite[\S4.2]{10.1007/978-981-95-2961-2_6}. The corresponding signature size is about \(37\) KB (versus \(57\) KB for Loquat); the signing and verification runtimes are \emph{estimated}, from the Loquat implementation rather than a from-scratch PLUM measurement~\cite[Table~2]{10.1007/978-981-95-2961-2_6}, to be up to a factor \(4\) faster than Loquat at the same security level.
 
-\begin{definition}[EUF-CMA Security]
-\label{def:euf-cma}
-A signature scheme $\Sigma$ is existentially unforgeable under chosen-message attacks (EUF-CMA) if for all PPT adversaries $\mathcal{A}$ with access to a signing oracle $\mathcal{O}_{\textsf{Sign}}$, the probability that $\mathcal{A}$ outputs a pair $(m^\star, \sigma^\star)$ such that $\textsf{Verify}(pk, m^\star, \sigma^\star) = 1$ and $m^\star$ was never queried to $\mathcal{O}_{\textsf{Sign}}$ is negligible in $\lambda$.
+\paragraph{PLUM-Verification Predicate.}
+Fix \(\ppPlum\leftarrow\Plum.\Setup(1^\lambda)\). For \(\pk \in \PKPlum\), \(m \in \MPlum\), and \(\sigma \in \SigmaPlum\), define
+\[
+  \Pred_{\Verify}^{\Plum,\ppPlum}(\pk,m,\sigma)=1
+  \quad\Longleftrightarrow\quad
+  \Plum.\Verify(\ppPlum,\pk,m,\sigma)=1.
+\]
+When this predicate is encoded as a zkSNARK relation, we can take, for example,
+\[
+  R_{\Plum}((\pk,m);\sigma)=1
+  \quad\Longleftrightarrow\quad
+  \Pred_{\Verify}^{\Plum,\ppPlum}(\pk,m,\sigma)=1,
+\]
+where \(x=(\pk,m)\) is the public instance and \(w=\sigma\) is the witness.
+
+\paragraph{Quantitative Comparison to Loquat.}
+At the same 128-bit security level and with both schemes instantiated using Griffin as the algebraic hash, PLUM reduces signature size from \(57\) KB to \(37\) KB, reduces the verification circuit from about \(148{,}825\) (Loquat~\cite{cryptoeprint:2024/868}) to \(116{,}285\) R1CS constraints, and is expected to decrease signing and verification time by up to a factor of four, according to the analysis and parameter choices of~\cite{10.1007/978-981-95-2961-2_6}.
+These improvements come from (i) using a \(t\)-th power residue PRF to halve the polynomial degrees in the sumcheck relation, (ii) replacing FRI with the lower-query-complexity STIR protocol, and (iii) choosing a prime \(p\) that simultaneously supports the PRF and the smooth multiplicative subgroups required by STIR, avoiding the field-lifting overhead present in Loquat. These are \emph{static R1CS} advantages; Section~\ref{sec:evaluation} shows they do not translate cleanly into zkVM proving cost, where the field-mismatch tax on Griffin over a non-native prover field dominates.
+
+\subsection{zkSNARK}
+Let $R$ be an efficiently decidable relation and let
+\[
+  L_R=\{x:\exists w \text{ such that } R(x;w)=1\}
+\]
+be the corresponding language. A zkSNARK for $R$ is a tuple
+\[
+  \Pi=(\Pi.\Setup,\Pi.\Prove,\Pi.\Verify).
+\]
+Two orthogonal axes matter here: \emph{transparency} (whether $\Pi.\Setup$ needs a relation-specific trusted setup) and \emph{universality} (whether the proving key/preprocessing is independent of the concrete relation $R$). Update churn is driven by the latter: a transparent but relation-specific argument such as Aurora still re-derives relation-dependent parameters on every change. We first state the universal/relation-independent case, in which the setup is independent of the concrete relation:
+\[
+  \crs\leftarrow \Pi.\Setup(1^\lambda).
+\]
+If a relation-specific proof system is used instead, setup should be written as $\crs_R\leftarrow\Pi.\Setup(1^\lambda,R)$. The proving and verification algorithms are
+\[
+  \pi\leftarrow \Pi.\Prove(\crs,x,w),
+  \qquad
+  b\leftarrow \Pi.\Verify(\crs,x,\pi)\in\{0,1\}.
+\]
+
+\paragraph{Completeness.}
+Completeness requires that for every $(x,w)$ such that $R(x;w)=1$,
+\[
+  \Pr[\Pi.\Verify(\crs,x,\Pi.\Prove(\crs,x,w))=1]\geq 1-\negl(\lambda).
+\]
+
+\paragraph{Soundness.}
+Soundness requires that for every adversary $\Adv$,
+\[
+  \Pr[
+  x\notin L_R \land \Pi.\Verify(\crs,x,\pi)=1
+  :
+  \crs\leftarrow\Pi.\Setup(1^\lambda),
+  (x,\pi)\leftarrow\Adv(\crs)
+  ]\leq \negl(\lambda).
+\]
+
+\paragraph{Knowledge soundness (argument of knowledge).}
+A property strictly stronger than soundness, and the one a higher-level reduction needs when it must \emph{extract} a witness rather than merely conclude that one exists. The argument is \emph{knowledge-sound} if there is a probabilistic polynomial-time extractor $\mathcal{E}$ such that, for every prover $\Adv$ producing an accepting proof for a statement $x$ with non-negligible probability, $\mathcal{E}$, given $\Adv$'s code and randomness (or rewinding/oracle access), outputs a witness $w$ with $R(x;w)=1$, except with negligible \emph{knowledge error}. BDEC's unforgeability reduction relies on this property of $\Pi$ to pull a credential and its signatures out of an accepting showing; plain soundness, which only certifies that a witness exists, does not suffice.
+
+\paragraph{Zero-knowledge.}
+Zero-knowledge requires that there exists a simulator $\mathsf{Sim}$ such that, for every $x$ and $w$ satisfying $R(x;w)=1$, the distributions
+\[
+  \{(\crs,x,\pi):\crs\leftarrow\Pi.\Setup(1^\lambda),
+  \pi\leftarrow\Pi.\Prove(\crs,x,w)\}
+\]
+and
+\[
+  \{(\crs,x,\widetilde\pi):\crs\leftarrow\Pi.\Setup(1^\lambda),
+  \widetilde\pi\leftarrow\mathsf{Sim}(\crs,x)\}
+\]
+are computationally indistinguishable. Unless stated otherwise this is computational zero-knowledge with a simulator in the (classical) random-oracle model; whether a given instantiation's simulator extends to the QROM is flagged where the distinction affects the receipt-mode claims of Section~\ref{sec:system}.
+
+\subsubsection{Aurora: Transparent Succinct Arguments for R1CS}
+Aurora~\cite{cryptoeprint:2018/828} is a transparent zkSNARK for the rank-1 constraint system (R1CS) relation. Given an R1CS instance $(A,B,C)$ over a finite field~$\mathbb{F}$ and a candidate assignment $z\in\mathbb{F}^n$ satisfying the Hadamard identity
+\[
+  (A z) \odot (B z) = C z,
+\]
+Aurora produces a succinct, publicly verifiable, zero-knowledge proof of the existence of a satisfying witness, with polylogarithmic proof size and linear verifier complexity in $n$. Aurora is transparent in the sense that it requires no relation-specific trusted setup beyond a collision-resistant hash function. The Aurora reference measured in this thesis is run with zero-knowledge disabled (\texttt{zk=false}, $107.5$-bit security achieved). With zero-knowledge off, the measurement bounds proving cost only; it says nothing about anonymity.
+
+When instantiated for a fixed relation $R$, the R1CS encoding fixes the matrices $(A,B,C)$ at compile time; any change to $R$ that affects which gates appear in the verification predicate requires recompilation of these matrices and re-derivation of any parameters that depend on the constraint count. This is the property that motivates the zkVM approach: the underlying relation is fixed to the ISA semantics once, and program changes are expressed inside the witness rather than in the matrices.
+
+The BDEC construction of~\cite{10.1007/978-981-96-0957-4_3} instantiates its zkSNARK $\Pi$ with Aurora over the R1CS encoding of the credential-issuance and credential-showing relations defined later in this section. The dominant component of proof generation and verification in this regime is Aurora's outer low-degree-test (LDT) sub-protocol; we measure its share of total cost in Section~\ref{sec:evaluation}.
+
+\subsection{Anonymous Credential}
+\begin{definition}[Anonymous credential]
+Let $\lambda$ be a security parameter, let $\mathsf{Attr}$ be an attribute space, and let $\Phi$ be a class of predicates over attribute vectors. An anonymous credential scheme is a tuple of algorithms or interactive protocols
+\[
+  \AC=(\AC.\Setup,\AC.\UserKeyGen,\AC.\IssuerKeyGen,\AC.\Issue,\AC.\Show,\AC.\Verify).
+\]
+For an attribute vector $A=(a_1,\ldots,a_m)\in\mathsf{Attr}^m$, issuance gives a user a credential $\mathsf{cred}$. For a predicate $\phi\in\Phi$, the showing algorithm outputs a public statement and proof
+\[
+  (\mathsf{stmt},\pi)\leftarrow\AC.\Show(\pp,\mathsf{cred},\mathsf{usk},\mathsf{ipk},A,\phi).
+\]
+The statement contains intentionally disclosed information. The proof proves membership in a relation
+\[
+  R_{\AC}(\mathsf{stmt};w)=1,
+\]
+where the witness contains at least $w=(\mathsf{cred},\mathsf{usk},A)$ and the relation checks that $\mathsf{cred}$ is valid and that $\phi(A)=1$.
 \end{definition}
 
-\begin{definition}[Loquat: A SNARK-Friendly Post-Quantum Signature]
-\label{def:loquat}
-Loquat~\cite{zhang2024loquat} is a digital signature scheme post-quantum secure under collision-resistant hashes and the Legendre PRF hardness assumption, with algorithms $\textsf{L-Setup}(1^\lambda)$, $\textsf{L-KeyGen}(\textsf{L-pp})$, $\textsf{L-Sign}(\textsf{L-pp}, sk, m)$, and $\textsf{L-Verify}(pk, m, \sigma, \textsf{L-pp})$.
+\paragraph{Correctness.}
+Correctness requires that honestly generated credentials and honestly generated
+showing proofs are accepted by the verifier. More formally, for every
+\(\lambda\), every
+\[
+  \pp \leftarrow \AC.\Setup(1^\lambda),
+\]
+every honestly generated user key pair and issuer key pair
+\[
+  (\mathsf{usk},\mathsf{upk}) \leftarrow \AC.\UserKeyGen(\pp),
+  \qquad
+  (\mathsf{isk},\mathsf{ipk}) \leftarrow \AC.\IssuerKeyGen(\pp),
+\]
+every honestly issued credential
+\[
+  \mathsf{cred}
+  \leftarrow
+  \langle
+  \mathsf{User}(\pp,\mathsf{usk},\mathsf{upk},A),
+  \mathsf{Issuer}(\pp,\mathsf{isk},\mathsf{ipk},\mathsf{upk},A)
+  \rangle.
+\]
+and every predicate \(\phi\in\Phi\), if \(\phi(A)=1\), then
+\[
+  \Pr[
+    \AC.\Verify(\pp,\mathsf{ipk},\mathsf{stmt},\pi)=1
+  ]
+  \geq 1-\negl(\lambda),
+\]
+where
+\[
+  (\mathsf{stmt},\pi)
+  \leftarrow
+  \AC.\Show(\pp,\mathsf{cred},\mathsf{usk},\mathsf{ipk},A,\phi).
+\]
+The probability is taken over the randomness of the setup, key-generation,
+issuance, showing, and verification algorithms.
 
-Loquat-128 operates over the Mersenne prime $p = 2^{127} - 1$. Since $p$ lacks a sufficiently large smooth multiplicative subgroup for the univariate sumcheck and low-degree testing, these components operate over the quadratic extension field $\mathbb{F}_{p^2}$~\cite{zhang2024loquat}.
-\end{definition}
+\paragraph{Unforgeability.}
+Unforgeability requires that no adversary can produce an accepting showing
+proof unless it knows a credential honestly issued by an issuer and a
+corresponding user secret key satisfying the statement. Let \(\mathcal L\) be
+the issuance log containing all tuples
+\[
+  (\mathsf{ipk},\mathsf{upk},A,\mathsf{cred})
+\]
+honestly issued during the experiment. The adversary may interact with issuing
+oracles and then outputs \((\mathsf{ipk}^\star,\mathsf{stmt}^\star,\pi^\star)\).
+The adversary wins if
+\[
+  \AC.\Verify(\pp,\mathsf{ipk}^\star,\mathsf{stmt}^\star,\pi^\star)=1
+\]
+and there is no tuple
+\[
+  (\mathsf{ipk}^\star,\mathsf{upk}^\star,A^\star,\mathsf{cred}^\star)
+  \in \mathcal L
+\]
+and no user secret key \(\mathsf{usk}^\star\) such that
+\((\mathsf{usk}^\star,\mathsf{upk}^\star)\) is an honestly generated user key
+pair such that, for
+\[
+  w^\star=(\mathsf{cred}^\star,\mathsf{usk}^\star,A^\star),
+\]
+we have
+\[
+  R_{\AC}(\mathsf{stmt}^\star;w^\star)=1.
+\]
+We write \(\mathsf{Adv}^{\mathsf{unf}}_{\AC}(\mathcal A)\) for the probability that \(\mathcal A\) wins this experiment; the scheme is unforgeable if \(\mathsf{Adv}^{\mathsf{unf}}_{\AC}(\mathcal A)\le\negl(\lambda)\) for every probabilistic polynomial-time \(\mathcal A\).
 
-\paragraph{The Loquat Verification Relation.}
-The SNARK-friendliness of Loquat derives from the algebraic simplicity of its verification relation. Verification reduces to checking the Legendre PRF output via quadratic residuosity. Given a fixed quadratic non-residue $\alpha \in \mathbb{F}_p$, for each challenged index $b \in [B]$, the verifier computes:
-\begin{equation}
-t_b = o_b \cdot \bigl(\alpha \cdot (pk_{I_b} + T_b) + (1 - (pk_{I_b} + T_b))\bigr)
-\end{equation}
-and checks $t_b = s_b^2 \pmod{p}$, where $s_b$ is a witness provided by the prover. This costs exactly $3B$ multiplications, $4B$ additions, and $4B + 1$ R1CS constraints~\cite{zhang2024loquat}.
+\paragraph{Anonymity.}
+Anonymity requires that a showing proof does not reveal which honest user
+generated it, beyond the information intentionally disclosed in the public
+statement. This is a cryptographic indistinguishability notion: non-cryptographic side channels, such as wall-clock timing, network and ledger-access patterns, revocation-update timing, and issuer or wallet metadata observed out of band, are outside the model and are not covered by the bound below. In the anonymity experiment, the adversary chooses two honestly
+issued credentials
+\[
+  (\mathsf{cred}_0,\mathsf{usk}_0,A_0),
+  \qquad
+  (\mathsf{cred}_1,\mathsf{usk}_1,A_1),
+\]
+and a predicate \(\phi\), such that both credentials satisfy the predicate,
+\[
+  \phi(A_0)=\phi(A_1)=1,
+\]
+and the corresponding public statements reveal the same allowed leakage. More
+formally, if
+\[
+  (\mathsf{stmt}_0,\pi_0)
+  \leftarrow
+  \AC.\Show(\pp,\mathsf{cred}_0,\mathsf{usk}_0,\mathsf{ipk},A_0,\phi)
+\]
+and
+\[
+  (\mathsf{stmt}_1,\pi_1)
+  \leftarrow
+  \AC.\Show(\pp,\mathsf{cred}_1,\mathsf{usk}_1,\mathsf{ipk},A_1,\phi),
+\]
+then the challenge is well formed only if
+\[
+  \mathsf{Leak}(\mathsf{stmt}_0)=\mathsf{Leak}(\mathsf{stmt}_1),
+\]
+where \(\mathsf{Leak}(\mathsf{stmt})\) is the projection of the public statement
+onto its intentionally-disclosed components, namely the revealed attribute set
+\(A^\downarrow\), the teaching-authority pseudonym multiset
+\(\{\mathsf{ppk}_{U,TA}^{(j)}\}\), and any linking tag carried in the predicate
+\(\phi\); the verifier-facing pseudonym \(\mathsf{ppk}_{U,V}\) is freshly sampled at
+showing time, and the remaining statement components are witness-derived and made
+independent of the challenge bit by the simulators of the anonymity argument
+(Appendix~\ref{app:preservation}). The challenger samples \(b\leftarrow\{0,1\}\) and returns
+\[
+  (\mathsf{stmt},\pi_b)
+  \leftarrow
+  \AC.\Show(\pp,\mathsf{cred}_b,\mathsf{usk}_b,\mathsf{ipk},A_b,\phi).
+\]
+The adversary outputs \(b'\). We write \(\mathsf{Adv}^{\mathsf{anon}}_{\AC}(\mathcal A)=\left|\Pr[b'=b]-\tfrac12\right|\); the scheme is anonymous if \(\mathsf{Adv}^{\mathsf{anon}}_{\AC}(\mathcal A)\le\negl(\lambda)\) for every probabilistic polynomial-time \(\mathcal A\).
 
-\paragraph{SNARK-friendliness.}
-For the Loquat-128 parameter set instantiated with the Griffin hash function~\cite{grassi2023griffin}, the full verification circuit requires 148,825 R1CS constraints~\cite{zhang2024loquat}. Of these, approximately 91--94\% arise from Griffin hash evaluations. The Loquat paper~\cite{zhang2024loquat} reports $\sim$110 multiplicative constraints per compression permutation (state width 4) and $\sim$88 per expansion permutation (state width 3) as the theoretical minimum; however, our R1CS implementation produces approximately 304 constraints per compression permutation because linear relation checks are wrapped as explicit R1CS constraints (see Section~\ref{sec:loquat-decomposition}). In either accounting, Griffin dominates at 91--94\%, with only 6--9\% from the algebraic protocol operations including the quadratic residuosity check. This is significantly smaller than known SNARK encodings of lattice-based post-quantum signature schemes at comparable security levels.
+\paragraph{Unlinkability.}
+Unlinkability requires that a shown credential cannot be linked to the pseudonym under which it was issued, unless the public statements intentionally contain a linking tag. In the unlinkability experiment, with the oracle interface of the unforgeability experiment, the challenger creates two pseudonym key pairs \((\mathsf{psk}^0,\mathsf{ppk}^0)\) and \((\mathsf{psk}^1,\mathsf{ppk}^1)\) and an attribute set \(A^\downarrow\), samples \(b\leftarrow\{0,1\}\), and issues a single credential \(c^{(b)}\) with respect to \(\mathsf{ppk}^{(b)}\) on \(A^\downarrow\), forwarding it to the adversary. The adversary outputs \(b'\). We write \(\mathsf{Adv}^{\mathsf{unlink}}_{\AC}(\mathcal A)=\left|\Pr[b'=b]-\tfrac12\right|\), and the scheme is unlinkable if it is \(\negl(\lambda)\) for every probabilistic polynomial-time \(\mathcal A\). When the statements intentionally contain a public linking tag, linkability is allowed only as determined by that tag.
 
-\begin{remark}
-\label{rem:loquat-choice}
-We select Loquat as the signature primitive for four reasons: (1) it is designed for SNARK-friendliness, making it the ideal candidate for static circuit implementation; (2) its reliance on the Legendre PRF and the algebraic hash function Griffin creates a \emph{maximally misaligned} scenario for zkVM execution over the BabyBear field, stress-testing our theoretical predictions; (3) it is deployed in the BDEC system~\cite{bdec2024}, our application case study; and (4) the dominance of Griffin hash within its constraint budget (91--94\%) provides a concrete instance of the Precompile Paradox analyzed in Chapter~\ref{sec:Theoretical Bottleneck}.
+\subsubsection{Blockchain-based Digital Education Credentials (BDEC)}
+BDEC is a blockchain-based anonymous credential system for educational credentials. It is parameterized by a digital signature scheme $\Sig$ and a zkSNARK $\Pi$. The main parties are a user $U$, teaching authorities $TA$, and a verifier $V$.
+
+The blockchain stores credential-record digests, authorized teaching-authority keys, and revocation state. We assume that $H$ and $H_{\mathsf{rev}}$ are collision-resistant and domain-separated hash functions. In the privacy-preserving case, the blockchain stores record digests $\rho$ rather than raw credential attributes.
+
+\begin{construction}
+The BDEC construction uses $\Sig$ through $\Sig.\Setup$, $\Sig.\KeyGen$, $\Sig.\Sign$, and $\Sig.\Verify$. It uses $\Pi$ to prove relations containing signature-verification predicates, ledger-membership checks, authorized-TA checks, and revocation checks. The BDEC algorithms instantiate the minimal anonymous-credential syntax introduced above as follows: $\BDEC.\Setup\leftrightarrow\AC.\Setup$; $\BDEC.\mathsf{PriGen}\leftrightarrow\AC.\UserKeyGen$; $\BDEC.\mathsf{TAKeyGen}\leftrightarrow\AC.\IssuerKeyGen$; issuance $\BDEC.\mathsf{IssueCre}$ with credential-proof generation $\BDEC.\mathsf{CreGen}$ together realising $\AC.\Issue$; $\BDEC.\mathsf{ShowCre}\leftrightarrow\AC.\Show$; and $\BDEC.\mathsf{ShowVer}\leftrightarrow\AC.\Verify$. The pseudonym-key, credential-verification, and revocation steps ($\BDEC.\mathsf{NymKey}$, $\BDEC.\mathsf{CreVer}$, $\BDEC.\mathsf{RevCre}$) are BDEC-specific refinements with no counterpart in the minimal syntax.
+
+\paragraph{$\BDEC.\Setup$.}
+On input $1^\lambda$, compute
+\[
+  \ppSig\leftarrow\Sig.\Setup(1^\lambda),
+  \qquad
+  \crs\leftarrow\Pi.\Setup(1^\lambda).
+\]
+Output the static parameters $\parms=(\ppSig,\crs)$. At epoch $e$ (the blockchain epoch index, distinct from the power-residue PRF modulus $t=256$), the public blockchain state is
+\[
+  \st_e=(\mathsf{rt}_{\mathsf{cred},e},\mathsf{rt}_{TA,e},\mathsf{rt}_{\RL,e}),
+\]
+where $\mathsf{rt}_{\mathsf{cred},e}$ is the accepted credential-record root, $\mathsf{rt}_{TA,e}$ is the authorized teaching-authority registry root, and $\mathsf{rt}_{\RL,e}$ is the revocation-state root.
+
+\paragraph{$\BDEC.\mathsf{PriGen}$.}
+On input $\parms$, compute the user's key pair
+\[
+  (\sk_U,\pk_U)\leftarrow\Sig.\KeyGen(\ppSig)
+\]
+and output $(\sk_U,\pk_U)$.
+
+\paragraph{$\BDEC.\mathsf{TAKeyGen}$.}
+On input $\parms$, a teaching authority computes
+\[
+  (\sk_{TA},\pk_{TA})\leftarrow\Sig.\KeyGen(\ppSig)
+\]
+and publishes $\pk_{TA}$. The public key is accepted only if it is authenticated externally or included in the authorized-TA registry represented by $\mathsf{rt}_{TA,e}$.
+
+\paragraph{$\BDEC.\mathsf{NymKey}$.}
+On input $(\parms,\sk_U)$, sample a pseudonym $\mathsf{ppk}_{U,TA}\leftarrow\{0,1\}^{\lambda}$ and compute
+\[
+  m_{\mathsf{nym},U,TA}=\EncodeSig(\mathsf{ppk}_{U,TA})\in\MSig,
+  \qquad
+  \mathsf{psk}_{U,TA}\leftarrow\Sig.\Sign(\ppSig,\sk_U,m_{\mathsf{nym},U,TA}).
+\]
+Output $(\mathsf{ppk}_{U,TA},\mathsf{psk}_{U,TA})$. This user-side signature binds the pseudonym to the user's key; it does not certify educational attributes.
+
+\paragraph{$\BDEC.\mathsf{IssueCre}$.}
+On input $(\parms,\sk_{TA},\pk_U,\mathsf{ppk}_{U,TA},A,\mathsf{aux})$, the teaching authority first checks externally that the user is entitled to the attributes $A$. If the check accepts, define
+\[
+  m_{\mathsf{cred},U,TA}=\EncodeSig(\pk_U,\mathsf{ppk}_{U,TA},A,\mathsf{aux})\in\MSig
+\]
+and compute
+\[
+  \sigma_{\mathsf{cred},U,TA}
+  \leftarrow
+  \Sig.\Sign(\ppSig,\sk_{TA},m_{\mathsf{cred},U,TA}).
+\]
+The corresponding blockchain record digest is
+\[
+  \rho_{U,TA}=H(\pk_{TA},\mathsf{ppk}_{U,TA},A,\mathsf{aux},\sigma_{\mathsf{cred},U,TA}).
+\]
+The blockchain stores $\rho_{U,TA}$ in the accepted credential-record ledger. It need not store $A$, $\mathsf{aux}$, or $\sigma_{\mathsf{cred},U,TA}$ in the clear.
+
+\paragraph{$\BDEC.\mathsf{CreGen}$.}
+On input $(\parms,\sk_U,\pk_U,\mathsf{ppk}_{U,TA},\mathsf{psk}_{U,TA},A,\mathsf{aux})$,
+the algorithm first computes the attribute digest $h_{U,TA}=H(A)$ and the
+credential $c_{U,TA}\leftarrow\Sig.\Sign(\ppSig,\sk_U,h_{U,TA})$. It then
+generates a proof with respect to the zkSNARK statement and witness; in a zkVM
+instantiation the public-instance components $x_{\mathsf{cre}}$ below must be
+committed to the receipt journal for the proof to bind to them; this is a
+statement-binding requirement on which soundness depends, and its status in the
+prototype is treated in Section~\ref{sec:system},
+\[
+\begin{aligned}
+  x_{\mathsf{cre}} &=(c_{U,TA},h_{U,TA},\mathsf{ppk}_{U,TA}),\\
+  w_{\mathsf{cre}} &=(\pk_U,\mathsf{psk}_{U,TA}),
+\end{aligned}
+\]
+where the proved relation is the conjunction of two signature verifications,
+both under the user's long-term public key $\pk_U$:
+\[
+\begin{aligned}
+R_{\mathsf{cre}}^{\Sig}(x_{\mathsf{cre}};w_{\mathsf{cre}})=1
+\Longleftrightarrow{}&
+\Pred_{\Verify}^{\Sig,\ppSig}(\pk_U,h_{U,TA},c_{U,TA})=1\\
+&\land
+\Pred_{\Verify}^{\Sig,\ppSig}(\pk_U,\mathsf{ppk}_{U,TA},\mathsf{psk}_{U,TA})=1.
+\end{aligned}
+\]
+Equivalently, the circuit proved by the zkSNARK is the AND concatenation of
+two signature-verification algorithms~\cite{10.1007/978-981-96-0957-4_3}: the
+first attests that $c_{U,TA}$ is a valid credential on the attribute digest, the
+second that the user controls the pseudonym $\mathsf{ppk}_{U,TA}$. Compute
+\[
+  \varepsilon_{c_{U,TA}}\leftarrow\Pi.\Prove(\crs,x_{\mathsf{cre}},w_{\mathsf{cre}})
+\]
+and output $(c_{U,TA},\varepsilon_{c_{U,TA}})$.
+
+\begin{remark}[Optional Merkle accumulator; not part of the base relation]\label{rem:merkle-extension}
+The base $R_{\mathsf{cre}}^{\Sig}$ above is exactly the two-verification relation
+of~\cite{10.1007/978-981-96-0957-4_3}, for which that work's unforgeability and
+anonymity theorems are proved. To additionally \emph{hide} attributes at
+presentation time, the same work suggests an optional Merkle-accumulator
+variant: the user signs the Merkle \emph{root} of the attributes in
+$\BDEC.\mathsf{CreGen}$ rather than $H(A)$, and the membership
+(authentication-path) checks are performed by the verifier in
+$\BDEC.\mathsf{ShowVer}$, not inside $R_{\mathsf{cre}}^{\Sig}$. This thesis
+implements and measures the base two-verification relation; the
+accumulator variant, and any consequent re-derivation of the security
+reductions for an enlarged relation, are out of scope and would constitute a
+strengthening beyond the cited construction rather than a re-instantiation of
+it.
 \end{remark}
 
+\paragraph{$\BDEC.\mathsf{CreVer}$.}
+On input $(\parms,\st_e,x_{\mathsf{cre}},\varepsilon_{c_{U,TA}})$, output
+\[
+  b\leftarrow\Pi.\Verify(\crs,x_{\mathsf{cre}},\varepsilon_{c_{U,TA}})\in\{0,1\}.
+\]
 
-\subsubsection{Anonymous Credentials and the BDEC System}
-\label{sec:anon-creds}
+\paragraph{$\BDEC.\mathsf{ShowCre}$.}
+On input $(\parms,\st_e,\pk_U,(\mathsf{ppk}_{U,TA}^{(j)},\mathsf{psk}_{U,TA}^{(j)})_{j=1}^{k},\mathsf{ppk}_{U,V},\mathsf{psk}_{U,V},c_{U,V},A^\downarrow,\phi)$, where $A^\downarrow$ are the selectively disclosed attributes, $\phi$ the claimed presentation predicate, and $k$ the number of accepted credential records used, the algorithm forms the public instance
+\[
+\begin{aligned}
+  x_{\mathsf{show}}
+  =
+  (A^\downarrow,(\mathsf{ppk}_{U,TA}^{(j)})_{j=1}^{k},\mathsf{ppk}_{U,V}).
+\end{aligned}
+\]
+The private witness is
+\[
+\begin{aligned}
+  w_{\mathsf{show}}
+  =
+  (\pk_U,(\mathsf{psk}_{U,TA}^{(j)})_{j=1}^{k},\mathsf{psk}_{U,V},c_{U,V}).
+\end{aligned}
+\]
+Following the base relation of~\cite{10.1007/978-981-96-0957-4_3}, the witness is the user's long-term verification key $\pk_U$, used here as a \emph{private} witness despite being a public key, together with the pseudonym secret keys and the shown credential. Hiding $\pk_U$ is what delivers anonymity, since the showing is then not tied to the user's identity. The pseudonym public keys and the disclosed attributes $A^\downarrow$ are public, so the messages verified inside the proof are formed from public values and the verifier evaluates $\phi$ on $A^\downarrow$. Membership, non-revocation, and the disclosure check are performed by the verifier in $\BDEC.\mathsf{ShowVer}$, which additionally takes the disclosed predicate $\phi$, the published roots $\mathsf{rt}_{\mathsf{cred},e}$, $\mathsf{rt}_{TA,e}$, $\mathsf{rt}_{\RL,e}$, the credential commitments $(\rho^{(j)})_{j=1}^{k}$, the membership paths, and the revocation tag $r_U$. These are verifier-side inputs and are not part of the proof statement or witness. Concealing the attributes outside $A^\downarrow$ is the optional Merkle-accumulator strengthening of Remark~\ref{rem:merkle-extension}, which this thesis does not implement.
 
-An anonymous credential (AC) system enables users to obtain credentials from an organization and later prove possession of these credentials to a verifier without revealing their identity or undisclosed attributes. We formalize the standard syntax and then describe the BDEC extension.
+\paragraph{Concrete presentation predicates.}\label{par:phi-examples}
+The predicate class $\Phi$ is the set of Boolean combinations of arithmetic
+comparisons and equalities over attribute values. Two predicates serve as
+running examples throughout the thesis and as the workload for the update-churn
+measurement of Section~\ref{sec:evaluation}. The first, used at credential
+count $k=1$, is a single-attribute threshold; writing $A.\mathsf{gpa}$ for the
+grade-point attribute,
+\[
+  \phi_1(A)\;=\;\bigl[\,A.\mathsf{gpa}>3.5\,\bigr].
+\]
+The second, used at $k=2$, is a conjunction over two credentials drawn from
+possibly distinct issuers; writing $A.\mathsf{degree}$, $A.\mathsf{gradYear}$,
+and $A.\mathsf{major}$ for the relevant attributes,
+\[
+  \phi_2(A^{(1)},A^{(2)})\;=\;
+  \bigl[\,A^{(1)}.\mathsf{degree}=\textsf{Bachelor}\,\bigr]
+  \wedge
+  \bigl[\,A^{(1)}.\mathsf{gradYear}>2020\,\bigr]
+  \wedge
+  \bigl[\,A^{(2)}.\mathsf{major}=\textsf{CS}\,\bigr].
+\]
+Both predicates are evaluated by the verifier on the disclosed attribute set
+$A^\downarrow$, \emph{outside} the proof relation $R_{\mathsf{show}}^{\Sig}$:
+following base BDEC (Remark~\ref{rem:merkle-extension}), the attributes named in
+$\phi$ are disclosed in the clear and the verifier checks $\phi(A^\downarrow)=1$
+on the revealed values. For $\phi_1$ the GPA is disclosed and the verifier checks
+the threshold; for $\phi_2$ the degree, graduation year, and major are disclosed
+and the verifier checks the conjunction. The privacy the showing provides is
+\emph{anonymity}, in that the proof is not linked to the user's identity $\pk_U$, together
+with unlinkability across showings; it is \emph{not} concealment of the disclosed
+attribute \emph{values}. Proving a predicate over an attribute that stays hidden
+(e.g.\ ``$\mathsf{gpa}>3.5$'' without revealing the GPA) is beyond the base
+relation and would require the optional Merkle-accumulator strengthening that
+Remark~\ref{rem:merkle-extension} places out of scope. The two predicates differ
+in arity ($k=1$ versus $k=2$), in issuer multiplicity (one issuer versus two),
+and in Boolean structure (atomic versus a three-clause conjunction). Because
+$\phi_1$ and $\phi_2$ require a \emph{different number of credentials}, moving
+between them changes the presentation \emph{structure}, namely the credential count $k$,
+and hence the relation $R_{\mathsf{show}}^{\Sig}$ itself, which is the source of
+the static-circuit recompilation cost measured in
+Section~\ref{sec:evaluation}; a policy change at fixed structure (e.g.\ retuning
+the GPA threshold) is absorbed entirely by the verifier-side check and forces no
+recompilation. For the threat model of Section~\ref{sec:security}, the timing
+of $\phi$ matters: it is chosen by the verifier at presentation time and is not
+known when the credential is issued.
 
-\begin{definition}[Anonymous Credential System]
-\label{def:ac}
-An anonymous credential system over an attribute universe $\mathcal{A}$ consists of the following algorithms and interactive protocols:
-\begin{itemize}
-\item $\textsf{AC.Setup}(1^\lambda) \to (\textsf{par}, L_R)$: Outputs public parameters and initializes an empty revocation list.
-\item $\textsf{AC.PriGen}(\textsf{par}) \to (sk_U, pk_U)$: The user generates a master secret/public key pair.
-\item $\textsf{AC.NymKey}(\textsf{par}, sk_U) \to (ppk_{U,TA}, psk_{U,TA})$: The user derives a pseudonym key pair for communication with a specific Trusted Authority (TA) or verifier.
-\item $\textsf{AC.CreGen}(sk_U, ppk_{U,TA}, \textsf{attr} \subseteq \mathcal{A}) \to (c_{U,TA}, \pi_{c_{U,TA}})$: The user generates a self-signed credential over attributes $\textsf{attr}$ together with a zero-knowledge proof of validity.
-\item $\textsf{AC.CreVer}(ppk_{U,TA}, c_{U,TA}, \pi_{c_{U,TA}}) \to \{0, 1\}$: The TA verifies the credential and its proof; if valid, publishes $(ppk_{U,TA}, c_{U,TA}, \pi_{c_{U,TA}})$ to the blockchain.
-\item $\textsf{AC.ShowCre}(sk_U, c_{U,TA}, \textsf{subattr}, \textsf{stmt}) \to (c_{U,V}, \pi_{c_{U,V}})$: The user generates a shown credential and proof for a verifier $V$, selectively disclosing $\textsf{subattr} \subseteq \textsf{attr}$.
-\item $\textsf{AC.ShowVer}(pk_{TA}, c_{U,V}, \pi_{c_{U,V}}) \to \{0, 1\}$: The verifier checks the shown credential and proof against the TA's public key.
-\item $\textsf{AC.RevCre}(pk_U) \to L_R' = L_R \cup \{pk_U\}$: The user publishes their master public key to the revocation list if their secret key is compromised.
-\end{itemize}
-\end{definition}
+For each $j\in[k]$, define $m_{\mathsf{nym}}^{(j)}=\EncodeSig(\mathsf{ppk}_{U,TA}^{(j)})$.
+Also define $m_{\mathsf{nym},U,V}=\EncodeSig(\mathsf{ppk}_{U,V})$ and $m_{\mathsf{show}}=\EncodeSig(A^\downarrow)$, the encoding of the disclosed attributes carried by the shown credential $c_{U,V}$. The showing relation is
+\[
+\begin{aligned}
+R_{\mathsf{show}}^{\Sig}(x_{\mathsf{show}};w_{\mathsf{show}})=1
+\Longleftrightarrow{}&
+\bigwedge_{j=1}^{k}
+\Pred_{\Verify}^{\Sig,\ppSig}
+(\pk_U,m_{\mathsf{nym}}^{(j)},\mathsf{psk}_{U,TA}^{(j)})=1\\
+&\land
+\Pred_{\Verify}^{\Sig,\ppSig}
+(\pk_U,m_{\mathsf{nym},U,V},\mathsf{psk}_{U,V})=1\\
+&\land
+\Pred_{\Verify}^{\Sig,\ppSig}
+(\pk_U,m_{\mathsf{show}},c_{U,V})=1.
+\end{aligned}
+\]
+Following BDEC~\cite{10.1007/978-981-96-0957-4_3}, the proof circuit contains $k+2$ signature-verification predicates: $k$ pseudonym-ownership checks (each binding a teaching-authority pseudonym to $\pk_U$), one verifier-facing pseudonym check, and one check on the shown credential $c_{U,V}$ over the disclosed attributes. The relying party additionally checks, \emph{outside} the proof: accepted-ledger membership and authorised-TA membership against the published roots, non-revocation against the revocation tree, and that the disclosed subset $A^\downarrow$ satisfies the presentation predicate $\phi$. Selective disclosure is realised by the chosen subset $A^\downarrow$; no in-circuit predicate enforces it.
+Compute
+\[
+  \varepsilon_{c_{U,V}}\leftarrow\Pi.\Prove(\crs,x_{\mathsf{show}},w_{\mathsf{show}})
+\]
+and output $\varepsilon_{c_{U,V}}$.
 
-\begin{definition}[BDEC: Post-Quantum Blockchain-based Digital Education Credential]
-\label{def:bdec}
-BDEC~\cite{bdec2024} is a post-quantum anonymous credential system designed to securely and privately verify educational achievements on a blockchain. It instantiates Definition~\ref{def:ac} using Loquat signatures for credential authenticity and zkSNARKs (Aurora) for privacy-preserving verification. BDEC supports educational attributes including student name, university, major, degree, graduation year, and GPA, as well as professional attributes such as company name, job title, and employment duration.
-\end{definition}
+\paragraph{$\BDEC.\mathsf{ShowVer}$.}
+On input $(\parms,\st_e,x_{\mathsf{show}},\varepsilon_{c_{U,V}})$, output
+\[
+  b\leftarrow\Pi.\Verify(\crs,x_{\mathsf{show}},\varepsilon_{c_{U,V}})\in\{0,1\}.
+\]
+The verifier first checks the zkSNARK proof against the public statement, which attests the $k+2$ signature-verification predicates of $R_{\mathsf{show}}^{\Sig}$. The relying party then performs the ledger-membership, authorised-TA, non-revocation, and selective-disclosure checks \emph{outside} the proof, against the published roots, the revocation tree, and the disclosed subset $A^\downarrow$, consistent with the relation above.
 
-\paragraph{The ShowVer Relation.}
-The zero-knowledge argument $\pi_{c_{U,V}}$ in BDEC's $\textsf{ShowVer}$ proves a composite statement consisting of $k + 2$ signature verifications~\cite{bdec2024}:
-\begin{equation}
-\mathcal{R}_{\textsf{ShowVer}}(x, w) = 1 \iff
-\begin{cases}
-\textsf{L-Verify}(pk_U, h_{U,TA_i}, \sigma_{U,TA_i}) = 1 & \forall i \in [k] \\
-\textsf{L-Verify}(pk_U, \textsf{psk}_{U,V}, \sigma_{\textsf{nym}}) = 1 \\
-\textsf{L-Verify}(pk_U, h_{c_{U,V}}, \sigma_{\textsf{cred}}) = 1
-\end{cases}
-\label{eq:showver}
-\end{equation}
-where $k$ is the number of TA credentials being presented, $h_{U,TA_i}$ is the hash binding the user's master key to TA pseudonym $i$, $\sigma_{\textsf{nym}}$ proves valid derivation of the verifier pseudonym, and $\sigma_{\textsf{cred}}$ proves valid signing of the shown credential $c_{U,V}$. The public statement $x$ includes the TA public keys, the verifier pseudonym, and any disclosed attributes. The witness $w$ includes the user's master secret key, the undisclosed attributes, and all intermediate signatures.
+\paragraph{$\BDEC.\mathsf{RevCre}$.}
+On input $(\parms,\pk_U)$, compute
+\[
+  r_U=H_{\mathsf{rev}}(\pk_U)
+\]
+and update the revocation state so that $r_U$ is included in the revocation list represented by $\mathsf{rt}_{\RL,e}$. Future showings are accepted only if the prover supplies a valid non-membership witness for $r_U$ with respect to the current revocation root.
 
-For the base case of a single TA credential ($k = 1$), $\mathcal{R}_{\textsf{ShowVer}}$ requires 3 Loquat signature verifications, yielding approximately $3 \times 148{,}825 \approx 446{,}000$ R1CS constraints. For the simplified two-verification variant analyzed in this thesis (omitting the pseudonym verification for clarity), the constraint count is approximately $2 \times 148{,}825 + 10{,}000 \approx 308{,}000$.
+\paragraph{Conditional linkability.}
+Conditional linkability allows controlled linking only when the user intentionally discloses linking information. Let $\tau$ be an optional public linking tag contained in the statement. There is a deterministic algorithm $\mathsf{Link}$ such that
+\[
+  \mathsf{Link}(\mathsf{stmt}_0,\mathsf{stmt}_1)=1
+  \quad\Longleftrightarrow\quad
+  \tau_0=\tau_1\neq\bot.
+\]
+If no tag is disclosed, then linkability reduces to the unlinkability requirement above. The tag $\tau$ is chosen by the \emph{user} at showing time, not by the verifier; we assume an honest user does not reuse a tag across contexts they wish to keep unlinkable, and we treat verifier-induced linkability (a verifier that refuses service unless the user supplies a fixed $\tau$) as an out-of-scope deployment risk rather than a property of the scheme.
 
-\paragraph{Conditional Linkability.}
-BDEC supports a \emph{conditional linkability} mode that addresses the fragmentation of learning records across institutions~\cite{bdec2024}. When $\textsf{linkMode} = \textsf{OFF}$, each credential presentation produces no stable tag, maintaining perfect unlinkability. When $\textsf{linkMode} = \textsf{CONDITIONAL}$, the system outputs a deterministic tag $L$ computed as a function of the master secret key and a condition identifier, enabling targeted linking (e.g., grouping a student's disparate course credentials) without enabling global tracking. This mechanism also allows credential reuse: a user who has previously proven attributes can generate a lighter proof demonstrating that the old and new pseudonyms derive from the same master key (requiring only 2 signature verifications instead of $k + 2$).
+\paragraph{Revocability.}
+Let $\RL$ be a revocation state represented by $\mathsf{rt}_{\RL,e}$. A showing is revocation-valid only if
+\[
+  r_U=H_{\mathsf{rev}}(\pk_U)
+  \quad\land\quad
+  \NonMemberVerify(\mathsf{rt}_{\RL,e},r_U,\mathsf{path}_{\RL})=1.
+\]
+If $r_U$ is added to $\RL$, then any future showing transcript linked to $r_U$ is rejected except with negligible probability. For honest, unrevoked users, correctness continues to hold.
 
-\paragraph{Revocation.}
-If a user's master secret key $sk_U$ is compromised, they publish $pk_U$ to the blockchain-maintained revocation list $L_R$~\cite{bdec2024}. During $\textsf{ShowVer}$, verifier nodes check the submitted credential against $L_R$: if the proof traces back to any revoked $pk_U$, the credential is rejected. This is a user-driven mechanism that preserves anonymity for non-revoked users.
-
-
-\subsection{Arithmetizations}
-\label{sec:arithmetizations}
-
-An arithmetization is the encoding of a computational relation $\mathcal{R}$ into an algebraic representation suitable for a proof system. The choice of arithmetization fundamentally determines the performance characteristics and flexibility of the resulting system. This thesis compares two paradigms: \emph{constraint-based} (R1CS) and \emph{trace-based} (AIR).
-
-\begin{definition}[Rank-1 Constraint System (R1CS)]
-\label{def:r1cs}
-An R1CS instance over a field $\mathbb{F}$ is given by matrices $A, B, C \in \mathbb{F}^{m \times n}$ and a vector of variables $z \in \mathbb{F}^n$ with a designated partition into public and private variables. The instance is satisfied if $(Az) \circ (Bz) = Cz$, where $\circ$ denotes the Hadamard (entry-wise) product.
-\end{definition}
-
-In R1CS, each constraint encodes one bilinear relation (i.e., one multiplication gate). Additions and scalar multiplications are ``free'' as they are absorbed into the linear combinations defining the rows of $A$, $B$, $C$. The total number of constraints $m$ is therefore equal to the multiplicative complexity $\mu(f)$ plus a small overhead for boundary and routing constraints.
-
-\begin{definition}[Algebraic Intermediate Representation (AIR)]
-\label{def:air}
-An AIR instance consists of an execution trace matrix $\textsf{Tr} \in \mathbb{F}^{T \times W}$---where $T$ is the number of time-steps (trace length) and $W$ is the number of registers (trace width)---together with:
-\begin{itemize}
-\item \textbf{Transition constraints}: A set of polynomial equations $\{P_i(\textsf{Tr}[t], \textsf{Tr}[t+1]) = 0\}_{i \in [s]}$ of maximum degree $d_{\max}$ that must hold for every pair of consecutive rows $t$ and $t+1$. These enforce that each state transition is consistent with the intended computation.
-\item \textbf{Boundary constraints}: Equations fixing specific cells $\textsf{Tr}[t_0][j] = v$ at designated rows, typically used to assert initial inputs and final outputs.
-\end{itemize}
-A STARK-style proof system proves that a committed trace satisfies all transition and boundary constraints.
-\end{definition}
-
-Because STARKs use a uniform computation model where the same transition constraints apply at every row, different computations at different time-steps are handled via \emph{selectors}---publicly known column values that activate or deactivate specific constraints depending on the current instruction. This allows a single AIR to encode the semantics of an entire instruction set architecture.
-
-\begin{remark}[The Key Architectural Distinction]
-\label{rem:r1cs-vs-air}
-Changing the verification predicate in an R1CS-based system changes the constraint matrices $(A, B, C)$, requiring new proving/verification keys. In an AIR-based zkVM, the same AIR constraints prove \emph{any} program compiled to the target ISA; only the execution trace changes. This universality is the source of both the flexibility advantage ($D_1$) and the performance penalty ($D_2$) analyzed in subsequent chapters. The cost of this universality---the ``Agility Tax''---is that the AIR must encode the full ISA semantics (thousands of constraints for RISC-V), creating a wide trace ($W > 160$ columns for RISC Zero) even for simple programs.
-\end{remark}
-
-
-\subsection{SNARK Circuit Compilers}
-\label{sec:compilers}
-
-A SNARK circuit compiler is a programming language whose semantics is a deterministic function $f$ over a field (or ring) and whose compiler outputs an explicit relation $\mathcal{R}_f(x, w) = 1$ together with a concrete arithmetization.
-
-\begin{definition}[Noir]
-\label{def:noir}
-Noir~\cite{noir2023} is a Rust-like domain-specific language (DSL) for writing zero-knowledge programs. Noir's compilation pipeline proceeds in two stages:
-\begin{enumerate}
-\item \textbf{Frontend}: The Noir source is compiled to \emph{Abstract Circuit Intermediate Representation} (ACIR)---a backend-agnostic bytecode that generalizes R1CS and PLONKish arithmetization while preserving backend-specific optimization opportunities through \emph{black box functions} (pre-optimized implementations of common operations like hash functions).
-\item \textbf{Backend}: The ACIR bytecode is consumed by a backend-specific translator. For an R1CS backend (e.g., Arkworks/Marlin), each ACIR \texttt{AssertZero(Expression)} opcode becomes one or more R1CS constraints. For a PLONKish backend (e.g., Aztec's Barretenberg), ACIR is translated to PLONKish gates.
-\end{enumerate}
-This two-stage design makes Noir backend-agnostic: the same Noir source can target Aurora (via R1CS), Barretenberg (via PLONKish), or other compatible backends without modification.
-\end{definition}
-
-For our evaluation, we use Noir compiled to R1CS constraints, which are then proven using Aurora. The field $\mathbb{F}_p$ of the R1CS instance is chosen to match Loquat's operating field ($p = 2^{127} - 1$), achieving the field alignment analyzed in Chapter~\ref{sec:Theoretical Bottleneck}.
-
+\end{construction}
 
 \subsection{Zero-Knowledge Virtual Machines}
-\label{sec:zkvm}
+A zero-knowledge virtual machine (zkVM) is a zkSNARK whose relation is fixed once, to the correctness of executing a guest program on a deterministic instruction-set architecture. In contrast to a relation-specific zkSNARK such as Aurora, where the rank-1 constraint system encoding a relation~$R$ is compiled together with the proof system, a zkVM commits to a single universal relation~$R_{\mathsf{vm}}$ describing its instruction-set semantics, and treats the guest program as an input to that relation. Background surveys and step-by-step expositions of this paradigm are given in~\cite{cryptoeprint:2023/1032,lavin2024surveyapplicationszeroknowledgeproofs}.
 
-A zero-knowledge virtual machine (zkVM) generalizes zero-knowledge proofs from fixed circuits to arbitrary programs. Instead of proving ``I know witness $w$ satisfying a specific constraint system,'' a zkVM proves ``I executed program $P$ on input $x$ and obtained output $y$.''
-
-Formally, a zkVM is a proof system for the relation:
-\begin{equation}
-\mathcal{R}_{\textsf{VM}}(x, w) = 1 \iff \exists\, \textsf{Tr} : \textsf{Tr} \text{ satisfies AIR } (\mathcal{T}, \mathcal{B}) \text{ for program } P \text{ on input } x
-\end{equation}
-where the witness $w$ consists of the execution trace (and possibly auxiliary advice columns), and the proof/receipt attests that the claimed output is consistent with a valid trace satisfying the virtual machine's instruction set architecture (ISA).
-
-\begin{definition}[RISC Zero]
-\label{def:risczero}
-RISC Zero~\cite{risczero2023} is a zkVM framework that proves correct execution of RISC-V programs using STARK-based proofs. It operates over the BabyBear field ($p = 2^{31} - 2^{27} + 1$, a 31-bit prime) with a degree-4 extension field $\mathbb{K} = \mathbb{F}_p[x]/(x^4 + 11)$~\cite{risczero2023}. Programs are compiled to RISC-V rv32im binaries, executed to generate an execution trace, and proven via a Randomized AIR with Preprocessing (RAP) using the DEEP-ALI protocol and the FRI polynomial commitment scheme~\cite{risczero2023}.
+\begin{definition}[Zero-knowledge virtual machine]
+Let $\mathsf{ISA}$ be a deterministic instruction-set architecture with a fixed cycle-level semantics. A zkVM for $\mathsf{ISA}$ is a zkSNARK
+\[
+  \Pi_{\mathsf{vm}}=(\Pi_{\mathsf{vm}}.\Setup,\Pi_{\mathsf{vm}}.\Prove,\Pi_{\mathsf{vm}}.\Verify)
+\]
+for the universal relation
+\[
+  R_{\mathsf{vm}}\bigl((\mathsf{img},\mathsf{in}_{\mathsf{pub}},\mathsf{out});(\mathsf{P},\mathsf{in}_{\mathsf{priv}})\bigr)=1
+\]
+iff $\mathsf{img}=\mathsf{digest}(\mathsf{P})$ and executing the guest program $\mathsf{P}$ on $\mathsf{ISA}$ with inputs $(\mathsf{in}_{\mathsf{pub}},\mathsf{in}_{\mathsf{priv}})$ terminates and emits public output $\mathsf{out}$. The public instance is $x_{\mathsf{vm}}=(\mathsf{img},\mathsf{in}_{\mathsf{pub}},\mathsf{out})$ and the witness is $w_{\mathsf{vm}}=(\mathsf{P},\mathsf{in}_{\mathsf{priv}})$.
 \end{definition}
 
-\begin{definition}[Execution Trace]
-\label{def:exec-trace}
-Let $P$ be a program and $x$ a public input. An execution trace is a matrix $\textsf{Tr} \in \mathbb{F}_p^{T \times W}$ whose rows represent successive machine states during execution. For RISC Zero, the columns are organized into three categories~\cite{risczero2023}:
+\paragraph{Host--guest model.}
+A zkVM partitions execution into a \emph{guest} program that runs on the virtual processor under the proof system, and a \emph{host} program that runs natively on the prover machine. The host orchestrates proof generation, supplies inputs to the guest via a read channel, and receives the guest's public output via a commit channel. Values placed on the commit channel become part of the public statement $\mathsf{out}$; values placed on the read channel that the guest does not commit remain in the witness $\mathsf{in}_{\mathsf{priv}}$. In the BDEC instantiation considered in this thesis, the user's long-term secret key~$\sk_U$ and the credential signatures appear only via the read channel and are never committed, so they remain in $w_{\mathsf{vm}}$ across the entire zkSNARK relation.
+
+\paragraph{Receipt structure and the zero-knowledge property.}
+The output of $\Pi_{\mathsf{vm}}.\Prove$ is a \emph{receipt} consisting of a journal of committed outputs together with a succinct proof. Concrete instantiations distinguish two regimes:
 \begin{itemize}
-\item \textbf{Control columns} (public): Encode the RISC-V architecture state and control signals defining the execution phase (Init, Setup, Load, Reset, Body, RamFini, BytesFini).
-\item \textbf{Data columns} (private): Represent the running state of the processor and memory, including duplicate columns for time-ordered and memory-ordered access patterns.
-\item \textbf{Accumulator columns} (private): Contain grand-product accumulation values for PLONK-based memory permutation ($n_{\sigma_{\textsf{mem}}} = 5$) and PLOOKUP-based range checks ($n_{\sigma_{\textsf{bytes}}} = 15$), yielding $w_{\textsf{accum}} = 2e \cdot (n_{\sigma_{\textsf{mem}}} + n_{\sigma_{\textsf{bytes}}}) = 2(4)(20) = 160$ accumulator columns.
+  \item A \emph{succinct STARK receipt} is transparent and large, and verifies in time logarithmic in the number of executed cycles. Whether such a receipt satisfies the formal zero-knowledge property of Section~\ref{sec:prelim} depends on the specific instantiation; in the systems we evaluate the default succinct STARK receipt is not formally zero-knowledge.
+  \item A \emph{SNARK-wrapped receipt} is obtained by composing the succinct STARK with an outer zero-knowledge SNARK (e.g.\ Groth16 or PLONK). The wrapped receipt is small and zero-knowledge, but the wrap step itself has additional prover memory and time cost.
 \end{itemize}
-The trace length $T = 2^h$ (a power of 2) directly determines proof generation cost.
-\end{definition}
+Any privacy claim about an anonymous-credential scheme instantiated on a zkVM that relies on the underlying zkSNARK being zero-knowledge therefore holds only for the wrapped receipt. We make this dependency explicit when stating anonymity and unlinkability of the BDEC instantiation in Section~\ref{sec:system}.
 
-\paragraph{Precompiles (Accelerators).}
-RISC Zero provides hardware-equivalent circuit extensions for computationally expensive operations~\cite{risczero2023opt}, including SHA-256 compression (68 cycles per 64-byte block) and 256-bit modular multiplication (10 cycles per operation). No precompiles exist for algebraic hash functions (Griffin, Poseidon) or the Legendre PRF. This asymmetry is central to the Precompile Paradox analyzed in Chapter~\ref{sec:Theoretical Bottleneck}.
+\paragraph{Precompiles.}
+A \emph{precompile} is a fixed sub-circuit recognised by the zkVM's instruction decoder as a syscall and proved natively by the prover rather than via emulated instruction-level execution. From the guest's perspective a precompile call costs a single syscall instruction; from the prover's perspective the cost is the proof of one execution of the precompile's underlying AIR (algebraic intermediate representation). Precompiles trade proof-system generality for performance on algebraic primitives whose software emulation over the prover's native field would otherwise dominate the trace. A precompile is sound only if (i) its AIR enforces exactly the intended function, accepting no more inputs than the reference specification, and (ii) its memory inputs and outputs are bound to the surrounding VM execution trace via the cross-table lookup argument; otherwise the syscall could be satisfied by values unrelated to the guest's computation. This functional-equivalence-plus-trace-binding condition is the premise addressed for the Griffin precompile in Section~\ref{sec:security} (premise T2), where its status is examined.
 
-\begin{remark}
-Our zkVM implementation does not currently invoke the BigInt precompile; the cycle costs cited above are from RISC Zero's published specifications~\cite{risczero2023opt} and are used in the theoretical analysis of Chapter~\ref{sec:Theoretical Bottleneck} to derive best-case lower bounds on the arithmetic mismatch overhead.
-\end{remark}
+We refer to the cost of emulating $n$-bit field arithmetic in software when the underlying prover field is small as the \emph{field-mismatch tax}. A precompile that implements the same arithmetic natively absorbs this tax. The Griffin-$\mathbb{F}_p^{192}$ precompile introduced and measured in this thesis is the load-bearing instance of this pattern.
 
-\paragraph{Instruction Cycle Costs.}
-Unlike physical CPUs where instruction latency varies by orders of magnitude, RISC Zero instruction costs are nearly uniform~\cite{risczero2023opt}: arithmetic operations (\texttt{ADD}, \texttt{MUL}, \texttt{MULHU}) take 1 cycle; bitwise and division operations (\texttt{XOR}, \texttt{AND}, \texttt{DIV}, \texttt{SRAI}) take 2 cycles. Memory access costs 1 cycle if the page is resident, but page-in/page-out operations average approximately 1,130 cycles---a critical overhead for programs with large memory footprints.
+\paragraph{Update churn.}
+\emph{Update churn} denotes the engineering and verification cost incurred when a deployed proof system must be changed in response to evolving policy, security parameters, or primitive substitutions. In a relation-specific zkSNARK every such change requires regenerating and re-auditing the relation-specific circuit and its parameters; this regeneration-and-re-audit footprint, rather than the recompile wall-clock (which can be small for a transparent argument), is the dominant cost. In a zkVM the same change is a guest-program edit; the universal relation $R_{\mathsf{vm}}$ and the trusted setup (if any) are unchanged. Update churn is the evaluation dimension we add to runtime cost in Section~\ref{sec:evaluation}.
 
-\begin{remark}
-\label{rem:risczero-choice}
-We select RISC Zero for our zkVM implementation because: (1) it is the most mature open-source zkVM with production-grade tooling; (2) it uses a transparent STARK backend comparable to Aurora's transparency; (3) its BabyBear field ($\log_2 p \approx 31$ bits) creates maximum arithmetic mismatch with Loquat's 127-bit field, making it an excellent stress test for our theoretical predictions; and (4) its SHA-256 and BigInt precompiles enable concrete analysis of the Precompile Paradox (Proposition~\ref{prop:precompile-paradox}).
-\end{remark}
+\subsubsection{RISC Zero}
+RISC Zero~\cite{bruestle2023risczero} is a zkVM instantiation whose ISA is RV32IM. The prover is a recursive STARK over the BabyBear field $\mathbb{F}_p$ with $p=2^{31}-2^{27}+1$. Per~\cite{bruestle2023risczero}, the prover decomposes guest execution into segments of bounded cycle count, produces a STARK proof per segment, and recursively folds segment proofs into a single succinct receipt. Application-defined precompiles are supported via the Zirgen big-integer dialect.
 
+A RISC Zero receipt is verified against the public statement $(\mathsf{img},\mathsf{out})$, where $\mathsf{img}$ is the digest of the guest ELF and $\mathsf{out}$ is the contents of the commit journal. The image digest pins the receipt to a specific guest binary: a receipt for one guest does not verify under the image digest of any other guest.
 
-\subsection{Update Events}
-\label{sec:updates}
+\subsubsection{SP1}
+SP1~\cite{succinct2024sp1} is a second zkVM instantiation whose ISA is also RV32IM and whose prover is built on the Plonky3 toolkit. Per the SP1 documentation, the default $\mathsf{prove}$ path produces a succinct STARK receipt that is not formally zero-knowledge; a zero-knowledge receipt is obtained by chaining the succinct STARK with a SNARK wrap, e.g.\ a Groth16 or PLONK wrap (\texttt{compressed().groth16()} or \texttt{compressed().plonk()} in the SP1 SDK). SP1 supports application-defined precompiles via its custom-precompile framework.
 
-A critical but often overlooked aspect of deployed cryptographic systems is their evolution over time. Credential systems are not static: policies change, algorithms get deprecated, and schemas extend. The cost of accommodating these changes---what we term \emph{Update Churn}---is a first-class design consideration alongside runtime performance.
-
-\begin{definition}[Update Event Types]
-\label{def:update-events}
-We consider three classes of updates, ordered by increasing severity:
-\begin{itemize}
-\item \textbf{Public-state update}: Changes to public state (e.g., revocation accumulator) across epochs. The verification predicate remains unchanged; only input data changes.
-\item \textbf{Policy update}: Changes to the verification predicate without changing the credential schema. Example: adding a GPA threshold check (GPA $\geq$ 3.0) to an existing degree verification predicate.
-\item \textbf{Schema update}: Changes to the attribute set or encoding required by the predicate. Example: adding a new ``honors'' field to the credential structure, requiring all verifiers to understand the new format.
-\end{itemize}
-\end{definition}
-
-\begin{example}[Update Event Impact]
-\label{ex:update}
-Consider a policy update requiring GPA $\geq$ 3.0 for employment verification. In a \emph{static circuit} implementation, the R1CS constraints must be rewritten to include GPA comparison logic, which changes the circuit topology and invalidates $pk_{\textsf{ZK}}$ and $vk_{\textsf{ZK}}$, resulting in full recompilation, key regeneration, and redeployment (hours to days). In a \emph{zkVM} implementation, the RISC-V program adds a conditional check (\texttt{assert!(gpa >= 30)}) while the AIR constraints proving RISC-V execution remain unchanged, resulting in binary recompilation and propagation of a 32-byte imageID (minutes).
-\end{example}
-
-
-\subsection{Privacy Properties}
-\label{sec:privacy}
-
-We briefly state the standard privacy notions inherited from BDEC~\cite{bdec2024}; full formal game definitions appear in that work.
-
-\begin{definition}[Anonymity and Unlinkability]
-\label{def:anonymity}
-An anonymous credential system satisfies \emph{anonymity} if no PPT adversary can determine which user is presenting a credential, and \emph{unlinkability} if no PPT adversary can determine whether two presentations originate from the same user. Both are defined via standard indistinguishability games~\cite{bdec2024}.
-\end{definition}
-
-\begin{definition}[Conditional Linkability]
-\label{def:cond-link}
-BDEC supports a \emph{conditional linkability} mode: when $\textsf{linkMode} = \textsf{CONDITIONAL}$, the system outputs a deterministic tag $L = f(sk_U, \textsf{conditionID})$ enabling targeted linking (e.g., grouping a student's credentials across institutions). When $\textsf{linkMode} = \textsf{OFF}$, no tag is produced and unlinkability is preserved~\cite{bdec2024}.
-\end{definition}
-
-\begin{remark}
-This thesis validates privacy properties only at the design level (D3). Full end-to-end unlinkability benchmarking was not completed in the current run set and remains future work.
-\end{remark}
+\subsubsection{Static-circuit and zkVM proof systems as comparators}
+We will instantiate BDEC in two regimes that this thesis compares directly:
+\begin{enumerate}
+  \item A \emph{static-circuit} regime, in which the BDEC CreGen and ShowCre relations are encoded into a fixed R1CS and proved via Aurora (Section~\ref{sec:prelim} above). Each change to the relation requires recompilation of the R1CS.
+  \item A \emph{zkVM} regime, in which the same relations are expressed as guest programs on RISC Zero (and SP1, where indicated). Changes to the relation become guest-program edits; the universal relation $R_{\mathsf{vm}}$ is unchanged.
+\end{enumerate}
+The runtime cost, memory footprint, and update-churn properties of these two regimes are the empirical subject of Section~\ref{sec:evaluation}.

@@ -1,217 +1,97 @@
-\section{System Design and Implementation}\label{sec:system}
+\section{Construction: The Precompile Suite and PLUM-in-BDEC}\label{sec:system}
 
-This chapter describes the dual implementation of BDEC credential verification across both proving backends. The central design principle is \emph{fixed-semantics comparison}: both backends implement the identical $\mathcal{R}_{\textsf{ShowVer}}$ verification relation, ensuring that any observed performance differences arise from architectural factors (arithmetization regime, field selection, proving strategy) rather than semantic discrepancies.
+The theoretical analysis of Section~\ref{sec:theoretical} identified the algebraic-hash and large-prime-field operations of PLUM verification as the operations that carry the field-mismatch tax inside a small-field zkVM. This section presents the instrument we built to absorb that tax so that the remaining proving cost can be measured: a precompile suite, developed in two stages, and its integration into the BDEC credential-generation relation. The suite serves the measurement reported in Section~\ref{sec:evaluation}. Its purpose is to move the dominant cost out of emulated guest code so that what remains can be measured, attributed, and bounded. Throughout, we grade the evidence supporting each component, distinguishing what is proved from what is empirically tested and what is trusted from upstream, since the suite is not uniformly sound. Two soundness questions are left explicitly open (\S\ref{ssec:soundness}); a measurement whose correctness rested on unstated assumptions would be worth little, so stating the open questions is part of the work.
 
-We first articulate the architectural rationale and design constraints (\S\ref{sec:design-rationale}), then decompose the $\mathcal{R}_{\textsf{ShowVer}}$ relation into its constituent sub-components (\S\ref{sec:showver-decomposition}), detail how each sub-component is realized in the Noir + Aurora static circuit pipeline (\S\ref{sec:noir-impl}) and the RISC Zero zkVM pipeline (\S\ref{sec:risczero-impl}), compare the two pipelines side-by-side (\S\ref{sec:pipeline-comparison}), and conclude with a discussion of implementation challenges and optimization strategies (\S\ref{sec:impl-challenges}).
+\subsection{Scope of the Implementation}\label{ssec:impl-scope}
+We state plainly what is and is not built, since the honesty of every measurement in Section~\ref{sec:evaluation} depends on this scope being explicit.
 
-\subsection{Architectural Rationale and Design Constraints}
-\label{sec:design-rationale}
-
-The design of a controlled comparison between two fundamentally different proving architectures requires careful attention to confounding variables. We impose the following design constraints to ensure that the comparison isolates architectural effects:
-
-\paragraph{Constraint 1: Identical Verification Semantics.}
-Both backends must implement the same mathematical relation $\mathcal{R}_{\textsf{ShowVer}}$ with identical public inputs, private witnesses, and acceptance conditions. Any deviation in semantics would confound the performance comparison with functional differences.
-
-\paragraph{Constraint 2: Same Cryptographic Primitive.}
-Both backends use Loquat-128 as the signature scheme, with identical parameter sets ($B = 128$ challenges, $\kappa = 32$ queries, Mersenne prime $p = 2^{127} - 1$). This ensures that the cryptographic workload is identical; only the proof system's handling of that workload differs.
-
-\paragraph{Constraint 3: Transparent Proving Only.}
-Both backends use transparent (no trusted setup) proving systems: Aurora for the static path and STARK for the zkVM path. This eliminates trusted setup logistics as a confounding variable in the update churn analysis, since neither backend requires a setup ceremony for circuit changes.
-
-\paragraph{Constraint 4: Single Codebase.}
-Both implementations reside in the same repository, sharing common data structures, serialization formats, and test vectors. This ensures that differences in input parsing, data encoding, or test infrastructure do not contribute to observed performance variations.
-
-These constraints mean that our comparison is narrower than a general-purpose ``zkVM vs. SNARK'' benchmark: we deliberately hold the application, primitive, and transparency model constant to isolate the effect of the arithmetization regime (R1CS vs. AIR) and field selection strategy (aligned vs. mismatched).
-
-
-\subsection{Decomposition of the ShowVer Relation}
-\label{sec:showver-decomposition}
-
-Recall from \S\ref{sec:anon-creds} that the BDEC $\textsf{ShowVer}$ zero-knowledge argument proves a composite statement consisting of $k + 2$ Loquat signature verifications (Equation~\ref{eq:showver}). For our implementation, we instantiate the simplified variant with $k = 1$ (single TA credential), yielding three signature verifications. However, to isolate the core performance dynamics while keeping implementation tractable, we further simplify to two verifications (omitting the pseudonym binding verification), yielding:
-
-\begin{equation}
-\mathcal{R}_{\textsf{ShowVer}}^{\textsf{simplified}}(x, w) = 1 \iff
-\begin{cases}
-\textsf{L-Verify}(pk_U, h_{U,TA}, \sigma_{U,TA}) = 1 \\
-\textsf{L-Verify}(pk_{TA}, h_{\text{cred}}, \sigma_{\text{cred}}) = 1
-\end{cases}
-\label{eq:showver-simplified}
-\end{equation}
-
-This simplified relation preserves the essential structure---two full Loquat-128 verifications chained through credential binding hashes---while reducing implementation complexity. The performance characteristics scale linearly with the number of verifications; results for the full $k + 2$ variant can be projected from our measurements.
-
-\subsubsection{Sub-Component Inventory}
-
-Each Loquat-128 verification (as analyzed in \S\ref{sec:loquat-decomposition}) decomposes into the following sub-components that must be realized in both backends:
-
-\paragraph{(S1) Challenge Generation.}
-The verifier reconstructs Fiat-Shamir challenges by hashing components of the public key and signature using the Griffin hash function in a sponge construction. Each challenge derivation invokes one Griffin sponge call (Section~\ref{sec:noir-impl}), with the number of permutations per call determined by the input length and the sponge rate ($r = 2$). For a typical L-Verify invocation, challenge generation accounts for a small fraction of the total Griffin budget relative to the Merkle path verification (S4).
-
-\paragraph{(S2) Legendre PRF Evaluation.}
-For $B = 128$ challenged indices, the circuit checks the quadratic residuosity relation $t_b = s_b^2 \pmod{p}$ using the QNR trick (Definition~\ref{def:leg-verify}). This costs $4B + 1 = 513$ R1CS constraints under field alignment---a negligible fraction of the total.
-
-\paragraph{(S3) Polynomial Evaluation and Sumcheck Verification.}
-The decomposed witness polynomials $\hat{f}_j$ (with $m = 16$, $n = 8$) are evaluated and verified via the univariate sumcheck protocol. This involves polynomial interpolation over multiplicative cosets and evaluation at $\kappa \cdot 2^\eta = 128$ points.
-
-\paragraph{(S4) Merkle Authentication Path Verification.}
-The signature contains Merkle authentication paths for commitment openings. With $\kappa = 32$ queries, $|U| = 2^{13}$, $\eta = 2$, and tree cap parameter $t = 4$, verification requires 1,028 Griffin hash evaluations for the Merkle paths, plus 9 for hash chain recomputation and 4 for challenge expansion---totaling 1,041 hash evaluations per L-Verify (Appendix~\ref{app:loquat-params}).
-
-\paragraph{(S5) Credential Binding.}
-The two L-Verify instances are connected through credential binding hashes: $h_{U,TA} = H(pk_U \| \textsf{attr})$ and $h_{\text{cred}} = H(pk_{TA} \| h_{U,TA} \| \textsf{metadata})$. Each binding hash requires additional Griffin permutations.
-
-\paragraph{(S6) Selective Disclosure (Optional).}
-If selective disclosure is enabled, the circuit includes a Merkle tree accumulator over the attribute set. The prover provides Merkle authentication paths for the disclosed attributes, and the circuit reconstructs the root from these paths and checks it against the signed credential root. Our base implementation does not include selective disclosure; its impact is discussed as a scalability consideration in Chapter~\ref{sec:discussion}.
-
-\subsubsection{Aggregate Operation Count}
-
-Table~\ref{tab:subcomponent-summary} summarizes the sub-component costs for the simplified ShowVer relation.
-
-\begin{table}[h]
-\centering
-\caption{Sub-component inventory for $\mathcal{R}_{\textsf{ShowVer}}^{\textsf{simplified}}$.}
-\label{tab:subcomponent-summary}
-\begin{tabular}{llrr}
-\hline
-\textbf{ID} & \textbf{Sub-component} & \textbf{Per L-Verify} & \textbf{$\times 2$ (ShowVer)} \\
-\hline
-S1 & Griffin hash (challenge gen.) & $\sim$10 permutations & $\sim$20 \\
-S2 & Legendre PRF ($4B + 1$) & 513 constraints & 1,026 \\
-S3 & Polynomial evaluation & $\sim$5{,}000 constraints & $\sim$10{,}000 \\
-S4 & Merkle paths (1,041 hashes) & 1,041 Griffin calls & 2,082 \\
-S5 & Credential binding & 2 Griffin calls & 4 \\
-\hline
-& \textbf{Total R1CS constraints} & \textbf{148{,}825} & $\approx$\textbf{308{,}000} \\
-\hline
-\end{tabular}
-\end{table}
-
-% Note: Per-L-Verify count (148,825) from Loquat paper; our implementation measures 172,765
-% per single loquat_verify (including witness allocation overhead). ShowVer ×2 estimate
-% from 03-preliminaries.tex: 2 × 148,825 + ~10,000 binding ≈ 308,000.
-
-
-\subsection{Implementation A: Noir + Aurora (Static Circuit)}
-\label{sec:noir-impl}
-
-\subsubsection{Compilation Pipeline}
-
-The static circuit implementation follows the four-stage pipeline introduced in \S\ref{sec:compilers}:
-
-\begin{equation}
-\underbrace{\text{Noir source}}_{\text{(1) DSL}} \xrightarrow{\texttt{nargo compile}} \underbrace{\text{ACIR bytecode}}_{\text{(2) intermediate}} \xrightarrow{\text{ACVM}} \underbrace{\text{R1CS } (A, B, C)}_{\text{(3) constraints}} \xrightarrow{\text{Aurora prover}} \underbrace{\pi}_{\text{(4) proof}}
-\end{equation}
-
-\paragraph{Stage 1: Noir Source.}
-The verification logic is expressed in Noir 1.0.0-beta.17. The implementation consists of:
 \begin{itemize}
-\item A \texttt{loquat\_verify} function implementing the Legendre verification relation (Definition~\ref{def:leg-verify}), including the QNR trick, quadratic residuosity checks, and polynomial evaluation.
-\item A \texttt{griffin\_hash} module implementing the Griffin permutation with state sizes 3 (expansion) and 4 (compression), configured for 128-bit security with 11 rounds and power map exponent $d = 5$.
-\item A \texttt{merkle\_verify} function implementing authentication path verification using Griffin hash.
-\item A top-level \texttt{main} function that composes two \texttt{loquat\_verify} calls with credential binding hash checks.
+  \item \textbf{Fp192 modular multiplication via the host precompile}
+  (\S\ref{ssec:bigint}), routed through SP1's \texttt{UINT256\_MUL} and RISC~Zero's \texttt{sys\_bigint}, implemented for both targets. \emph{Built; reduction argued; empirically tested (14/14 adversarial cases).}
+  \item \textbf{A bespoke Griffin-$\mathbb{F}_p^{192}$ permutation AIR for SP1} (\S\ref{ssec:griffin-air}), the load-bearing precompile, since PLUM's constraint budget is dominated by Griffin. All ten constraint families implemented ($\approx 3{,}900$ lines of Rust over $22$ chip-only commits); a single-permutation smoke proof completes (execute$+$prove$+$verify) in $13.0$~s on the target hardware. \emph{Built; constraint-level chip-equivalence not yet verified (\S\ref{ssec:soundness}).}
+  \item \textbf{PLUM signature verification on SP1}, suite active. \emph{Built; proves end-to-end} ($32.5$~min at $\lambda=80$; Section~\ref{sec:evaluation}).
+  \item \textbf{PLUM-in-BDEC credential generation (CreGen) on RISC~Zero}, with field arithmetic via \texttt{sys\_bigint}. \emph{Built; validated in execute mode} ($9.4\times10^{9}$ guest cycles, both signature verifications accepting); its succinct proof did not yield a receipt, ending in an internal-verifier rejection under diagnosis rather than a resource limit (Section~\ref{sec:evaluation}).
+  \item \textbf{PLUM-in-BDEC presentation (ShowCre) on RISC~Zero}, the $k+2$-verification generalisation of CreGen. \emph{Built; validated in execute mode} at $k=1$ ($1.41\times10^{10}$ guest cycles) and $k=2$ ($1.88\times10^{10}$ cycles), all $k+2$ verifications accepting; its succinct proof was not attempted, sharing CreGen's prover path (Section~\ref{sec:evaluation}).
 \end{itemize}
 
-\paragraph{Stage 2: ACIR Compilation.}
-Compilation via \texttt{nargo compile} produces ACIR bytecode in binary format (21,698 bytes). The compiled circuit contains 17 constrained ACIR opcodes that encode the ShowVer verification logic at a high level; each opcode expands into many R1CS constraints during the ACVM translation stage. The Griffin inverse power map ($x^{1/d}$) is computed in Brillig (unconstrained witness generation) and verified via the constraint $y^d = x$ in ACIR, following the compute-then-verify pattern. Compilation completes in approximately 71~ms (median over 10 runs on Apple M2).
+\noindent One component is deliberately \emph{not} built, and we treat it as future work: a port of the bespoke Griffin AIR to RISC~Zero's syscall ABI. For reading Section~\ref{sec:evaluation} this matters, because ``the precompile'' does not denote one artefact uniform across both zkVMs. On SP1 the suite includes the bespoke Griffin AIR. On RISC~Zero the same arithmetic is carried by \texttt{sys\_bigint}. We state which mechanism is active wherever a measurement is reported.
 
-\paragraph{Stage 3: R1CS Generation.}
-The ACVM translates ACIR to R1CS over the field $\mathbb{F}_p$ with $p = 2^{127} - 1$, achieving field alignment with Loquat's operating domain. The generated R1CS instance size depends on the credential configuration. For the full PP2 evaluation configuration ($k = 2$, $m = 64$ attributes, revocation depth 20), the instance has 996,523 constraints. A single isolated \texttt{loquat\_verify} sub-circuit accounts for 172,765 constraints (17.3\% of the full instance). Matrices $A, B, C \in \mathbb{F}_p^{m \times n}$ encode the constraint system in sparse representation.
+\subsection{The Field-Arithmetic Substrate: \texttt{Fp192} Multiplication via the Host Precompile}\label{ssec:bigint}
+\paragraph{Field and naming.}
+PLUM operates over the prime field $\mathbb{F}_p$ with $p = 2^{64}\cdot p_0 + 1$, $p_0$ a $135$-bit prime, so $p$ is a \emph{$199$-bit} prime. We retain the label ``$\mathbb{F}_p^{192}$'' for parity with the PLUM paper, whose \S3.3 titles the parameter ``$192$-bit smooth prime field''; all soundness arguments use the true $199$-bit modulus, which is fixed in the implementation and audited against the paper.\footnote{Two distinct points must not be conflated. (i) The $192$-vs-$199$ \emph{label} is a naming convention: PLUM's \S3.3 titles the field ``$192$-bit'' while the concrete modulus is $199$ bits; we keep the paper's label but compute with the true value. (ii) Separately, the specific decimal prime is a \emph{substitution}: as recorded in Remark~\ref{rem:prime-substitution} and the open prime-instantiation hypothesis of Section~\ref{sec:security}, the value used is a nearby prime satisfying PLUM's structural requirements, and any bit-exact security claim is conditional on it matching the intended parameters. This conditional dependence is an open item rather than a naming convention.}
 
-\paragraph{Stage 4: Aurora Proof Generation.}
-The R1CS instance is proven using Aurora (via the \emph{libiop} library). Aurora's IOP protocol proceeds through rowcheck (verifying $(Az) \circ (Bz) = Cz$ entry-wise), lincheck (verifying the matrix-vector products $Az$, $Bz$, $Cz$), and FRI low-degree testing. The proof is made non-interactive via the Fiat-Shamir transform.
+\paragraph{Construction.}
+We do not write a dedicated $199$-bit multiplication circuit. Both target zkVMs already ship a $256$-bit modular-multiplication precompile modulo a runtime-supplied modulus: SP1's \texttt{UINT256\_MUL} and RISC~Zero's \texttt{sys\_bigint(OP\_MULTIPLY)}~\cite{succinct2024sp1,bruestle2023risczero}. Each \texttt{Fp192} multiplication $a\cdot b \bmod p$ is computed by zero-padding $a$, $b$, and $p$ into the precompile's $256$-bit slots and invoking the syscall with modulus $m=p$. The wiring is selected at compile time per target.
 
-\subsubsection{Field Selection Rationale}
+\paragraph{Soundness (reduction).}
+\begin{description}
+  \item[Upstream assumption.] For every row of the host modular-multiplication table in a verifying proof, the host AIR enforces $x' \equiv x\cdot y \pmod{m}$ and $x' \in [0,m)$ when $m\neq 0$. For SP1 we point to the two specific AIR constraints that enforce these (the modular product and the output range check); for RISC~Zero the same guarantee is enforced by auto-generated constraint code that we \emph{cite} as production-audited rather than re-derive. This RISC~Zero citation is the weakest link and is graded accordingly. The precompiles are those of SP1 v6.2.1 (forked) and RISC~Zero 3.0.3 (the versions reported in Section~\ref{sec:evaluation}), so the assumption is pinned to these specific versions and not to an unversioned ``upstream release process.''
+  \item[Reduction.] \texttt{Fp192} operands are maintained in $[0,p)$ (structurally for the reducing constructor, by input domain for the small-integer constructors). Since $p < 2^{200} < 2^{256}$, the zero-pad is the identity on the bit pattern. The assumption with $m=p$ yields $x' = a\cdot b \bmod p \in [0,p)$, exactly the value the software fallback computes; the implementation reconstructs the field element directly from $x'$, omitting a redundant reduction, with a debug-build assertion guarding against regression of the upstream range check.
+\end{description}
 
-The choice of $p = 2^{127} - 1$ as the R1CS field is the single most important implementation decision for the static circuit backend. This Mersenne prime matches Loquat's native field, ensuring that:
-\begin{itemize}
-\item Every $\mathbb{F}_q$ multiplication maps to exactly one R1CS constraint (Theorem~\ref{thm:constraint-opt}).
-\item No multi-precision emulation, carry propagation, or range checks are needed.
-\item Griffin hash operates natively in $\mathbb{F}_p$, preserving its algebraic efficiency.
-\end{itemize}
+\paragraph{Edge cases.}
+The argument addresses a malicious modulus $m=0$ (prevented by loading the modulus from a compile-time constant the zkVM's memory checking binds), non-canonical operand truncation (guarded by a debug assertion on operand width), and regression of the upstream range check (under which the omitted reduction would become load-bearing, detected by the same assertion).
 
-Note that Loquat's sumcheck and LDT components operate over $\mathbb{F}_{p^2}$ (the quadratic extension), which introduces a small overhead for extension field arithmetic within the R1CS. This overhead is absorbed into the 148,825 total constraint count reported by~\cite{zhang2024loquat}.
+\paragraph{Empirical corroboration.}
+An adversarial probe exercises an honest control plus six single-field tamper cases (corrupted public key, message, and three signature components) on each zkVM; all $14$ cases across both platforms behave as expected (honest accepts, every tamper rejects). This is regression evidence; it does not characterise malicious-prover behaviour completely, and we report it as such.
 
+\subsection{The Bespoke Griffin-$\mathbb{F}_p^{192}$ Permutation AIR (SP1)}\label{ssec:griffin-air}
 
-\subsection{Implementation B: RISC Zero (zkVM)}
-\label{sec:risczero-impl}
-
-\subsubsection{Compilation Pipeline}
-
-The zkVM implementation follows a fundamentally different pipeline:
-
-\begin{equation}
-\underbrace{\text{Rust source}}_{\text{(1) GPL}} \xrightarrow{\texttt{cargo build}} \underbrace{\text{RISC-V ELF}}_{\text{(2) rv32im}} \xrightarrow{\text{zkVM execute}} \underbrace{\textsf{Tr} \in \mathbb{F}_p^{T \times W}}_{\text{(3) trace}} \xrightarrow{\text{STARK prove}} \underbrace{\text{receipt}}_{\text{(4) proof}}
-\end{equation}
-
-\paragraph{Stage 1: Rust Guest Program.}
-The verification logic is implemented as a RISC Zero ``guest program'' in Rust, targeting RISC Zero SDK version 3.0.3. The guest reuses the shared \texttt{vc\_pqc} library crate---the same field arithmetic, Griffin permutation, and Merkle tree modules used in the static path---compiled to RISC-V rather than to R1CS. This code-sharing strategy satisfies Design Constraint~4 (single codebase) and ensures that any performance differences arise from the proving architecture, not from implementation divergence.
-
-\paragraph{Stage 2: RISC-V Compilation.}
-The guest program is compiled to a RISC-V rv32im ELF binary via \texttt{cargo build --release --target riscv32im-risc0-zkvm-elf}, with \texttt{opt-level = 3} and link-time optimization (\texttt{lto = true}). The binary is identified by its \emph{imageID}---a 32-byte SHA-256 hash of the ELF content---which serves as the verification key analogue. Unlike the Aurora verification key ($\sim$32~MB), the imageID is a compact 32-byte value, yielding the $10^6\times$ key-distribution advantage noted in Table~\ref{tab:pipeline-comparison}.
-
-\paragraph{Stages 3--4: Execution and STARK Proving.}
-The host loads the guest binary into the RISC Zero zkVM executor, which records every CPU state into an execution trace $\textsf{Tr} \in \mathbb{F}_p^{T \times W}$ (Definition~\ref{def:exec-trace}). The prover then processes this trace through DEEP-ALI constraint verification and batched FRI low-degree testing (folding factor 16, 50 queries) to produce a computational receipt.
-
-The key architectural consequence is the \emph{arithmetic mismatch}: Loquat operates over $\mathbb{F}_q$ ($q = 2^{127} - 1$) while RISC Zero's native field is BabyBear ($p = 2^{31} - 2^{27} + 1$). Every $\mathbb{F}_q$ operation is emulated via $k = 4$ limb multi-precision arithmetic (Theorem~\ref{thm:multi-prec}), and the Griffin inverse power map ($x^{1/d}$) requires full Fermat exponentiation rather than the compute-then-verify shortcut available in R1CS. The theoretical cost model predicts a trace amplification factor $\alpha \geq 25$ (Theorem~\ref{thm:trace-amp}).
-
-
-\subsection{Pipeline Comparison}
-\label{sec:pipeline-comparison}
-
-Before examining implementation challenges, it is instructive to compare the two pipelines side-by-side. Table~\ref{tab:pipeline-comparison} summarizes the key architectural differences and their implications.
-
-\begin{table}[h]
+\begin{figure}[t]
 \centering
-\caption{Side-by-side comparison of the two implementation pipelines.}
-\label{tab:pipeline-comparison}
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.22\linewidth}>{\raggedright\arraybackslash}p{0.34\linewidth}>{\raggedright\arraybackslash}p{0.34\linewidth}@{}}
-\toprule
-\textbf{Dimension} & \textbf{$\mathcal{A}$: Noir + Aurora} & \textbf{$\mathcal{Z}$: RISC Zero} \\ \midrule
-Source language & Noir (domain-specific) & Rust (general-purpose) \\
-Intermediate repr. & ACIR $\to$ R1CS & RISC-V ELF $\to$ exec.\ trace \\
-Native field & $\mathbb{F}_{2^{127}-1}$ (configurable) & BabyBear $\mathbb{F}_{2^{31}-2^{27}+1}$ (fixed) \\
-Field alignment & Aligned ($k = 1$) & Mismatched ($k = 4$) \\
-$x^{1/d}$ strategy & Compute-then-verify & Full Fermat exponentiation \\
-Proof system & IOP (Aurora) & STARK (FRI-based) \\
-Setup requirement & Transparent (indexer) & None \\
-IOP transcript size\footnotemark & $\sim$32 MB & --- \\
-Succinct proof (theoretical) & $O(\log^2 n) \approx 130$--$170$~KB\footnotemark & $\sim$200--300 KB (projected) \\
-Update mechanism & Recompile + re-index + redistribute & Recompile ELF only \\
-Verification key & Circuit-bound (changes with logic) & ImageID (ELF hash, changes with logic) \\
-Key distribution & 32 MB to all verifiers & 32 bytes to all verifiers \\
-\bottomrule
-\end{tabular}
-\footnotetext{The 32~MB figure is the full IOP transcript (oracle evaluations over the padded domain, $2^{20}$ elements $\times$ 32 bytes/element), not the compiled succinct proof.}
-\footnotetext{Under the BCS transformation~\cite{ben2019aurora}, Aurora compiles the IOP transcript into a succinct proof of size $O(\log^2 n) \approx 130$--$170$~KB for our constraint count ($\sim$1M). Our measurement reflects the IOP-model transcript, which includes the full residual polynomial evaluation over the padded domain.}
-\end{table}
+\begin{tikzpicture}[
+  >={Stealth},
+  every node/.style={font=\footnotesize},
+  s/.style={align=center, text width=25mm},
+  node distance=7mm and 10mm,
+]
+  \node[s] (op) {$\mathbb{F}_p^{199}$ operation (Griffin)};
+  \node[s, above right=4mm and 10mm of op] (e1) {multi-limb emulation ($\approx7$ limbs)};
+  \node[s, right=of e1] (e2) {huge trace};
+  \node[s, right=of e2] (e3) {\textbf{DNF / OOM} ($1$m$45$s)};
+  \node[s, below right=4mm and 10mm of op] (s1) {\includegraphics[height=7mm]{figs/assets/cpu.png}\\ syscall to native chip};
+  \node[s, right=of s1] (s2) {cross-table lookup (T1)};
+  \node[s, right=of s2] (s3) {trace $\to$ receipt (host-side cost)};
+  \draw[->] (op) -- (e1); \draw[->] (e1) -- (e2); \draw[->] (e2) -- (e3);
+  \draw[->] (op) -- (s1); \draw[->] (s1) -- (s2); \draw[->] (s2) -- (s3);
+\end{tikzpicture}
+\caption{Where the field-mismatch tax is incurred and what the precompile absorbs.
+Left: each $\mathbb{F}_p^{199}$ operation expands into multi-limb arithmetic that,
+un-precompiled, does not complete (OOM at $1$m$45$s). Right: a syscall routes it to a
+native chip, the bespoke Griffin AIR on SP1 or \texttt{sys\_bigint} on RISC~Zero
+(\emph{not} one artefact), bound to the trace by a cross-table lookup; the chip's
+cost is charged host-side, so a guest-cycle saving need not be a wall-clock one.}
+\label{fig:fmt-precompile}
+\end{figure}
+No existing SP1 chip computes a Griffin permutation over a $199$-bit prime field; the closest upstream pattern is the Poseidon2 chip~\cite{grassi2023poseidon2}, which has the same shape (a permutation precompile with single-pointer state I/O, per-round columns, and memory binding) but operates over a $31$-bit field. We therefore implement a custom AIR for one Griffin-$\pi$ permutation over $\mathbb{F}_p^{4}$, exposed to the guest as a single syscall on a $16$-word ($4$-lane) state.
 
-The table reveals the core trade-off that motivates this thesis: the static path achieves superior prover performance through field alignment and algebraic optimization, while the zkVM path achieves superior operational agility through software-level abstraction. The $10^6\times$ difference in verification key distribution bandwidth (32~MB vs.\ 32 bytes) is particularly striking and has direct implications for blockchain-based deployments where on-chain storage is expensive.
+\paragraph{Per-round constraints.}
+Each of the $14$ rounds is encoded by ten constraint families: a degree-$3$ forward S-box on one lane; an \emph{inverse} S-box on another lane, constrained in the backward direction ($y^d = x$ with the root witnessed) because the forward inverse exponent is a $199$-bit number that would blow past the constraint-degree budget, valid because $\gcd(d,p-1)=1$ makes the cube map a bijection, so the witnessed root is unique; this side condition is \emph{not} automatic and we verify it for the implemented modulus: with $d=3$ and $p = 2^{64}p_0+1$ we have $p-1 = 2^{64}p_0\equiv p_0\equiv 1\pmod 3$ (since $2^{64}\equiv 1\pmod 3$, and $p_0\equiv 1\pmod 3$ for the implemented $199$-bit modulus, verified by computation), hence $3\nmid(p-1)$ and $\gcd(3,p-1)=1$ (were $3\mid(p-1)$ the cube would be three-to-one and a malicious prover could witness a wrong root); a quadratic layer on the remaining two lanes; the MDS linear layer (the circulant $[2,1,1,1]$); and the SHAKE256-derived round constants. The modulus, round count, MDS entries, round constants, and quadratic coefficients are bound in preprocessing rather than supplied per row, so a prover cannot choose them. A separate controller chip binds the syscall's memory reads and writes, and a per-lane output range check enforces output canonicality (\S\ref{ssec:bigint}'s cross-precompile contract). Two audit-driven hardening passes fixed a polynomial-degree blow-up and an all-zero-padding-row identity failure.
 
-\paragraph{Data Flow Comparison.}
-The two pipelines also differ in how data flows from the prover's private witness to the final proof. In the static path, the witness is ``compiled into'' the constraint system: the prover fills in the R1CS variable assignment, and the Aurora prover commits to this assignment via polynomial commitments. The entire computation is visible to the proof system at the constraint level. In the zkVM path, the witness is ``executed through'' the CPU: the prover runs the guest program with the witness as input, and the STARK prover commits to the resulting execution trace. The proof system sees CPU state transitions, not algebraic operations. This distinction has a profound consequence: in the static path, the proof system can exploit the algebraic structure of the computation (e.g., recognizing that a Griffin permutation is a low-degree polynomial map), while in the zkVM path, the proof system treats all operations uniformly as CPU instructions, paying the same overhead for algebraically simple and complex operations alike. This uniformity is both the source of the zkVM's flexibility (any program can be proven) and its performance limitation (no operation receives special treatment unless a precompile exists).
+\paragraph{What works.}
+A single-permutation smoke proof passes execute, prove, and verify in $13.0$~s on the target hardware, establishing the per-syscall proving cost in isolation.
 
+\subsection{The Sponge and Compression Wrapper}\label{ssec:sponge}
+The permutation is wrapped in the sponge/compression construction of the Loquat instantiation to provide the $2$-to-$1$ compression used by the BDEC Merkle trees. The state width is $t_{\mathsf{state}}=4$, the capacity $c_{\mathsf{cap}}=2$, and the rate $r=t_{\mathsf{state}}-c_{\mathsf{cap}}=2$, so a digest is the first two lanes of the output state. The $2$-to-$1$ compression of two child digests $x=(x_0,x_1)$ and $y=(y_0,y_1)\in\mathbb{F}_p^{2}$ is $H_2(x,y)=\big(\pi(x_0,x_1,y_0,y_1)\big)_{0,1}$: one application of the width-$4$ permutation $\pi$, truncated to the rate lanes. The SHAKE256 domain-separation seed and the MDS matrix are matched to the reference hasher, and cross-codebase tests pin the modulus, round count, MDS matrix, and seed against the reference implementation.
 
-\subsection{Implementation Challenges}
-\label{sec:impl-challenges}
+\subsection{Soundness of the Precompile Suite, and Two Open Questions}\label{ssec:soundness}
+This subsection states the soundness claim and the two questions it leaves open. The per-constraint audit is deferred to Appendix~\ref{app:proofs}.
 
-Two cross-cutting implementation challenges merit discussion, as they illuminate the architectural differences between the two backends.
+\begin{theorem}[Precompile soundness, conditional]\label{thm:precompile-sound}
+This is a functional (input--output) equivalence statement, and, conditional on premise~(T3), a transfer of PLUM's EU-CMA reduction; it is not a standalone cryptographic-security claim. Assume (T1) the host zkVM's cross-table lookup argument is sound; (T2) the Griffin AIR's constraints are satisfied only by a witnessed transition equal to the reference Griffin-$\pi$ permutation; (T3) PLUM's EU-CMA reduction treats Griffin and field multiplication as black-box input--output maps, inspecting no intermediate representation (such as a limb of a field product); and the upstream modular-multiplication guarantee of \S\ref{ssec:bigint}. Then substituting the precompile suite for the emulated operations preserves the input--output value of every PLUM and BDEC verification predicate. Consequently, under (T3), PLUM's EU-CMA reduction transfers unchanged: that reduction is in the random-oracle model and depends only on the input--output behaviour of the hash function instantiating the oracle, which, granting~(T2), the precompile reproduces \emph{exactly}: under that premise it computes the same function the emulated code did, so no random-oracle programming step in the reduction is affected. (The reduction's reliance on (Q)ROM-replaceability of this Griffin instantiation is a separate, upstream assumption, recorded as an open upstream assumption in Section~\ref{sec:security} and not discharged here.)
+\end{theorem}
 
-\paragraph{Griffin Inverse Power Map.}
-The $x^{1/d}$ computation is the most expensive single operation in both backends, but for different reasons. In the Noir circuit, it is handled via the compute-then-verify pattern: the inverse is computed in Brillig (unconstrained witness generation) and verified via the constraint $y^5 = x$ in ACIR, costing only $\lceil \log_2 5 \rceil = 3$ R1CS constraints. In RISC Zero, no such shortcut exists---the full Fermat exponentiation ($\sim$127 sequential $\mathbb{F}_q$ multiplications) must be executed instruction-by-instruction. This asymmetry is a direct consequence of the abstraction-level difference: R1CS exposes algebraic structure that the prover can exploit, whereas the zkVM treats all computation uniformly.
+\paragraph{What is established.}
+The field-substrate half rests on the reduction of \S\ref{ssec:bigint}. The suite is platform-specific: on SP1 it includes the bespoke Griffin AIR, to which premise~(T2) applies; on RISC~Zero the Griffin arithmetic is carried by \texttt{sys\_bigint} emulation, so (T2) is not invoked there and is replaced by the analogous input--output equality of the emulated permutation. For the Griffin AIR, the per-family analysis (Appendix~\ref{app:proofs}) exhibits, family by family, the constraint \emph{intended} to catch any deviation from reference Griffin, the forgery that deviation would enable, and the implementation status of each; memory binding, output canonicality, parameter immutability, and row scheduling are implemented and constrained. What that analysis does \emph{not} establish, and says so explicitly, is that the implemented constraint system is satisfied \emph{only} by reference-equal witnesses: this is premise~(T2), the \emph{chip--constraint equality}. It is empirically supported by the $256$-vector cross-codebase agreement below (per-vector false-pass probability $\approx 2^{-199}$), but that agreement pins the \emph{executor} against the reference, a weaker \emph{chip--executor} equality, not the \emph{constraints}; (T2) is not verified at the constraint level.
 
-\paragraph{Extension Field Arithmetic.}
-Loquat's sumcheck and LDT components operate over $\mathbb{F}_{p^2}$ (the quadratic extension of $\mathbb{F}_p = \mathbb{F}_{2^{127}-1}$). In the Noir circuit, extension field arithmetic is handled by the ACIR backend with $\sim$4$\times$ overhead per extension multiplication. Since Griffin hash dominates at 91--94\% of total constraints (Proposition~\ref{prop:griffin-dominance}), the extension field overhead is bounded to approximately 6--9\% of total constraints. In RISC Zero, the overhead compounds: each $\mathbb{F}_{p^2}$ multiplication requires 3 $\mathbb{F}_p$ multiplications (via Karatsuba), each of which is itself a multi-precision operation over 4 limbs.
+\paragraph{Open question 1: assumption (T2) is empirically supported but unproved.}
+The $256$-vector agreement establishes that the executor's native compute equals the reference permutation; it does \emph{not} by itself establish that the \emph{AIR constraints} admit only that computation (that the chip witness equals the executor). Closing this requires deriving the AIR witness from the same reference code and checking constraint satisfaction directly; we report (T2) as empirically supported and constraint-level-unverified, rather than as proved.
 
+\paragraph{Open question 2: the QROM status of this Griffin instantiation is upstream of the AIR.}
+PLUM's EU-CMA argument under Fiat--Shamir requires Griffin to be replaceable by a (quantum) random oracle. The Griffin analyses cover the original instantiations; whether they cover this $d=3$, width-$4$, $199$-bit-field, $14$-round instantiation is not something the AIR can settle. If this instantiation were QROM-distinguishable, no amount of AIR engineering would recover security. We flag this as a thesis-level assumption that still has to be checked against the Griffin literature; we do not close it here.
 
-\subsection{Chapter Summary}
+\paragraph{Further limitations not hidden.}
+The RISC~Zero \texttt{sys\_bigint} soundness is cited from the upstream release process rather than re-derived; the EU-CMA reduction is argued to transfer on the grounds that the reference reduction treats Griffin and field multiplication as black-box input--output maps, but we have not audited PLUM's reduction line by line for a step that inspects an \emph{intermediate} representation (such as a limb of a field product), which input--output equality alone would not cover; and the zero-knowledge property required by BDEC's anonymity guarantee is a property of the proof wrap, analysed as the security--deployability tension of Section~\ref{sec:security} and measured in Section~\ref{sec:evaluation}, not closed here.
 
-This chapter has described the realization of $\mathcal{R}_{\textsf{ShowVer}}$ across both backends, from source code to proof generation, under the fixed-semantics comparison methodology outlined in Section~\ref{sec:design-rationale}. The key implementation decisions and their architectural consequences are as follows.
-
-First, \textbf{field selection} ($p = 2^{127} - 1$ for Noir + Aurora) eliminates multi-precision overhead in the static circuit, while the fixed BabyBear field in RISC Zero forces $k = 4$ limb emulation---directly instantiating the arithmetic mismatch predicted by Theorem~\ref{thm:multi-prec}.
-
-Second, the \textbf{Griffin implementation strategy} differs fundamentally between backends: the compute-then-verify pattern in Noir reduces the inverse power map to $\lceil \log_2 d \rceil$ constraints, while RISC Zero requires full Fermat exponentiation at $O(\log q) \approx 127$ sequential multiplications per invocation. Given that Griffin permutations dominate the constraint budget (Proposition~\ref{prop:griffin-dominance}), this single difference accounts for a substantial fraction of the expected inter-backend performance gap.
-
-Third, the \textbf{pipeline comparison} (Table~\ref{tab:pipeline-comparison}) reveals that the two backends operate at fundamentally different abstraction levels: the static path exposes algebraic structure to the proof system, while the zkVM path abstracts all computation into CPU instructions. This abstraction is the mechanism through which the zkVM achieves operational agility---and the mechanism through which it incurs the agility tax.
-
-The Noir + Aurora pipeline is fully characterized: a single \texttt{loquat\_verify} accounts for 172,765 R1CS constraints, and the full PP2 configuration ($k = 2$) totals 996,523 constraints. The RISC Zero pipeline is structurally complete---the guest program compiles and shares the same verification logic---with the theoretical cost model from Chapter~\ref{sec:theory} providing the analytical basis for cross-backend comparison.
-
-The measured costs from the static-path implementation are presented and analyzed in the following chapter, where we evaluate the theoretical predictions against empirical data across all three evaluation dimensions (D1, D2, D3).
+\subsection{Integration into the BDEC Credential-Generation Relation}\label{ssec:integration}
+The credential-generation relation $R_{\mathsf{cre}}^{\mathsf{PLUM}}$ of Section~\ref{sec:prelim} is the AND concatenation of two PLUM signature verifications, both under the user's public key $\pk_U$, with public statement $x_{\mathsf{cre}}=(c_{U,TA},h_{U,TA},\mathsf{ppk}_{U,TA})$ and witness $w_{\mathsf{cre}}=(\pk_U,\mathsf{psk}_{U,TA})$. We implement this relation \emph{in full} as a RISC~Zero guest, with PLUM in place of Loquat and field multiplications routed through \texttt{sys\_bigint}; the guest computes exactly the two $\Pred_{\Verify}$ conjuncts that define base CreGen, with no omitted predicate. (The optional Merkle-accumulator variant of Remark~\ref{rem:merkle-extension} is not part of this relation and performs its membership checks in $\BDEC.\mathsf{ShowVer}$; it is out of scope here.) One \emph{statement-binding} requirement remains open at the receipt level, and it bears on security, so we do not treat it as a cosmetic completeness gap: the prototype commits the verification outcome to the journal but not yet the public statement $x_{\mathsf{cre}}$ itself, so a receipt currently attests ``two signatures verify under some witness'' without binding the proof to the specific public $(c_{U,TA},h_{U,TA},\mathsf{ppk}_{U,TA})$. Until $x_{\mathsf{cre}}$ is committed to the journal, the artifact serves as a \emph{functional benchmark} and does not yet act as a statement-bound credential verifier: an accepting receipt does not certify \emph{which} statement was proved. Committing $x_{\mathsf{cre}}$ is a small, cost-negligible change (a few field elements) and is noted as immediate next work (Section~\ref{sec:conclusion}); it does not alter the proved relation. In execute mode at $\lambda=80$ the guest runs both verifications to acceptance in $9.4\times10^{9}$ guest cycles, the two costing essentially the same ($\approx 4.69\times10^{9}$ each), confirming that both pass through the same precompile-backed path. The transition from this execute-mode validation to a completed proof is the subject of Section~\ref{sec:evaluation}. The full presentation relation (ShowCre), the $k+2$-verification generalisation of this relation, is likewise implemented as a RISC~Zero guest and validated in execute mode at $k=1,2$ (Section~\ref{sec:evaluation}); its zero-knowledge proof, like CreGen's, has not been produced on the target hardware (Section~\ref{sec:evaluation}).

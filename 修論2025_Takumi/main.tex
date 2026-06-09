@@ -1,13 +1,7 @@
-\documentclass[a4j, 12pt]{article}
+\documentclass[dvipdfmx, a4j, 12pt]{article}
 \usepackage[dvipdfmx]{color}
 \usepackage[dvipdfmx]{graphicx}
-\usepackage{iftex}
-\ifPDFTeX
-    % pLaTeX-only font packages are skipped under pdfLaTeX
-\else
-    \usepackage[ipaex]{pxchfon}
-    \usepackage{otf}
-\fi
+\usepackage[ipaex]{pxchfon}
 \usepackage[utf8]{inputenc}
 \usepackage{ascmac}
 \usepackage{booktabs}
@@ -16,6 +10,12 @@
 \usepackage{amsthm}
 \usepackage{amssymb}
 \usepackage{appendix}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 % Theorem environments (italic text)
 \newtheorem{theorem}{Theorem}[section]
@@ -27,6 +27,7 @@
 \theoremstyle{definition}
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{example}[theorem]{Example}
+\newtheorem{construction}{Construction}
 
 % Remark environments (upright text, smaller spacing)
 \theoremstyle{remark}
@@ -37,12 +38,54 @@
 \usepackage{here}
 \usepackage{latexsym}
 \usepackage{multirow}
+\usepackage{otf}
 \usepackage{subfigure}
 \usepackage{url}
 \usepackage{threeparttable}
 % \usepackage{caption}
 % \captionsetup[table]{justification=centering}
 % \captionsetup[figure]{justification=centering}
+
+\newcommand{\AC}{\mathsf{AC}}
+\newcommand{\Sig}{\mathsf{Sig}}
+\newcommand{\BDEC}{\mathsf{BDEC}}
+\newcommand{\Pred}{\mathsf{Pred}}
+\newcommand{\Setup}{\mathsf{Setup}}
+\newcommand{\KeyGen}{\mathsf{KeyGen}}
+\newcommand{\Sign}{\mathsf{Sign}}
+\newcommand{\Verify}{\mathsf{Verify}}
+\newcommand{\Prove}{\mathsf{Prove}}
+\newcommand{\UserKeyGen}{\mathsf{UserKeyGen}}
+\newcommand{\IssuerKeyGen}{\mathsf{IssuerKeyGen}}
+\newcommand{\Issue}{\mathsf{Issue}}
+\newcommand{\Show}{\mathsf{Show}}
+\newcommand{\pp}{\mathsf{pp}}
+\newcommand{\ppSig}{\pp_{\Sig}}
+\newcommand{\crs}{\mathsf{crs}}
+\newcommand{\parms}{\mathsf{par}}
+\newcommand{\pk}{\mathsf{pk}}
+\newcommand{\sk}{\mathsf{sk}}
+\newcommand{\st}{\mathsf{st}}
+\newcommand{\RL}{\mathsf{LR}}
+\newcommand{\negl}{\mathsf{negl}}
+\newcommand{\Adv}{\mathcal{A}}
+\newcommand{\MSig}{\mathcal{M}_{\ppSig}}
+\newcommand{\PKSig}{\mathcal{PK}_{\ppSig}}
+\newcommand{\SKSig}{\mathcal{SK}_{\ppSig}}
+\newcommand{\SigmaSig}{\Sigma_{\ppSig}}
+\newcommand{\EncodeSig}{\mathsf{Encode}_{\Sig}}
+\newcommand{\MerkleVerify}{\mathsf{MerkleVerify}}
+\newcommand{\NonMemberVerify}{\mathsf{NonMemberVerify}}
+\newcommand{\Loq}{\mathsf{Loquat}}
+\newcommand{\ppLoq}{\mathsf{pp_{Loquat}}}
+\newcommand{\MLoq}{\mathsf{\mathcal{M}_{Loquat}}}
+\newcommand{\SigmaLoq}{\mathsf{\Sigma_{Loquat}}}
+\newcommand{\PKLoq}{\mathsf{\mathcal{PK}_{Loquat}}}
+\newcommand{\Plum}{\mathsf{Plum}}
+\newcommand{\ppPlum}{\mathsf{pp_{Plum}}}
+\newcommand{\MPlum}{\mathsf{\mathcal{M}_{Plum}}}
+\newcommand{\SigmaPlum}{\mathsf{\Sigma_{Plum}}}
+\newcommand{\PKPlum}{\mathsf{\mathcal{PK}_{Plum}}}
 
 \usepackage{sakolab-thesis}
 
@@ -51,12 +94,12 @@
 %
 %\thesistype{令和6年度 修士論文}
 \date{, 2026}
-\title{Enhancing the Flexibility and Automation of Post-Quantum Anonymous Credentials: A Comparative Analysis of Zero-Knowledge Virtual Machines and SNARK Circuit Compilers}
+\title{Future-Proofing Verifiable Credentials: Quantifying the Performance Tax of Cryptographic Agility in Post-Quantum Anonymous Credentials}
 % todo: 英語版タイトルの変更
 \etitle{A Thesis Submitted to the Department of Computer Science and Communications Engineering, the Graduate School of Fundamental Science and Engineering of Waseda University in Partial Fulfillment of the Requirements for the Degree of
 Master of Engineering}
 \titlesize{24truept}
-\department{\fontsize{17pt}{17pt}\selectfont The Department of Computer Science and Communications Engineering, the }
+\department{\fontsize{17pt}{17pt}\selectfont The Department of Computer Science and Communications Engineering, the}
 \major{\fontsize{17pt}{17pt}\selectfont Graduate School of Fundamental Science and Engineering of Waseda University}
 \guidance{Research on Cryptographic Protocols}
 \supervisor{Prof. Kazue Sako}
@@ -69,9 +112,7 @@ Master of Engineering}
     
     %概要
     \begin{coverabstract}
-       The advent of quantum computing demands a rapid transition to post-quantum cryptographic solutions. In digital identity, SNARK-friendly schemes like Loquat\cite{cryptoeprint:2024/868} underpin post-quantum anonymous credential systems such as BDEC\cite{10.1007/978-981-96-0957-4_3}. However, BDEC’s reliance on static, custom zkSNARK\cite{cryptoeprint:2014/349} circuits for credential verification leads to critical inflexibility, rendering it impractical for dynamic attribute management. Zero-Knowledge Virtual Machines\cite{cryptoeprint:2023/1032} (zkVMs) promise a solution, offering to prove arbitrary programs and transform complex circuits into high-level code updates. This research will investigate the specific zero-knowledge properties of different zkVMs through comparative analysis of zkVMs and alternative SNARK circuit compilers\cite{lavin2024surveyapplicationszeroknowledgeproofs}, implementing and benchmarking the BDEC verifier within both approaches. This quantitative and qualitative analysis will determine which approach offers a more viable and agile foundation for the next generation of digital identity systems, specifically addressing the trade-offs between flexibility, performance with concrete metrics such as prover time, verification time, and memory usage.
-        
-
+       Post-quantum anonymous credentials need a signature whose verification can be proved in zero knowledge. We ask whether one such scheme, the algebraic-hash PLUM signature, can be verified inside a general-purpose zero-knowledge virtual machine on a consumer machine, and we report a frontier result with a clear sign. Without a custom precompile, a single PLUM verification exhausts memory on $24$~GB and cannot be proved at all. With a bespoke large-field Griffin-$\mathbb{F}_p^{192}$ precompile that removes the field-emulation tax, the same verification is proved in $32.5$ minutes on SP1 at the $80$-bit setting, the largest that completes within the memory bound; the paper's $128$-bit setting does not terminate, which is itself part of the frontier. Feasibility for the standalone signature is therefore reached, but the binding constraint then moves up the stack. The zero-knowledge wrap that anonymity requires exhausts memory at $24$~GB, and the only wrap that fits is pairing-based and so not post-quantum. Deployable post-quantum anonymous credentials are not reached on this stack, and we locate exactly where the wall sits and what would move it. The proof we run is a succinct receipt and is not itself zero-knowledge. We also report update churn for both regimes; its wall-clock cost is sub-second against a transparent non-preprocessing argument, so the recompile burden does not separate the two substrates and survives only as a re-audit footprint argument conditional on the preprocessing model. We measured each substrate on consumer hardware (Apple M5~Pro, $24$~GB), against a Loquat-instantiated Aurora static-circuit reference.
     \end{coverabstract}
     \newpage
     
@@ -90,15 +131,21 @@ Master of Engineering}
     % 本文
     \input{01-intro}
     \newpage
-    \input{02-background}
+    \input{02-related}
     \newpage
     \input{03-preliminaries}
     \newpage
-    \input{05-evaluation}
+    \input{04-theoretical}
     \newpage
-    \input{06-discussion}
+    \input{05-system}
     \newpage
-    \input{07-conclusion}
+    \input{055-security}   % Security Analysis — the cryptographic keystone (becomes §6)
+    \newpage
+    \input{06-evaluation}
+    \newpage
+    \input{07-discussion}
+    \newpage
+    \input{08-conclusion}
     \newpage
     \acknowledgement
     %消す 

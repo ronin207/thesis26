@@ -1,2 +1,463 @@
 \appendix
-\section{Proof of Theorem}
+
+\section{Formal Development of the Security Preservation}\label{app:preservation}
+
+The body (Section~\ref{sec:security}) states the security-preservation theorem
+(Theorem~\ref{thm:security-preserve}) and sketches its proof. This appendix gives
+the formal development for audit: the building-block properties the reduction
+treats as black boxes, each carrying an error term; the relation-preservation
+lemma; the step-by-step reductions; a corollary for the case in which the open
+premises are closed; and a remark relating the result to BDEC. Throughout,
+$\mathcal A$ denotes a classical probabilistic polynomial-time adversary and all
+probabilities are in the random-oracle model. The advantages
+$\mathsf{Adv}^{\bullet}_{\mathsf{zkVM\text{-}BDEC}}$ are those of
+Definition~\ref{def:zkvm-bdec-adv}.
+
+\subsection{Building-block properties}\label{app:prsv-defs}
+
+Each property is stated as the existence of an algorithm together with an error
+term. The premises of Theorem~\ref{thm:security-preserve} assert the relevant
+errors negligible; we mark which properties are assumed and which carry an open
+premise.
+
+\begin{definition}[Knowledge soundness]\label{def:ks}
+The zkVM argument $\Pi$ is \emph{knowledge-sound with knowledge error
+$\epsilon_{\mathrm{KS}}$} if there is a probabilistic polynomial-time extractor
+$\mathcal{E}$ with oracle access to the prover such that, for every prover
+$P^\ast$ that makes $\Pi.\mathsf{Verify}(x,\cdot)$ accept with probability
+$\varepsilon$, the extractor $\mathcal{E}^{P^\ast}(x)$ outputs a witness $w$ with
+$R(x;w)=1$ with probability at least $\varepsilon-\epsilon_{\mathrm{KS}}$. This is
+the standard knowledge-soundness-with-error formulation; $\epsilon_{\mathrm{KS}}$
+is the additive extraction-failure term that enters the unforgeability
+bound~\eqref{eq:adv-unf}, and the concrete soundness error of the STARK and BCS
+arguments we rely on is treated in \S\ref{app:argument}. (Assumed; classical
+random-oracle model.)
+\end{definition}
+
+\begin{definition}[Arithmetisation soundness error]\label{def:eair}
+$$\epsilon_{\mathrm{AIR}}=\Pr[\text{the Griffin AIR accepts a trace whose committed
+transition differs from }\pi]$$, 
+the probability taken over the prover-chosen trace
+and the argument verifier's randomness, where $\pi$ is the reference permutation of
+Definition~\ref{def:ref-perm}. Premise~(T2) asserts $\epsilon_{\mathrm{AIR}}$
+negligible; the supporting argument is Appendix~\ref{app:proofs}.
+\end{definition}
+
+\begin{definition}[Signature-transcript simulatability]\label{def:szk}
+PLUM \emph{admits a signature-transcript simulator with error
+$\epsilon_{\mathrm{sZK}}$} if there is a probabilistic polynomial-time algorithm
+$\mathcal{S}_\sigma$ such that, for every message $m$ and public key, the output of
+$\mathcal{S}_\sigma$ run without the secret key is
+$\epsilon_{\mathrm{sZK}}$-indistinguishable from a credential or pseudonym
+transcript produced with the secret key. Premise~(T4) asserts
+$\epsilon_{\mathrm{sZK}}$ negligible. This premise is \emph{open}: PLUM's analysis
+establishes EU-CMA security, which does not by itself furnish such a simulator.
+\end{definition}
+
+\begin{definition}[Zero knowledge]\label{def:zk}
+The zkVM argument $\Pi$ is \emph{zero-knowledge with error
+$\epsilon_{\mathrm{ZK}}$} if there is a probabilistic polynomial-time simulator
+$\mathcal{S}_\Pi$ such that, for every $(x,w)$ with $R(x;w)=1$, the simulated proof
+$\mathcal{S}_\Pi(x)$ is $\epsilon_{\mathrm{ZK}}$-indistinguishable from an honest
+proof $\Pi.\mathsf{Prove}(x,w)$. (Assumed for the analysis. In the measured deployment this premise is
+not met: the produced receipt mode (the default \texttt{prove} path) has no
+established ZK simulator, and the ZK-wrapped mode
+(\texttt{.compressed().groth16()}) is not produced within the resource and
+memory bound; see Section~\ref{ssec:zk-gap}.)
+\end{definition}
+
+\begin{definition}[Existential unforgeability]\label{def:euf}
+PLUM is \emph{EU-CMA secure with error $\epsilon_{\mathrm{EUF}}$} if every
+probabilistic polynomial-time forger, given the public key and a signing oracle,
+produces a valid signature on a message it never queried with probability at most
+$\epsilon_{\mathrm{EUF}}$. (Established in PLUM's analysis,
+\cite[Theorem~1]{10.1007/978-981-95-2961-2_6}, in the classical random-oracle
+model.)
+\end{definition}
+
+\subsection{Relation preservation}\label{app:prsv-relation}
+
+\begin{proof}[Proof of Lemma~\ref{lem:relation-preserve}]
+We account for the operations a guest evaluation invokes. The credential-generation
+relation $R^{\Sig}_{\mathsf{cre}}$, two PLUM verifications under $\pk_U$, decomposes
+into large-field multiplications, returned identically by the
+modular-multiplication precompile, and Griffin permutations inside PLUM's hashing
+and inside every Merkle-path and low-degree-test recomputation, returned
+identically by the Griffin precompile under the lookup binding, together with
+native control flow, whose faithful execution follows from the \emph{soundness} of
+the zkVM argument for the RISC-V execution relation (an accepting proof certifies a
+valid execution); the stronger \emph{knowledge}-soundness (Definition~\ref{def:ks})
+that extracts a witness is invoked separately, by the unforgeability reduction. For
+$R^{\Sig}_{\mathsf{cre}}$ this enumeration is complete at the predicate level, conditional on the open statement-binding refinement of Section~\ref{sec:system} and on premise~(T2). The presentation relation
+$R^{\Sig}_{\mathsf{show}}$ adds only $k+2$ further signature-verification
+predicates built from the same multiplications and Griffin permutations; its
+ledger-membership, non-revocation, and disclosure checks are performed by the
+relying party outside the arithmetised relation. Composing the per-operation
+equalities along the finite, input-fixed execution yields equality of the
+accept-or-reject decision at the program level. This program-level equality lifts
+to credential-verifier acceptance only when the zkVM journal commits the public
+statement $x$; the specification assumes this binding, whereas the current
+RISC~Zero prototype commits the verification outcome but not $x_{\mathsf{cre}}$
+itself (Section~\ref{sec:system}), so the code-level reading is conditional on
+that journal fix. The Griffin step's constraint-level
+soundness rests on Appendix~\ref{app:proofs}, which is argued rather than
+machine-verified, so the equality holds modulo premise~(T2).
+\end{proof}
+
+\subsection{Proof of the preservation theorem}\label{app:prsv-thm}
+
+We re-instantiate BDEC's three reductions~\cite{10.1007/978-981-96-0957-4_3} with
+PLUM as the signature scheme $\Sig$ and the zkVM as the zkSNARK $\Pi$; by
+Lemma~\ref{lem:relation-preserve} the two provers accept the same relation.
+
+\begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unforgeability]
+Let $\mathcal A$ win the zkVM-BDEC unforgeability experiment. We build a PLUM
+EU-CMA forger $\mathcal B$. $\mathcal B$ runs $\mathcal A$, answering its issuance
+and showing queries with its own signing oracle and the zkVM prover, so
+$\mathcal A$'s view matches the real experiment. When $\mathcal A$ outputs an
+accepting $(x^\star,\pi^\star)$ for a statement outside the issued set, $\mathcal B$
+invokes the extractor $\mathcal{E}$ of Definition~\ref{def:ks} to obtain
+$w^\star=(\pk_U^\star,\mathsf{psk}^\star)$, which fails with probability at most
+$\epsilon_{\mathrm{KS}}$. Conditioned on extraction, $w^\star$ satisfies
+$R^{\Sig}_{\mathsf{cre}}$ except when the committed Griffin transition differs from
+the reference permutation, an event of probability at most $\epsilon_{\mathrm{AIR}}$
+by Definition~\ref{def:eair}; otherwise the extracted $\mathsf{psk}^\star$ (the pseudonym secret, structurally a PLUM signature under $\pk_U$, Section~\ref{sec:prelim}) is valid
+on a message $\mathcal A$ never had signed, and by premise~(T3) the
+precompile substitution leaves PLUM's EU-CMA reduction unchanged, so
+$\mathsf{psk}^\star$ is a forgery against the unmodified scheme, which $\mathcal B$
+outputs.
+Writing $\epsilon_{\mathrm{EUF}}$ for PLUM's EU-CMA advantage bound,
+\[
+  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
+  \le \epsilon_{\mathrm{EUF}}+\epsilon_{\mathrm{KS}}+\epsilon_{\mathrm{AIR}},
+\]
+which is~\eqref{eq:adv-unf}.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, anonymity]
+Let $\mathcal A$ be the anonymity distinguisher, with advantage
+$\bigl|\Pr[b'=b]-\tfrac12\bigr|$. We proceed through a sequence of games on the
+challenge showing for the credential $\mathsf{cred}_b$. Game~$\mathsf{G}_0$ is the
+real experiment. In game~$\mathsf{G}_1$ the pseudonym key and credential are
+produced by $\mathcal{S}_\sigma$ rather than with the secret key, so by
+Definition~\ref{def:szk}
+$\bigl|\Pr[\mathsf{G}_0{=}1]-\Pr[\mathsf{G}_1{=}1]\bigr|\le\epsilon_{\mathrm{sZK}}$.
+The role of $\mathcal{S}_\sigma$ is to let the reduction produce the challenge
+credential $c_b$ and pseudonym signature $\mathsf{psk}_b$ without the challenge
+user's long-term secret key $\sk_U$, matching BDEC's anonymity simulator
+(\cite[Appendix~A.2]{10.1007/978-981-96-0957-4_3}); the hop is load-bearing
+whenever PLUM's transcripts cannot be produced without $\sk_U$.
+In game~$\mathsf{G}_2$ the proof is produced by $\mathcal{S}_\Pi$ rather than from
+the witness, so by Definition~\ref{def:zk}
+$\bigl|\Pr[\mathsf{G}_1{=}1]-\Pr[\mathsf{G}_2{=}1]\bigr|\le\epsilon_{\mathrm{ZK}}$.
+In $\mathsf{G}_2$ we account for every $b$-dependent component of the challenge
+statement
+$x_{\mathsf{show}}=(A^\downarrow,(\mathsf{ppk}_{U,TA}^{(j)})_{j=1}^{k},\mathsf{ppk}_{U,V})$.
+The disclosed attribute set $A^\downarrow$ is equalised across the two credentials
+by the well-formedness condition
+$\mathsf{Leak}(\mathsf{stmt}_0)=\mathsf{Leak}(\mathsf{stmt}_1)$. The verifier-facing
+pseudonym $\mathsf{ppk}_{U,V}$ is sampled freshly at showing time,
+$\mathsf{ppk}_{U,V}\leftarrow\{0,1\}^{\lambda}$, independently of which credential
+is shown, so its distribution is uniform regardless of $b$. The teaching-authority
+pseudonyms $(\mathsf{ppk}_{U,TA}^{(j)})_{j}$ are issuance-time, credential-bound
+values that the well-formedness condition equalises across the two challenge
+credentials, so $\mathsf{Leak}$ includes the multiset $\{\mathsf{ppk}_{U,TA}^{(j)}\}$
+(Section~\ref{sec:prelim}). The secret keys, the long-term key $\pk_U$, and the
+credential $c_{U,V}$ are witness-only: they were replaced by $\mathcal{S}_\sigma$
+in $\mathsf{G}_1$ and removed from the proof by $\mathcal{S}_\Pi$ in $\mathsf{G}_2$.
+Every $b$-dependent component being equalised, freshly sampled, or simulated, the
+challenge is distributed identically under $b=0$ and $b=1$, so
+$\Pr[b'=b]=\tfrac12$.
+Summing the two hops,
+\[
+  \mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
+  \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}},
+\]
+which is~\eqref{eq:adv-anon}. No witness is extracted, so $\epsilon_{\mathrm{KS}}$
+does not enter; the challenge showing is honestly generated, so
+$\epsilon_{\mathrm{AIR}}$ does not enter.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unlinkability]
+BDEC's unlinkability experiment
+(\cite[Appendix~A.3]{10.1007/978-981-96-0957-4_3}) forwards a single challenge
+credential $c^{(b)}$ issued under one of two pseudonym keys $\mathsf{ppk}^{(b)}$,
+with the verifier-facing pseudonym freshly sampled as in the anonymity step.
+BDEC's A.3 simulator simulates the pseudonym signature and the credential with
+$\mathcal{S}_\sigma$ and the proof with $\mathcal{S}_\Pi$. Applying the same two
+hops to the single transcript, $\mathcal{S}_\sigma$ for
+$(\mathsf{psk}^{(b)},c^{(b)})$ (cost $\epsilon_{\mathrm{sZK}}$) and
+$\mathcal{S}_\Pi$ for the proof (cost $\epsilon_{\mathrm{ZK}}$), makes it
+independent of $b$, so
+\[
+  \mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
+  \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}.
+\]
+The single-transcript game incurs each simulation once; there is no factor of two.
+One difference of presentation: BDEC's A.3 carries $c^{(b)}$ as a public statement
+component, so its $\mathcal{S}_\sigma$ hop is forced; in this thesis's relation
+$R^{\Sig}_{\mathsf{show}}$ the credential $c_{U,V}$ is a witness component
+(Section~\ref{sec:prelim}), so the $\mathcal{S}_\Pi$ hop already hides it and
+$\mathcal{S}_\sigma$ is needed only to produce $c^{(b)}$ without $\sk_U$ inside the
+reduction. Either way $\epsilon_{\mathrm{sZK}}$ enters once.
+\end{proof}
+
+\begin{corollary}[Preservation under closed premises]\label{cor:unconditional}
+Suppose premises~(T2) and~(T4) hold, so that $\epsilon_{\mathrm{AIR}}$ and
+$\epsilon_{\mathrm{sZK}}$ are negligible; the zkVM is knowledge-sound and
+zero-knowledge with negligible $\epsilon_{\mathrm{KS}},\epsilon_{\mathrm{ZK}}$; and
+PLUM is EU-CMA secure. Then zkVM-BDEC is unforgeable, anonymous, and unlinkable.
+Against quantum adversaries the same conclusion holds once the
+quantum-random-oracle lifts of PLUM's EU-CMA reduction and of the nested
+Fiat--Shamir compilation are established.
+\end{corollary}
+
+\begin{proof}
+Each bound of Theorem~\ref{thm:security-preserve} is a sum of the named error
+terms; under the stated hypotheses every term is negligible, so each advantage is
+negligible. The quantum clause adds the two open lifts as further hypotheses.
+\end{proof}
+
+\begin{remark}[Relation to BDEC]\label{rem:reinstantiation}
+Theorem~\ref{thm:security-preserve} re-instantiates BDEC's Theorems~1--3, proved
+for a generic $(\text{signature},\text{zkSNARK})$ pair, with the concrete pair
+$(\text{PLUM},\text{zkVM})$. The contribution is not a new reduction but the
+explicit accounting of the substrate-specific errors $\epsilon_{\mathrm{AIR}}$ (the
+precompile's arithmetisation soundness) and
+$\epsilon_{\mathrm{KS}},\epsilon_{\mathrm{ZK}}$ (the zkVM's argument), together with
+the identification of $\epsilon_{\mathrm{sZK}}$ as the open premise~(T4) that BDEC's
+generic anonymity argument silently requires of the signature. We further note
+that the relation $R^{\Sig}_{\mathsf{show}}$ places the credential $c_{U,V}$ in the
+witness rather than, as in BDEC's literal layout, the public statement; the result
+is therefore a re-derivation of BDEC's Theorems~1--3 for this concrete pair, not a
+verbatim re-instantiation.
+\end{remark}
+
+\section{Evidence for Premise~(T2): Specification-Level Soundness of the Griffin-$\mathbb{F}_p^{192}$ AIR}\label{app:proofs}
+
+This appendix develops the soundness argument for the Griffin-$\mathbb{F}_p^{192}$
+permutation AIR of Section~\ref{sec:system}, on which the conditional
+precompile-soundness theorem (Theorem~\ref{thm:precompile-sound}) and the
+relation-preservation lemma of Section~\ref{sec:security} rest. We follow the
+standard practice for arithmetisation correctness. As in
+ethSTARK~\cite{ethstark} (Definitions~3 and~4), the verified Cairo
+representation~\cite{cairoverify}, and per-gadget AIR-soundness arguments such
+as~\cite{divremair}, the formal object is a constraint-soundness statement, a
+universally quantified implication over satisfying traces, together with a
+separate completeness statement, while the knowledge-soundness of the surrounding
+argument is treated apart in Section~\ref{app:argument}. The malicious prover is
+captured by the quantifier ``for every trace that satisfies the constraints'',
+so the statement uses no challenger, oracle, or advantage function. The one component that
+is supported empirically rather than proved, namely that the implemented chip
+realises the constraint set analysed here, appears as the explicit
+premise of the soundness theorem and is discussed in Section~\ref{app:status}.
+
+\subsection{Setup}\label{app:air-setup}
+
+\begin{definition}[Reference permutation]\label{def:ref-perm}
+Let $\pi\colon\mathbb{F}_p^{4}\to\mathbb{F}_p^{4}$ denote one application of the
+Griffin permutation at PLUM's parameters, a degree-$3$ S-box over a width-$4$
+state with $14$ rounds and the SHAKE256-derived round constants and base quadratic
+coefficients $(\alpha,\beta)$, scaled per lane by Griffin's index law, fixed in
+Section~\ref{sec:prelim}, as computed by the reference implementation.
+\end{definition}
+
+\begin{definition}[Algebraic satisfiability]\label{def:air-sat}
+The Griffin AIR is a finite constraint set $\mathcal{C}=\{(Q_i,H_i)\}_i$ over a
+trace $w$ comprising $14$ per-round rows and one controller row, where each $Q_i$
+is a constraint polynomial and $H_i$ its enforcement domain. A trace $w$
+\emph{satisfies} $\mathcal{C}$ on input $s\in\mathbb{F}_p^{4}$ with claimed output
+$s'\in\mathbb{F}_p^{4}$ if its first-row input lanes decode to $s$, its last-row
+output lanes decode to $s'$, and every constraint polynomial $Q_i$ vanishes on its
+enforcement domain $H_i$ under $w$.
+\end{definition}
+
+\subsection{Soundness}\label{app:air-soundness}
+
+\begin{theorem}[Specification-level AIR soundness]\label{thm:air-sound}
+Suppose the implemented chip, comprising the per-round chip together with its
+sibling controller chip, enforces the constraint set $\mathcal{C}$ analysed below. Then for every input $s\in\mathbb{F}_p^{4}$ and every trace $w$
+satisfying $\mathcal{C}$ with claimed output $s'$, we have $s'=\pi(s)$.
+Equivalently, $\mathcal{C}$ admits no satisfying trace whose committed output
+differs from the reference permutation.
+\end{theorem}
+
+\begin{proof}
+By Lemmas~\ref{lem:round-fn} and~\ref{lem:compose}. Lemma~\ref{lem:round-fn}
+fixes, for each round, the non-linear, linear, and round-constant layers of $w$ to
+equal the reference round's outputs on its inputs, and Lemma~\ref{lem:compose}
+forces the $14$ rows to compose as $14$ sequential rounds on a single state, bound
+on the controller row to the syscall's memory input and output. Composing the
+per-round equalities of Lemma~\ref{lem:round-fn} along the schedule fixed by
+Lemma~\ref{lem:compose} yields $s'=\pi(s)$. The composition is unconditional given
+the two lemmas, and the status of the chip--constraint equality (premise~(T2)) is discussed
+in Section~\ref{app:status}.
+\end{proof}
+
+\subsection{Per-family lemmas}\label{app:air-families}
+
+The ten constraint families group into the round function (B-1 through B-5) and
+the schedule, binding, and canonicality apparatus (B-6 through B-10). Each clause
+states the reference relation a family enforces and, in contrapositive, the
+constraint a deviating trace must violate.
+
+\begin{lemma}[Round-function soundness; families B-1 through B-5]\label{lem:round-fn}
+Fix a round with input lanes $s=(s_0,s_1,s_2,s_3)$ and let $s'$ be the trace's
+claimed round output. Under constraint families B-1 through B-5, every trace
+satisfying $\mathcal{C}$ has $s'=\rho(s)$, where $\rho$ denotes one reference
+Griffin round.
+\end{lemma}
+
+\begin{proof}
+For each family we exhibit the constraint polynomial it enforces on the round
+domain and observe that any deviating value leaves that polynomial non-vanishing,
+hence unsatisfying; equality of the surviving assignment with $\rho(s)$ then
+follows by composing the layers.
+\emph{Forward S-box} (lane $1$, family B-1). The chip enforces
+$Q_{\mathsf{sq}}=\mathit{sq}-s_1^{2}$ and
+$Q_{\mathsf{cube}}=\mathit{cube}-\mathit{sq}\cdot s_1$, both vanishing on the round
+domain, so the lane-$1$ nonlinear output is $\mathit{cube}=s_1^{3}\bmod p$; any
+output $\neq s_1^{3}$ leaves $Q_{\mathsf{cube}}$ non-zero.
+\emph{Inverse S-box} (lane $0$, family B-2). The chip enforces
+$Q_{\mathsf{inv}}=s_0-(s^{\mathrm{nl}}_0)^{3}$, witnessing the cube root in the
+backward direction; since $\gcd(3,p-1)=1$ (Remark~\ref{rem:prime-substitution},
+verified for the implemented modulus in Section~\ref{sec:system}), the cube map is
+a bijection on $\mathbb{F}_p$, so the witnessed $s^{\mathrm{nl}}_0$ is the unique
+cube root and equals the forward inverse S-box on $s_0$.
+\emph{Quadratic layer} (lanes $2,3$, family B-3). For $i\in\{2,3\}$ the chip
+enforces $Q_i=s^{\mathrm{nl}}_i-s_i\,(L_i^{2}+\alpha_{i-2}L_i+\beta_{i-2})$, where
+$L_i=(i-1)\,s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1+s^{\mathrm{nl}}_{i-1}$ reads the two
+updated S-box lanes ($s^{\mathrm{nl}}_0$ the inverse-S-box lane,
+$s^{\mathrm{nl}}_1$ the forward-S-box lane) and the preceding updated quadratic
+lane $s^{\mathrm{nl}}_{i-1}$; for $i=2$ the third summand is absent, so
+$L_2=s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1$. The quadratic coefficients follow
+Griffin's index law: a single base pair $(\alpha,\beta)$ is read from the SHAKE256
+seed, and $\alpha_{i-2}=(i-1)\alpha$, $\beta_{i-2}=(i-1)^{2}\beta$ (so
+$\alpha_0=\alpha,\beta_0=\beta$ for $i=2$ and $\alpha_1=2\alpha,\beta_1=4\beta$ for
+$i=3$). The base $(\alpha,\beta)$ are the first two field elements read from
+$\mathrm{SHAKE256}$ seeded by the domain string $\mathrm{PlumGriffin}(p,4,2,128)$,
+the same seed that produces the $52$ round constants; a wrong $\alpha,\beta$, a
+wrong index scaling, or an off-by-one in $L_i$ leaves $Q_i$ non-zero.
+\emph{MDS layer} (family B-4). Per output lane $j$ the chip enforces
+$Q^{\mathsf{mds}}_j=s'_j-\bigl\langle \mathrm{circ}(2,1,1,1)_j,\,s^{\mathrm{nl}}\bigr\rangle$,
+where $\mathrm{circ}(2,1,1,1)_j$ is the symmetric circulant row
+$\mathrm{first}[(j+\mathrm{col})\bmod 4]$ matching \texttt{build\_matrix}, not the
+standard $(\mathrm{col}-j)\bmod 4$ form (the two differ on rows $1,3$); any other
+matrix row leaves some $Q^{\mathsf{mds}}_j$ non-zero.
+\emph{Round constants} (family B-5). Per lane $\ell$ the chip enforces
+$Q^{\mathsf{rc}}_\ell=s'_\ell-(\text{MDS output})_\ell-\mathrm{RC}[4r+\ell]$ under
+one-hot round selection $r$, with $\mathrm{RC}$ preprocessing-bound (family B-10);
+a substituted or omitted constant leaves $Q^{\mathsf{rc}}_\ell$ non-zero. The
+preprocessing table holds $\mathrm{STATE\_WIDTH}\times(\text{rounds}-1)=52$
+constants, applied to the first $13$ rounds; the final round applies no
+round-constant layer, so its constraint is
+$Q^{\mathsf{rc}}_\ell=s'_\ell-(\text{MDS output})_\ell$.
+
+Composing B-1 through B-5 along the round, the unique satisfying assignment of
+$s'$ is the reference round $\rho(s)$.
+\end{proof}
+
+\begin{lemma}[Composition, binding, canonicality; families B-6 through B-10]\label{lem:compose}
+Under constraint families B-6 through B-10, every trace satisfying $\mathcal{C}$
+realises its $14$ rows as the $14$ sequential reference rounds on a single state
+bound to the syscall's memory input and output, with canonical output lanes.
+\end{lemma}
+
+\begin{proof}
+\emph{Round count} (family B-6). The schedule is fixed to $14$ rounds by the
+trace-generation row count and the controller's lookup anchors at directions $0$
+and $\mathrm{NB\_ROUNDS}$, rather than by a dedicated algebraic constraint; under
+the lookup binding (premise~(T1)) a trace with a different round count produces an
+unbalanced lookup and has no satisfying assignment.
+\emph{Memory binding} (family B-7). The controller chip constrains the input and
+output state lanes to the values at the syscall's memory addresses and clock, a
+memory-consistency lookup constraint resolved under premise~(T1), so a trace
+reading or writing a different address or clock produces an unbalanced lookup.
+\emph{Output canonicality} (family B-8). Each output lane $s'_j$ carries the range
+constraint $0\le s'_j<p$ enforced by a byte-wise less-than comparison
+(\texttt{FieldLtCols}); a non-canonical lane violates it.
+\emph{Row scheduling} (family B-9). The real/padding and first/last-round selector
+flags enforce one ordered run with cross-row state threading
+$\mathsf{state\_out}_r=\mathsf{state\_in}_{r+1}$, realised by the per-row lookup
+interactions (a \textsc{receive} at direction $r$ and a \textsc{send} at direction
+$r{+}1$) under the lookup binding (premise~(T1)); a ghost or mis-ordered row
+creates an unbalanced lookup.
+\emph{Parameter immutability} (family B-10). The modulus, round count, MDS entries,
+round constants, and quadratic coefficients are preprocessing-bound rather than
+prover-supplied, so a per-row choice of any of them has no satisfying assignment.
+
+By B-9, and given the lookup binding~(T1), the per-round equalities of
+Lemma~\ref{lem:round-fn} chain into $14$ sequential rounds on one state; with the
+round count fixed by the lookup schedule (B-6, premise~(T1)) and with B-8 and
+B-10, this is the reference permutation, and with B-7 it is bound to the
+syscall's memory input and output.
+\end{proof}
+
+\subsection{Completeness}\label{app:air-completeness}
+
+\begin{lemma}[Completeness]\label{lem:air-complete}
+For every input $s\in\mathbb{F}_p^{4}$, the honest Griffin execution on $s$ yields
+a trace satisfying $\mathcal{C}$ with output $\pi(s)$.
+\end{lemma}
+
+\begin{proof}
+Following the practice of~\cite{cairoverify}, where soundness is the
+load-bearing direction and completeness is discharged operationally, we support
+the claim by the cross-codebase equivalence tests: the trace
+generator populated from the reference computation produces a satisfying
+assignment on every tested input, namely the $256$-vector randomised suite, the
+hand-picked and zero/high-entropy vectors, and the single-permutation smoke proof
+that completes execute, prove, and verify (Section~\ref{sec:system}).
+\end{proof}
+
+\subsection{The argument layer}\label{app:argument}
+
+Theorem~\ref{thm:air-sound} concerns the \emph{arithmetisation}. The surrounding
+claim, that an accepting receipt implies a satisfying trace and that a witness is
+extractable, is the \emph{knowledge-soundness} of the zkVM's STARK, a separate
+object we do not re-establish. We take it in the IOP and extractor sense of
+ethSTARK~\cite{ethstark} (Definition~4): for every prover producing an accepting
+proof with non-negligible probability there exists an extractor outputting a
+satisfying trace, up to a negligible knowledge error. This is the
+knowledge-soundness hypothesis of the preservation theorem of
+Section~\ref{sec:security}, itself obtained through the Fiat--Shamir and BCS
+compilation of an interactive oracle proof. The arithmetisation soundness of this
+appendix and the argument knowledge-soundness are independent objects. End-to-end
+soundness needs both, and we keep them separate.
+
+\subsection{The open step}\label{app:status}
+
+The compositional argument of Theorem~\ref{thm:air-sound} is unconditional given
+Lemmas~\ref{lem:round-fn} and~\ref{lem:compose} and the premise that the
+implemented chip enforces exactly the analysed constraint set $\mathcal{C}$. That
+premise is the one step we do not machine-verify. The evidence for it is the
+cross-codebase agreement of the chip's native compute with the reference
+permutation on $256$ random vectors, with per-vector false-pass at most
+$1/p\approx2^{-199}$ and aggregate at most $2^{-191}$ across the suite, together
+with the hand-picked and zero/high-entropy vectors. This per-vector bound assumes
+a wrong executor produces outputs uniform over $\mathbb{F}_p$ and independent of
+the reference; a deterministic structural bug agreeing on every sampled input
+would not be caught, so $2^{-191}$ bounds only random disagreement on the sampled
+set and is \emph{not} a bound on the open constraint-level premise. The suite pins the
+\emph{executor} against the reference, but the \emph{constraint system} checked against that
+executor is what the vector suite does not reach.
+A separate fault-injection suite reaches the constraint system in the
+\emph{rejection} direction for eight of the ten families (B-1 through B-5, B-8, and
+the per-row B-9 selectors): a single-cell corruption of a satisfying trace is
+rejected by the per-row constraints in each case, including the MDS lanes $1$ and
+$3$ that distinguish the implemented symmetric circulant from the standard one.
+This evidence is itself bounded, and we state the bounds. It is evaluated through
+\texttt{debug\_constraints}, which checks the per-row algebraic constraints but not
+the cross-table lookups, so the lookup-borne families (round count B-6, memory
+binding B-7, and the cross-row threading of B-9) lie outside its reach and would
+require a full-prover harness; parameter immutability (B-10) is enforced by
+construction, with no prover-chosen column to reject. The suite thus shows that
+specific local deviations are caught, not that no wrong witness satisfies
+$\mathcal{C}$, which remains the open premise.
+Closing it fully requires deriving the AIR witness directly from the reference code and
+checking, ideally by machine, that $\mathcal{C}$ admits only that witness. We
+therefore report Theorem~\ref{thm:air-sound} as argued at the specification level
+and supported empirically at the implementation level, with the
+chip--constraint equality carried as the open premise~(T2) of both this theorem
+and the conditional precompile-soundness theorem
+Theorem~\ref{thm:precompile-sound}.
