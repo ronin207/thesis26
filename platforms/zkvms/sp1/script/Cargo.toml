@@ -15,8 +15,20 @@ path = "src/bin/griffin_smoke_host.rs"
 name = "bench_pqc"
 path = "src/bin/bench_pqc.rs"
 
+[[bin]]
+name = "loquat_host"
+path = "src/bin/loquat_host.rs"
+
+[[bin]]
+name = "bdec_cregen_host"
+path = "src/bin/bdec_cregen_host.rs"
+
+[[bin]]
+name = "bdec_showcre_host"
+path = "src/bin/bdec_showcre_host.rs"
+
 [dependencies]
-sp1-sdk = { version = "6.0.1", default-features = false, features = ["blocking"] }
+sp1-sdk = { version = "6.0.1", default-features = false, features = ["blocking", "native-gnark"] }
 sp1-core-executor = "6.0.1"
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3"
