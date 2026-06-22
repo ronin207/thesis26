@@ -43,6 +43,16 @@ pub const PLUM_DIGEST_BYTES: usize = 32;
 pub static PLUM_HASHER_COMPRESS_COUNT: AtomicU64 = AtomicU64::new(0);
 
 pub trait PlumHasher: Sized {
+    /// When `true`, the Fiat–Shamir transcript derives every challenge with the
+    /// GRIFFIN sponge (the algebraic, in-circuit hash) using the SAME absorb
+    /// order / counter discipline / rejection sampling as the Stage-4c-2
+    /// software reference (`primitives::r1cs::fs_fp192_gadget`), so the circuit
+    /// (4c-4-asm) and this software path agree on the challenges. When `false`
+    /// (the default), the transcript uses the SHAKE256 byte path. Only the
+    /// squeeze is swapped; absorbs, labels, and the monotone squeeze counter are
+    /// shared. See `signatures::plum::transcript`.
+    const USE_GRIFFIN_FS: bool = false;
+
     fn new() -> Self;
     fn update(&mut self, data: &[u8]);
     fn finalize_bytes(self) -> [u8; PLUM_DIGEST_BYTES];
@@ -76,6 +86,10 @@ pub struct PlumGriffinHasher {
 }
 
 impl PlumHasher for PlumGriffinHasher {
+    /// Griffin is the algebraic in-circuit hash: route Fiat–Shamir through the
+    /// Griffin sponge so the software signature matches the 4c-4-asm circuit.
+    const USE_GRIFFIN_FS: bool = true;
+
     fn new() -> Self {
         Self { buffer: Vec::new() }
     }

@@ -1224,4 +1224,121 @@ mod tests {
             outcome
         );
     }
+
+    // =====================================================================
+    // Stage 4c-4-sw GATE: GRIFFIN Fiat–Shamir end-to-end.
+    //
+    // Generates a deterministic PLUM keypair + signature using the GRIFFIN
+    // sponge for Fiat–Shamir (PlumGriffinHasher, USE_GRIFFIN_FS = true), then
+    // shows software Griffin-FS verify ACCEPTS the valid signature and REJECTS
+    // tampered ones. This is the valid Griffin-FS signature the 4c-4-asm
+    // circuit needs: the challenges are derived by the SAME Stage-4c-2 software
+    // reference (griffin_fs_challenge_field / griffin_fs_challenge_index) the
+    // circuit gadget verifies, so circuit and software agree.
+    //
+    // Param set: PLUM-80 (λ=80), the thesis's measurement parameter set.
+    // =====================================================================
+    #[test]
+    fn griffin_fs_sign_then_verify_accepts_and_rejects_tamper() {
+        use crate::signatures::plum::hasher::PlumGriffinHasher;
+
+        // Sanity: the Griffin path is actually engaged (not the SHAKE byte
+        // path). This is the one-line guard that the swap took effect.
+        assert!(
+            PlumGriffinHasher::USE_GRIFFIN_FS,
+            "PlumGriffinHasher must route Fiat–Shamir through the Griffin sponge",
+        );
+        assert!(
+            !PlumSha3Hasher::USE_GRIFFIN_FS,
+            "PlumSha3Hasher must keep the SHAKE256 byte path",
+        );
+
+        let pp = plum_setup(80).expect("setup λ=80");
+
+        // (1) Deterministic keypair + signature (seeded RNG).
+        let mut kg_rng = ChaCha20Rng::seed_from_u64(0x6817_0001);
+        let (sk, pk) = plum_keygen(&pp, &mut kg_rng);
+
+        let msg = b"griffin-fs gate";
+        let sig = plum_sign::<PlumGriffinHasher, _>(
+            &pp,
+            &sk,
+            msg,
+            &mut ChaCha20Rng::seed_from_u64(0x6817_0002),
+        );
+
+        // Determinism: re-signing with the SAME seeds reproduces the signature.
+        let (sk2, pk2) = plum_keygen(
+            &pp,
+            &mut ChaCha20Rng::seed_from_u64(0x6817_0001),
+        );
+        let sig2 = plum_sign::<PlumGriffinHasher, _>(
+            &pp,
+            &sk2,
+            msg,
+            &mut ChaCha20Rng::seed_from_u64(0x6817_0002),
+        );
+        assert_eq!(pk.symbols, pk2.symbols, "keygen not deterministic under seed");
+        assert_eq!(sig.root_c, sig2.root_c, "Griffin-FS sign not deterministic (root_c)");
+        assert_eq!(
+            sig.o_responses, sig2.o_responses,
+            "Griffin-FS sign not deterministic (o_responses)",
+        );
+        assert_eq!(
+            sig.final_coefs, sig2.final_coefs,
+            "Griffin-FS sign not deterministic (final_coefs)",
+        );
+
+        // (2) Software Griffin-FS verify ACCEPTS the valid signature.
+        let outcome = plum_verify::<PlumGriffinHasher>(&pp, &pk, msg, &sig);
+        assert_eq!(
+            outcome,
+            VerificationOutcome::Accept,
+            "Griffin-FS verify rejected an honest Griffin-FS signature",
+        );
+
+        // Cross-path guard: a Griffin-FS signature must NOT verify under the
+        // SHAKE256 path (the two derive different challenges) — confirms the
+        // accept above is genuinely the Griffin derivation, not an accident of
+        // a shared byte path.
+        let cross = plum_verify::<PlumSha3Hasher>(&pp, &pk, msg, &sig);
+        assert!(
+            matches!(cross, VerificationOutcome::Reject(_)),
+            "Griffin-FS signature unexpectedly verified under SHAKE256 path: {:?}",
+            cross,
+        );
+
+        // (3a) REJECT a tampered response (flip an o_response).
+        let mut sig_bad_resp = sig.clone();
+        sig_bad_resp.o_responses[0] =
+            sig_bad_resp.o_responses[0].clone() + Fp192::one();
+        let r1 = plum_verify::<PlumGriffinHasher>(&pp, &pk, msg, &sig_bad_resp);
+        assert!(
+            matches!(r1, VerificationOutcome::Reject(_)),
+            "Griffin-FS verify accepted a tampered o_response: {:?}",
+            r1,
+        );
+
+        // (3b) REJECT a tampered byte (flip a T-tag byte). T feeds the FS
+        // transcript (root_c preimage) AND the residuosity RHS.
+        let mut sig_bad_tag = sig.clone();
+        sig_bad_tag.t_tags[0] = sig_bad_tag.t_tags[0].wrapping_add(1);
+        let r2 = plum_verify::<PlumGriffinHasher>(&pp, &pk, msg, &sig_bad_tag);
+        assert!(
+            matches!(r2, VerificationOutcome::Reject(_)),
+            "Griffin-FS verify accepted a tampered T-tag: {:?}",
+            r2,
+        );
+
+        // (3c) REJECT a wrong message (FS binds M).
+        let r3 = plum_verify::<PlumGriffinHasher>(&pp, &pk, b"WRONG message", &sig);
+        assert!(
+            matches!(r3, VerificationOutcome::Reject(_)),
+            "Griffin-FS verify accepted a wrong message: {:?}",
+            r3,
+        );
+
+        let _ = pk2;
+        println!("Griffin-FS gate (PLUM-80): accept honest, reject tamper x3, cross-path reject — OK");
+    }
 }

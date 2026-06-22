@@ -18,15 +18,61 @@
 
 use super::field_p192::Fp192;
 use super::hasher::{PLUM_DIGEST_BYTES, PlumHasher, shake256_expand};
+use crate::primitives::r1cs::fs_fp192_gadget::{
+    griffin_fs_challenge_field, griffin_fs_challenge_index,
+};
+
+/// Pack a label-tagged byte absorb into a deterministic sequence of `Fp192`
+/// field elements for the GRIFFIN-FS path. SHAKE-byte layout is NOT reproduced
+/// (the Griffin reference is a deliberate re-modeling, per
+/// `fs_fp192_gadget`'s module doc); only the absorb ORDER and label separation
+/// are mirrored. Bytes are packed 24 per element (192 < 199 bits, always
+/// canonical < p, matching the Griffin sponge's `ABSORB_BYTES_PER_ELEM`).
+fn pack_labeled_absorb(label: &[u8], data: &[u8]) -> Vec<Fp192> {
+    // Frame the absorb the same way the byte path does (`absorb:` ‖ len ‖ label
+    // ‖ len ‖ data) so two call-sites with identical data but different labels
+    // produce different field sequences, then pack to field elements.
+    let mut framed = Vec::with_capacity(32 + label.len() + data.len());
+    framed.extend_from_slice(b"absorb:");
+    framed.extend_from_slice(&(label.len() as u64).to_le_bytes());
+    framed.extend_from_slice(label);
+    framed.extend_from_slice(&(data.len() as u64).to_le_bytes());
+    framed.extend_from_slice(data);
+    framed
+        .chunks(24)
+        .map(|chunk| {
+            let mut buf = [0u8; 32];
+            buf[..chunk.len()].copy_from_slice(chunk);
+            // 24 bytes => top byte (index 24) stays 0, value < 2^192 < p.
+            Fp192::from_bytes_le(&buf).expect("24-byte pack is < p")
+        })
+        .collect()
+}
 
 /// Fiat–Shamir transcript. The `H` parameter selects Griffin or SHA3.
+///
+/// Two squeeze backends, selected by `H::USE_GRIFFIN_FS`:
+///   - SHAKE256 byte path (default): `SHAKE256(state ‖ ctr ‖ label)`.
+///   - GRIFFIN-FS path (`PlumGriffinHasher`): challenges are derived by the
+///     Stage-4c-2 software reference (`griffin_fs_challenge_field` /
+///     `griffin_fs_challenge_index`) over the running field-element absorb log
+///     plus a monotone squeeze counter — the SAME derivation the 4c-4-asm
+///     circuit verifies. Sign and verify instantiate the SAME `H`, so both
+///     sides agree.
 pub struct PlumTranscript<H: PlumHasher> {
     /// Bytes accumulated so far (label-tagged absorbs). Squeezes are
     /// derived by `SHAKE256(current_state || squeeze_counter || label)`,
     /// so absorbing more after a squeeze remains safe.
     state: Vec<u8>,
+    /// GRIFFIN-FS path only: the running vector of absorbed field elements
+    /// (`D` in the 4c-2 spec). Every absorb appends the label-framed,
+    /// 24-byte-packed field elements of its data. Empty / unused on the
+    /// SHAKE256 path.
+    absorbed_fields: Vec<Fp192>,
     /// Monotonic counter used as part of the squeeze label so that two
-    /// successive challenges without intervening absorbs differ.
+    /// successive challenges without intervening absorbs differ. Shared by
+    /// both paths (the GRIFFIN-FS path passes it as the reference's
+    /// `squeeze_counter`).
     squeeze_counter: u64,
     _hasher: core::marker::PhantomData<H>,
 }
@@ -37,8 +83,16 @@ impl<H: PlumHasher> PlumTranscript<H> {
         state.extend_from_slice(b"PlumTranscript/v1");
         state.extend_from_slice(&(domain.len() as u64).to_le_bytes());
         state.extend_from_slice(domain);
+        // Seed the GRIFFIN-FS field log with the domain so two domains diverge
+        // on the very first challenge (mirrors the byte path's domain framing).
+        let absorbed_fields = if H::USE_GRIFFIN_FS {
+            pack_labeled_absorb(b"domain", domain)
+        } else {
+            Vec::new()
+        };
         Self {
             state,
+            absorbed_fields,
             squeeze_counter: 0,
             _hasher: core::marker::PhantomData,
         }
@@ -50,6 +104,10 @@ impl<H: PlumHasher> PlumTranscript<H> {
         self.state.extend_from_slice(label);
         self.state.extend_from_slice(&(data.len() as u64).to_le_bytes());
         self.state.extend_from_slice(data);
+        if H::USE_GRIFFIN_FS {
+            self.absorbed_fields
+                .extend(pack_labeled_absorb(label, data));
+        }
     }
 
     pub fn append_bytes(&mut self, label: &[u8], data: &[u8]) {
@@ -88,6 +146,18 @@ impl<H: PlumHasher> PlumTranscript<H> {
     /// Squeeze a uniform `F_p192` challenge. Rejection-sampling guarantees
     /// no modulo bias.
     pub fn challenge_field(&mut self, label: &[u8]) -> Fp192 {
+        if H::USE_GRIFFIN_FS {
+            // GRIFFIN-FS: derive via the Stage-4c-2 software reference over the
+            // running field log + this call's monotone squeeze counter. The
+            // `label` does not enter the Griffin derivation (the reference uses
+            // FS_TAG_FIELD + squeeze_counter for separation); the byte path's
+            // per-label separation is subsumed by the monotone counter, which
+            // increments once per challenge call.
+            let sc = self.squeeze_counter;
+            self.squeeze_counter += 1;
+            let _ = label;
+            return griffin_fs_challenge_field(&self.absorbed_fields, sc).value;
+        }
         // Pull bytes in chunks of 25 (= ceil(199/8) bytes) and reject if
         // the candidate ≥ p. Average ~1.66 rejections at our bit width.
         let mut counter = 0u32;
@@ -126,6 +196,20 @@ impl<H: PlumHasher> PlumTranscript<H> {
         assert!(bound > 0, "PLUM transcript: challenge_index needs bound > 0");
         if bound == 1 {
             return 0;
+        }
+        if H::USE_GRIFFIN_FS {
+            // GRIFFIN-FS: derive via the Stage-4c-2 software reference. The
+            // accepted index is returned in `value` as an `Fp192` < bound.
+            let sc = self.squeeze_counter;
+            self.squeeze_counter += 1;
+            let _ = label;
+            let trace = griffin_fs_challenge_index(&self.absorbed_fields, sc, bound);
+            // `value` is the accepted index embedded in Fp192; it is < bound by
+            // construction (the reference's acceptance check), and bound <= L =
+            // 2^12 fits a usize comfortably.
+            let idx_big = trace.value.to_biguint();
+            let digits = idx_big.to_u64_digits();
+            return digits.first().copied().unwrap_or(0) as usize;
         }
         // Smallest power of two >= bound. We rejection-sample within
         // [0, pow) then reject if ≥ bound.

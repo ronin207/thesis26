@@ -39,6 +39,11 @@ pub mod ood_finalpoly_fp192_gadget;
 /// (`verify.rs:561-584`). Composes the Stage-4b poly gadgets; the quotient is
 /// pinned by the polynomial / multiplication-back identity, never free.
 pub mod rate_sumcheck_fp192_gadget;
+/// Stage 4c-4-asm FINAL ASSEMBLY: the full Griffin-FS PLUM.Verify relation as ONE
+/// R1CS, composing every Stage 2–4c-4-sub gadget in `verify.rs` order with
+/// pk/message/roots as `alloc_public_input` public inputs. Gated at a reduced
+/// scale; the PLUM-80 total is projected, not materialized.
+pub mod plum_verify_fp192_gadget;
 use sha2::{Digest, Sha256};
 use std::vec::Vec;
 

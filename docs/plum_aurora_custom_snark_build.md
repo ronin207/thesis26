@@ -11,6 +11,37 @@ verification gate per stage; if Stage 4 (STIR-in-R1CS) stalls, ship Stages 1-3
 as the ~90%-of-constraints Merkle-Griffin term and fall back to the paper's
 §4.2 algebraic decomposition for the rest (the "defensible estimate" exit).
 
+## FINAL RESULT (2026-06-23) — declared; Operator chose "declare + write up"
+
+The component library is complete and verified (Stages 1–4c-4-sub: field, Griffin perm, PRF,
+Merkle, poly ops, sponge, Griffin-FS, fold round, OOD, final-poly, instance boundary,
+rate-correction, sumcheck — each gated vs the software reference + adversarially audited; 5
+real soundness holes found and closed). The full `PLUM.Verify` is assembled
+(`plum_verify_fp192_gadget.rs`) composing all components in `verify.rs` order; at reduced scale
+the 13,658-constraint circuit `check_satisfied`-ACCEPTS a real PLUM-80 Griffin-FS signature and
+rejects 4 tampers.
+
+**Headline findings (the thesis-relevant output):**
+1. **In-circuit PLUM.Verify is Fiat-Shamir-dominated.** Projected PLUM-80 ≈ 25.9M constraints,
+   ~96% FS — BUT this reflects this implementation's NAIVE re-absorb-whole-transcript FS (the same
+   pattern that makes one software Griffin-FS sign+verify take 727s). An incremental sponge (as the
+   paper assumes) would be far smaller (~the paper's 116K R1CS for PLUM-128). So: FS-dominance is
+   real and fundamental; the absolute 26M is a naive-FS UPPER BOUND, not the fundamental cost. FS
+   implementation choice swings the circuit ~200×.
+2. **Substrate-dependence, sharpened.** Fiat-Shamir is ~free in a zkVM (runs as code; SP1/RISC0
+   even have Keccak precompiles) but is the dominant circuit cost. PLUM's own FS is SHAKE256
+   (`transcript.rs:77-86`), catastrophic to arithmetize; even algebraic Griffin-FS is circuit-heavy
+   through the re-absorption structure. A clean concrete instance of the thesis's substrate-dependence.
+3. **Circuit-side deployability:** proving a full PLUM.Verify circuit over Fp192 on the 24 GB target
+   is infeasible at these scales. Stage 5 (Aurora prove) is answered by the projection; not run.
+
+**Honest gaps (documented, do not change the cost conclusion):** the assembly's public inputs are
+designated but not yet PINNED to the consumed values (decorative), and FS challenges are not threaded
+end-to-end into the algebraic checks — so the assembly is a structural exerciser + projection, not a
+fully-sound verifier. Closing them adds negligible constraints. Stage-1 libff Fp192 field lives in the
+libiop submodule (uncommitted there). Substitute prime caveat stands (cycle/constraint counts valid;
+value-specific claims not).
+
 ## Stage map
 
 | Stage | What | Status |
@@ -22,14 +53,27 @@ as the ~90%-of-constraints Merkle-Griffin term and fall back to the paper's
 | 4a | Merkle-path verify gadget (Griffin-Fp192 hash) | ✅ done, gated (1245/path, depth 4; root bound) |
 | 4b | Polynomial gadgets (eval, lagrange, vanishing, degree-correction) | ✅ done, gated (inverses constrained) |
 | 4c | STIR assembly -> full PLUM.Verify | decomposed below |
-| 4c-1 | Griffin-Fp192 sponge (absorb/squeeze) + leaf/byte hash | in progress |
+| 4c-1 | Griffin-Fp192 sponge (absorb/squeeze) + leaf/byte hash | ✅ done, gated (304 c/perm) |
 | 4c-2 | Fiat-Shamir transcript replay — GRIFFIN-FS | ✅ done, gated (canonical extraction; 2 soundness holes closed) |
 | 4c-3a | Poly multiply + divide_by_linear gadgets | ✅ done, gated (quotient identity-bound) |
 | 4c-3b | One STIR fold round (fold + Merkle open + degree-correct) | ✅ gadget done, tiny-scale gated (7733 c/round); composed-soundness pending instance boundary |
 | 4c-3c | OOD consistency + final-poly fiber check | ✅ done, gated (OOD ≤198 c, final-poly ≤209 c) |
 | 4c-4-pi | Instance/public-input boundary for `Fp192R1cs` (load-bearing) | ✅ done, gated (num_inputs prefix; Aurora binds PI at aurora.rs:371-393) |
-| 4c-4-sub | Deferred: rate-correction division (a_R→fiber), round-0 sumcheck identity | in progress |
-| 4c-4 | Full multi-round PLUM.Verify assembly + designate pk/message/roots public | |
+| 4c-4-sub | Deferred: rate-correction division (a_R→fiber), round-0 sumcheck identity | ✅ done, gated (≤85 c) |
+| 4c-4-sw | Software Griffin-FS PLUM sign+verify + a generated signature | ✅ done, gated (PLUM-80 sig accepted; **727s/sign+verify**) |
+| 4c-4-asm | Full PLUM.Verify R1CS assembly: structure + smallest-scale functional gate + PLUM-80 constraint PROJECTION | ✅ assembled + gated (13,658 c accepts real sig); ≈25.9M PLUM-80 projection (see FINAL RESULT) |
+| 5 | Aurora prove over Fp192 | ⏹ answered by projection (infeasible at scale); not run |
+| 6 | Report / write up | in progress (Operator) |
+
+**SCALE FINDING (4c-4-sw):** one Griffin-FS sign+verify took 727s because the Griffin sponge
+re-absorbs the entire growing transcript on every challenge. In-circuit, each of the dozens of
+FS challenges is a full sponge over the whole transcript-so-far → the FS chain alone makes the
+full PLUM-80 circuit ~millions of constraints, FS-dominated. Materializing/proving the full
+PLUM-80 circuit on the 24 GB laptop is very likely infeasible (a circuit-side deployability
+result). So 4c-4-asm verifies at the smallest viable scale and PROJECTS the PLUM-80 count;
+it does NOT materialize the full circuit.
+
+NOTE: the circuit uses Griffin-FS (Operator's choice). To gate "circuit accepts a valid signature" we need a Griffin-FS SIGNATURE — the in-tree PLUM signs with SHAKE256 FS, so 4c-4-sw must produce the Griffin-FS reference first.
 
 **CONFIRMED LOAD-BEARING (proof-checker, 4c-3b):** the Fp192 R1CS stack (`Fp192R1cs` =
 {constraints, assignment}) has NO public-input/instance boundary — unlike the Loquat
