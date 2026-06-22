@@ -48,6 +48,16 @@ pub struct Fp192Constraint {
 #[derive(Debug, Clone)]
 pub struct Fp192R1cs {
     pub num_variables: usize,
+    /// Number of variables that are public inputs (the verifier-visible
+    /// INSTANCE). They occupy assignment indices `[1, num_inputs]` immediately
+    /// after the constant-1 slot at index 0; indices
+    /// `[num_inputs + 1, num_variables - 1]` are private witness.
+    ///
+    /// `0` means "no public inputs" — the legacy all-private behaviour every
+    /// Stage 2/3/4a/4b/4c gadget relied on before this boundary existed. This
+    /// mirrors `crate::primitives::r1cs::R1csInstance::num_inputs` for the
+    /// Fp127 Loquat stack (mod.rs ~:91).
+    pub num_inputs: usize,
     pub constraints: Vec<Fp192Constraint>,
     /// Full assignment including the constant-1 slot at index 0.
     pub assignment: Vec<Fp192>,
@@ -56,6 +66,19 @@ pub struct Fp192R1cs {
 impl Fp192R1cs {
     pub fn num_constraints(&self) -> usize {
         self.constraints.len()
+    }
+
+    /// The verifier-visible public-input (INSTANCE) vector: assignment indices
+    /// `[1, num_inputs]`. Empty when `num_inputs == 0`. Distinct from the
+    /// constant-1 slot at index 0 and from the private witness tail.
+    pub fn public_inputs(&self) -> &[Fp192] {
+        &self.assignment[1..=self.num_inputs.min(self.num_variables.saturating_sub(1))]
+    }
+
+    /// The private-witness tail: assignment indices `[num_inputs + 1, end)`.
+    /// Excludes the constant-1 slot (index 0) and the public-input prefix.
+    pub fn private_witness(&self) -> &[Fp192] {
+        &self.assignment[(1 + self.num_inputs).min(self.assignment.len())..]
     }
 
     /// Check every constraint against the stored assignment. Returns
@@ -110,6 +133,10 @@ impl Fp192Var {
 pub struct Fp192R1csBuilder {
     assignment: Vec<Fp192>,
     constraints: Vec<Fp192Constraint>,
+    /// Count of public-input (INSTANCE) wires allocated so far. Maintained as a
+    /// clean prefix: a public input may only be allocated while NO non-public
+    /// wire exists yet, so the public set is exactly `[1, num_inputs]`.
+    num_inputs: usize,
 }
 
 impl Fp192R1csBuilder {
@@ -118,6 +145,7 @@ impl Fp192R1csBuilder {
         Self {
             assignment: vec![Fp192::one()],
             constraints: Vec::new(),
+            num_inputs: 0,
         }
     }
 
@@ -126,6 +154,34 @@ impl Fp192R1csBuilder {
         let idx = self.assignment.len();
         self.assignment.push(value);
         idx
+    }
+
+    /// Allocate a PUBLIC-INPUT (verifier-visible INSTANCE) wire carrying
+    /// `value`, recording it in the public-input prefix `[1, num_inputs]`.
+    ///
+    /// To keep the public set a clean prefix (matching the Loquat
+    /// `R1csInstance` contract: public inputs occupy `[1, num_inputs]` right
+    /// after the constant-1 slot), this MUST be called before any private wire
+    /// is allocated. Panics otherwise — interleaving a public input after a
+    /// private wire would silently corrupt the instance/witness split.
+    ///
+    /// Like `alloc_input`, the wire is a FREE witness with no constraint of its
+    /// own; the caller pins it through subsequent constraints. The verifier
+    /// fixing pk / message / signature-roots is exactly this allocation.
+    pub fn alloc_public_input(&mut self, value: Fp192) -> Fp192Var {
+        assert_eq!(
+            self.assignment.len(),
+            1 + self.num_inputs,
+            "alloc_public_input must precede any private wire: public inputs \
+             must form the clean prefix [1, num_inputs] (have {} wires, \
+             num_inputs={})",
+            self.assignment.len() - 1,
+            self.num_inputs,
+        );
+        let idx = self.alloc(value.clone());
+        self.num_inputs += 1;
+        debug_assert_eq!(idx, self.num_inputs, "public input not at prefix index");
+        Fp192Var { idx, value }
     }
 
     /// Enforce `(Σ a_i z_i) * (Σ b_i z_i) = (Σ c_i z_i)`.
@@ -401,6 +457,7 @@ impl Fp192R1csBuilder {
     pub fn finalize(self) -> Fp192R1cs {
         Fp192R1cs {
             num_variables: self.assignment.len(),
+            num_inputs: self.num_inputs,
             constraints: self.constraints,
             assignment: self.assignment,
         }
@@ -1139,6 +1196,106 @@ mod tests {
             }
         }
         eprintln!("INDEX-BINDING GATE PASSED (bits boolean-constrained, forged i rejected)");
+    }
+
+    /// THE STAGE 4c-4-pi GATE: public-input / INSTANCE boundary.
+    ///
+    /// Build a tiny circuit with >= 1 public input and >= 1 private wire over a
+    /// real relation, and assert the four required properties:
+    ///   (1) the honest full assignment satisfies every constraint;
+    ///   (2) `num_inputs` is correct and the public wires are exactly the
+    ///       `[1, num_inputs]` prefix;
+    ///   (3) the public-input (INSTANCE) vector reads back distinctly from the
+    ///       private witness tail;
+    ///   (4) backward compat: a builder with NO public input finalizes to
+    ///       `num_inputs == 0` and an empty instance vector.
+    #[test]
+    fn public_input_boundary_gate() {
+        // Relation:  pub_a * pub_b == priv_prod  (priv_prod is private witness).
+        // Two public inputs fix the verifier-visible instance; the product wire
+        // and the constant-1 seed of any helper are private.
+        let mut b = Fp192R1csBuilder::new();
+        let pub_a = b.alloc_public_input(Fp192::from_u64(6));
+        let pub_b = b.alloc_public_input(Fp192::from_u64(7));
+        // mul allocates a FRESH (private) product wire and constrains it.
+        let prod = b.mul_pub(&pub_a, &pub_b);
+        // Pin the public product to an independently allocated private witness
+        // so there is a genuine private wire beyond the product itself.
+        let priv_check = b.alloc_witness_pub(Fp192::from_u64(42));
+        b.enforce_eq_pub(&prod, &priv_check);
+
+        let prod_idx = prod.index();
+        let priv_idx = priv_check.index();
+        let r1cs = b.finalize();
+
+        // (1) honest assignment satisfies all constraints.
+        if let Err(bad) = r1cs.check_satisfied() {
+            panic!("constraint #{bad} not satisfied by the honest assignment");
+        }
+
+        // (2) num_inputs correct, public wires are the [1, num_inputs] prefix.
+        assert_eq!(r1cs.num_inputs, 2, "expected exactly 2 public inputs");
+        assert_eq!(pub_a.index(), 1, "public input A must be at prefix index 1");
+        assert_eq!(pub_b.index(), 2, "public input B must be at prefix index 2");
+        assert!(
+            prod_idx > r1cs.num_inputs && priv_idx > r1cs.num_inputs,
+            "private wires (prod={prod_idx}, check={priv_idx}) must live beyond \
+             the public prefix [1, {}]",
+            r1cs.num_inputs,
+        );
+
+        // (3) instance vector reads back distinctly from the private witness.
+        let instance = r1cs.public_inputs();
+        assert_eq!(instance.len(), 2, "instance vector length == num_inputs");
+        assert_eq!(instance[0], Fp192::from_u64(6));
+        assert_eq!(instance[1], Fp192::from_u64(7));
+        let witness = r1cs.private_witness();
+        // The product (6*7=42) and the pinned check wire are both private.
+        assert!(
+            witness.iter().any(|w| *w == Fp192::from_u64(42)),
+            "private witness must contain the product wire value 42",
+        );
+        // The public values must NOT leak into the private tail at the prefix
+        // positions: instance and witness are disjoint slices of `assignment`.
+        assert_eq!(
+            instance.len() + witness.len() + 1, // +1 for the constant-1 slot
+            r1cs.num_variables,
+            "instance + witness + const-1 must partition the assignment",
+        );
+
+        // (4) BACKWARD COMPAT: a no-public-input builder is the legacy path.
+        let legacy = build_griffin_fp192_permutation(core::array::from_fn(|i| {
+            Fp192::from_u64((i as u64) * 5 + 3)
+        }))
+        .0;
+        assert_eq!(
+            legacy.num_inputs, 0,
+            "legacy all-private gadget must report num_inputs == 0",
+        );
+        assert!(
+            legacy.public_inputs().is_empty(),
+            "legacy gadget instance vector must be empty",
+        );
+        assert!(legacy.check_satisfied().is_ok());
+
+        eprintln!(
+            "PUBLIC-INPUT BOUNDARY GATE PASSED: num_inputs={}, instance={:?}, \
+             private_len={}, num_variables={}",
+            r1cs.num_inputs,
+            instance.len(),
+            witness.len(),
+            r1cs.num_variables,
+        );
+    }
+
+    /// Allocating a public input AFTER a private wire must panic (the clean
+    /// prefix invariant cannot be silently violated).
+    #[test]
+    #[should_panic(expected = "alloc_public_input must precede any private wire")]
+    fn public_input_after_private_wire_panics() {
+        let mut b = Fp192R1csBuilder::new();
+        let _priv = b.alloc_input(Fp192::from_u64(1)); // private wire first
+        let _bad = b.alloc_public_input(Fp192::from_u64(2)); // must panic
     }
 
     /// A wrong witness must be rejected (negative control — the satisfaction

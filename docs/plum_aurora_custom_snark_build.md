@@ -25,9 +25,20 @@ as the ~90%-of-constraints Merkle-Griffin term and fall back to the paper's
 | 4c-1 | Griffin-Fp192 sponge (absorb/squeeze) + leaf/byte hash | in progress |
 | 4c-2 | Fiat-Shamir transcript replay — GRIFFIN-FS | ✅ done, gated (canonical extraction; 2 soundness holes closed) |
 | 4c-3a | Poly multiply + divide_by_linear gadgets | ✅ done, gated (quotient identity-bound) |
-| 4c-3b | One STIR fold round (fold + Merkle open + degree-correct) | in progress |
-| 4c-3c | OOD consistency + final-poly fiber check | |
-| 4c-4 | Top-level PLUM.Verify assembly + public-input designation | |
+| 4c-3b | One STIR fold round (fold + Merkle open + degree-correct) | ✅ gadget done, tiny-scale gated (7733 c/round); composed-soundness pending instance boundary |
+| 4c-3c | OOD consistency + final-poly fiber check | ✅ done, gated (OOD ≤198 c, final-poly ≤209 c) |
+| 4c-4-pi | Instance/public-input boundary for `Fp192R1cs` (load-bearing) | ✅ done, gated (num_inputs prefix; Aurora binds PI at aurora.rs:371-393) |
+| 4c-4-sub | Deferred: rate-correction division (a_R→fiber), round-0 sumcheck identity | in progress |
+| 4c-4 | Full multi-round PLUM.Verify assembly + designate pk/message/roots public | |
+
+**CONFIRMED LOAD-BEARING (proof-checker, 4c-3b):** the Fp192 R1CS stack (`Fp192R1cs` =
+{constraints, assignment}) has NO public-input/instance boundary — unlike the Loquat
+`R1csInstance` (num_inputs). So "the verifier fixes the committed root" is not expressible;
+every wire is prover-chosen. Each gadget is correct within a chosen assignment, but the COMPOSED
+object is not sound as a verifier until 4c-4 adds an instance boundary to `Fp192R1cs` and
+designates pk / message / signature roots as the public instance. (Was obligation #4; now blocking
+for final soundness.) Runaway note: 4c-3b's prior 18-min hang was a non-convergent fixed-point loop
+in the TEST (r_fold = H(tree(folds(r_fold)))), not gadget logic — fixed by pre-root r_fold ordering.
 | 4c-4 | Top-level PLUM.Verify assembly + public-input designation | |
 
 ### MAJOR FINDING (2026-06-22): PLUM Fiat-Shamir is SHAKE256, not Griffin

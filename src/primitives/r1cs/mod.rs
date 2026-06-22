@@ -20,6 +20,25 @@ pub mod sponge_fp192_gadget;
 /// replaying PLUM's transcript with the Griffin sponge (not SHAKE256), with the
 /// challenge bound to absorbed data and rejection sampling constrained.
 pub mod fs_fp192_gadget;
+/// Stage 4c-3b ONE STIR fold round as an R1CS gadget: composes the Merkle
+/// path-verify, polynomial (Lagrange/Horner), sponge, and Fiat–Shamir gadgets to
+/// bind one fold + one Merkle-checked query against the FS-committed root.
+pub mod stir_round_fp192_gadget;
+/// Stage 4c-3c the STIR verifier's OUT-OF-DOMAIN (OOD) consistency check and the
+/// Algorithm-6 FINAL-POLYNOMIAL fiber check as R1CS gadgets, composing the
+/// Stage-4b Lagrange/Horner polynomial gadgets. Matches the round-0 sumcheck-
+/// identity OOD block (`verify.rs:537-560`) and the final-poly check
+/// (`verify.rs:762-781`).
+pub mod ood_finalpoly_fp192_gadget;
+/// Stage 4c-4-sub the two STIR algebraic checks deferred by Stages 4c-3b/4c-3c:
+/// (1) RATE-CORRECTION DIVISION deriving the corrected fiber values
+/// `â_R'(x) = (â_R(x) − b̂_R(x))/Π(x−α)` from the Merkle-opened `â_R`
+/// (pointwise form matching `verify.rs:732-760`; coefficient form matching
+/// `stir::rate_correct` `stir.rs:204-237`), and (2) the ROUND-0 SUMCHECK
+/// (sum-over-`H`) identity `Σ_{a∈H} g_hat(a) == z·mu + s_sum`
+/// (`verify.rs:561-584`). Composes the Stage-4b poly gadgets; the quotient is
+/// pinned by the polynomial / multiplication-back identity, never free.
+pub mod rate_sumcheck_fp192_gadget;
 use sha2::{Digest, Sha256};
 use std::vec::Vec;
 
