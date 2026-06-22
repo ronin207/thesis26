@@ -1,6 +1,25 @@
 use crate::signatures::loquat::errors::{LoquatError, LoquatResult};
 use crate::signatures::loquat::field_utils::{F, field_to_bytes};
 use serde::{Deserialize, Serialize};
+
+/// Stage-2 parallel R1CS layer over PLUM's `Fp192` field (Griffin-Fp192
+/// permutation gadget). Independent of the Fp127-monomorphised types above.
+pub mod griffin_fp192_gadget;
+/// Stage-4a Merkle authentication-path verification gadget over `Fp192`,
+/// reusing the Griffin-Fp192 permutation gadget as the 2-to-1 compression.
+pub mod merkle_fp192_gadget;
+/// Stage-4b STIR polynomial-operation gadgets over `Fp192` (Horner evaluate,
+/// Lagrange interpolation, vanishing-poly evaluation, degree-correction
+/// evaluation), reusing the Stage-2 `Fp192R1csBuilder` / `Fp192Var`.
+pub mod poly_fp192_gadget;
+/// Stage-4c-1 Griffin-Fp192 SPONGE (absorb/squeeze) + leaf/byte hash gadgets,
+/// reusing the Stage-2 `griffin_fp192_permutation_circuit`. Matches the
+/// software sponge `plum_griffin_sponge` / `PlumGriffinHasher::hash_bytes`.
+pub mod sponge_fp192_gadget;
+/// Stage 4c-2 in-circuit Fiat–Shamir challenge derivation over `Fp192`,
+/// replaying PLUM's transcript with the Griffin sponge (not SHAKE256), with the
+/// challenge bound to absorbed data and rejection sampling constrained.
+pub mod fs_fp192_gadget;
 use sha2::{Digest, Sha256};
 use std::vec::Vec;
 
