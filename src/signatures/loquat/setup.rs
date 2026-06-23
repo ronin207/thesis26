@@ -332,7 +332,13 @@ fn loquat_setup_internal(
     let (coset_h, generator_h, shift_h) = build_power_of_two_coset(h_size, &mut rng)?;
     loquat_debug!("✓ |H| = {}", coset_h.len());
 
-    let u_size = min_rate_denominator.next_power_of_two();
+    // Paper §6.1 (ePrint 2024/868): max code rate ρ* = 1/16, so |U| must give a rate
+    // ≤ ρ*, i.e. |U| ≥ (4m+κ·2^η)/ρ* = 16·min_rate_denominator. The previous
+    // `next_power_of_two(min_rate_denominator)` dropped the ×1/ρ* blow-up, leaving
+    // rate ≈ 1 (a near-vacuous low-degree test). Fixed 2026-06-23.
+    const INV_RHO_STAR_LOG2: usize = 4; // log2(1/ρ*) = log2(16)
+    let inv_rho_star: usize = 1 << INV_RHO_STAR_LOG2;
+    let u_size = (inv_rho_star * min_rate_denominator).next_power_of_two();
     let mut coset_u_attempts = 0usize;
     let (coset_u, generator_u, shift_u) = loop {
         let (candidate, generator, shift) = build_power_of_two_coset(u_size, &mut rng)?;
@@ -353,12 +359,10 @@ fn loquat_setup_internal(
         min_rate_denominator
     );
 
-    let mut rho_star_value = 1usize;
-    while rho_star_value * coset_u.len() <= min_rate_denominator {
-        rho_star_value <<= 1;
-    }
-    let rho_star_num = rho_star_value * coset_u.len();
-    let rho_star = rho_star_num as f64 / coset_u.len() as f64;
+    // ρ* = 1/16 fixed (paper §6.1). rho_star_num = ρ*·|U| = |U|>>4 is the rate-correction
+    // target degree consumed by sign/verify as `rho_star_num - rho_numerators[i]`.
+    let rho_star = 1.0 / inv_rho_star as f64;
+    let rho_star_num = coset_u.len() >> INV_RHO_STAR_LOG2;
 
     let rho1_num = 2 * m + (kappa * (1 << eta)) + 1;
     let rho2_num = 4 * m + (kappa * (1 << eta));
@@ -366,14 +370,10 @@ fn loquat_setup_internal(
     let rho4_num = 2 * m - 1;
     let rho_numerators = [rho1_num, rho2_num, rho3_num, rho4_num];
 
+    // Paper §6.1: r = ⌊(log₂|U| − log₂(1/ρ*)) / η⌋.
     let log_u = log2_pow2(coset_u.len());
-    let rho_star_log = if rho_star_value.is_power_of_two() {
-        log2_pow2(rho_star_value)
-    } else {
-        ((rho_star_value as f64).log2().ceil()) as usize
-    };
-    let r = ((log_u + rho_star_log) / eta).max(1);
-    loquat_debug!("✓ ρ* = {} (power of two bound)", rho_star_value);
+    let r = ((log_u - INV_RHO_STAR_LOG2) / eta).max(1);
+    loquat_debug!("✓ ρ* = 1/{} (rate)", inv_rho_star);
     loquat_debug!("✓ r (LDT round complexity): {}", r);
 
     let mut u_subgroups = Vec::with_capacity(r);
