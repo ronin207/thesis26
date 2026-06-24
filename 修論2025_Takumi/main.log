@@ -1,4 +1,4 @@
-This is e-upTeX, Version 3.141592653-p4.1.2-u2.02-251130-2.6 (utf8.euc) (TeX Live 2026) (preloaded format=platex 2026.4.13)  25 JUN 2026 02:23
+This is e-upTeX, Version 3.141592653-p4.1.2-u2.02-251130-2.6 (utf8.euc) (TeX Live 2026) (preloaded format=platex 2026.4.13)  25 JUN 2026 03:03
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1884,70 +1884,79 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 48.
 [39]
+LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
+(Font)              No change on input line 62.
+
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 70.
+(Font)              using `JY1/hmc/bx/n' instead on input line 62.
+
+LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
+(Font)              No change on input line 72.
+
+LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
+(Font)              using `JY1/hmc/bx/n' instead on input line 75.
 
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 72.
+(Font)              using `JY1/hmc/bx/n' instead on input line 77.
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 73.
+(Font)              No change on input line 78.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 73.
+(Font)              No change on input line 78.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 73.
+(Font)              No change on input line 78.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 73.
+(Font)              No change on input line 78.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 73.
+(Font)              No change on input line 78.
 [40]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 78.
+(Font)              using `JY1/hmc/bx/n' instead on input line 83.
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 79.
+(Font)              No change on input line 84.
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 92.
-
-
-LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 93.
+(Font)              using `JY1/hmc/bx/n' instead on input line 97.
 
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 94.
+(Font)              using `JY1/hmc/bx/n' instead on input line 98.
 
 
-Overfull \hbox (5.5609pt too wide) in paragraph at lines 94--95
+LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
+(Font)              using `JY1/hmc/bx/n' instead on input line 99.
+
+
+Overfull \hbox (5.5609pt too wide) in paragraph at lines 99--100
 []\T1/ptm/m/n/12 is the num-ber of proof-system pa-ram-e-ters (e.g. com-mit-men
 t pa-ram-e-ters, R1CS-shape-dependent
  []
 
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 95.
+(Font)              using `JY1/hmc/bx/n' instead on input line 100.
 
-LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 95.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 100.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 100.
-
-LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 104.
-
+(Font)              No change on input line 105.
+LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
+(Font)              No change on input line 105.
 [41]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 109.
 
 
-Overfull \hbox (25.2179pt too wide) in paragraph at lines 109--112
+LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
+(Font)              using `JY1/hmc/bx/n' instead on input line 114.
+
+
+Overfull \hbox (25.2179pt too wide) in paragraph at lines 114--117
 \T1/ptm/m/n/12 verification pred-i-cates with the verifier-side mem-ber-ship ch
 eck per-formed by $[]\OML/cmm/m/it/12 :[]$\T1/ptm/m/n/12 /$[]\OML/cmm/m/it/12 :
 []$
@@ -1955,15 +1964,15 @@ eck per-formed by $[]\OML/cmm/m/it/12 :[]$\T1/ptm/m/n/12 /$[]\OML/cmm/m/it/12 :
 
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
-(Font)              using `JY1/hmc/bx/n' instead on input line 114.
+(Font)              using `JY1/hmc/bx/n' instead on input line 119.
 
 
-Overfull \hbox (4.73694pt too wide) in paragraph at lines 117--118
+Overfull \hbox (4.73694pt too wide) in paragraph at lines 122--123
 []\T1/ptm/m/n/12 In both re-la-tions, the field-mismatch tax of Def-i-ni-tion 4
 .1 is con-cen-trated in the signature-verification
  []
 
-) [42] (./05-system.tex
+) [42] [43] (./05-system.tex
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 1.
@@ -2016,7 +2025,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 15.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 18.
-[43]
+[44]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 20.
@@ -2053,7 +2062,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 34.
 
-[44]
+[45]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 37.
@@ -2080,7 +2089,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 70.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 70.
-[45]
+[46]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 73.
@@ -2099,7 +2108,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 81.
 
-[46]
+[47]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 86.
@@ -2136,7 +2145,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 95.
-[47]
+[48]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 97.
@@ -2156,7 +2165,7 @@ $, with pub-lic state-ment $\OML/cmm/m/it/12 x[] \OT1/cmr/m/n/12 = (\OML/cmm/m/
 it/12 c[]; h[]; [][]\OT1/cmr/m/n/12 )$
  []
 
-[48] (./055-security.tex
+[49] (./055-security.tex
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 10.
@@ -2183,12 +2192,12 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 64.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 91.
-[49]
+[50]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 134.
 
-[50]
+[51]
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 146.
 
@@ -2204,7 +2213,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 174.
 
-[51]
+[52]
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 221.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
@@ -2221,10 +2230,10 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 284.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 288.
- [52]
+ [53]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 327.
- [53]
+ [54]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 360.
@@ -2259,7 +2268,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 385.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 385.
-[54] [55]
+[55] [56]
 Overfull \hbox (9.969pt too wide) in paragraph at lines 446--459
 []\T1/ptm/m/n/12 A sep-a-rate ques-tion is the strength of the anonymity guar-a
 n-tee where the ar-gu-ment is zero-knowledge.
@@ -2282,7 +2291,7 @@ nonymity)\T1/ptm/b/n/12 . []\T1/ptm/m/it/12 Sup-pose there is a non-interactive
 
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 494.
-[56]) [57] (./06-evaluation.tex
+[57]) [58] (./06-evaluation.tex
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 1.
@@ -2332,7 +2341,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 59.
 
-[58]
+[59]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 64.
@@ -2351,7 +2360,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 98.
 
-[59]
+[60]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 105.
@@ -2404,7 +2413,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 196.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 200.
-[60] [61]
+[61] [62]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 239.
@@ -2449,7 +2458,7 @@ Overfull \hbox (49.79243pt too wide) in paragraph at lines 292--306
 12 \T1/ptm/m/n/12 and \T1/pcr/m/n/12 audit5_campaign_20260612\T1/ptm/m/n/12 ).
  []
 
-[62]
+[63]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 308.
@@ -2474,7 +2483,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 359.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 360.
-[63]
+[64]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 368.
@@ -2497,7 +2506,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 424.
-[64]
+[65]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 430.
@@ -2563,7 +2572,7 @@ OT1/cmr/m/n/12 15\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 6$ \T1/ptm/m/n/12 hours with
  \T1/pcr/m/n/12 verify segment / verification
  []
 
-[65]
+[66]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 520.
@@ -2708,7 +2717,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 580.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 580.
-[66]
+[67]
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
@@ -2738,7 +2747,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 636.
 
-[67]
+[68]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 654.
@@ -2755,7 +2764,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 704.
-[68]
+[69]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 720.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
@@ -2802,7 +2811,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 806.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 814.
-[69]
+[70]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 818.
@@ -2832,7 +2841,7 @@ Overfull \hbox (2.60396pt too wide) in paragraph at lines 882--890
 VM's
  []
 
-[70]
+[71]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 891.
@@ -2863,7 +2872,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 950.
 
-[71]
+[72]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 959.
@@ -2918,7 +2927,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 1007.
 
-[72]
+[73]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 1022.
@@ -2929,7 +2938,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 1037.
-) [73] (./07-discussion.tex
+) [74] (./07-discussion.tex
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 8.
@@ -2960,7 +2969,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 91.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 91.
-[74]
+[75]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 100.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
@@ -2974,14 +2983,14 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 118.
 
-[75]
+[76]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 132.
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 135.
-) [76] (./08-conclusion.tex
+) [77] (./08-conclusion.tex
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 1.
@@ -2998,7 +3007,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 9.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 11.
-[77]
+[78]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 13.
@@ -3011,7 +3020,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 17.
 
-[78]
+[79]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 21.
@@ -3026,12 +3035,12 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 27.
 
-) [79] [80]
+) [80] [81]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 152.
 
-[81] (./main.bbl
+[82] (./main.bbl
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 2.
@@ -3040,7 +3049,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 29.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 91.
-[82]
+[83]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 133.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
@@ -3049,7 +3058,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 195.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 204.
- [83]
+ [84]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 214.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
@@ -3072,7 +3081,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 287.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 296.
-[84]
+[85]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 323.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
@@ -3083,7 +3092,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 375.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 382.
- [85]
+ [86]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 395.
 
@@ -3114,12 +3123,12 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 410.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 426.
-[86]
+[87]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 526.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
-(Font)              No change on input line 551.
-) [87] [88] (./appendices.tex
+(Font)              No change on input line 559.
+ [88]) [89] (./appendices.tex
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 3.
@@ -3158,7 +3167,7 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 71.
-[89]
+[90]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 79.
@@ -3181,14 +3190,14 @@ LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 114.
-[90]
+[91]
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 138.
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 182.
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 205.
- [91]
+ [92]
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 (Font)              No change on input line 229.
 
@@ -3219,7 +3228,7 @@ Overfull \hbox (1.3974pt too wide) in paragraph at lines 282--292
 \OT1/cmr/m/n/12 14$ \T1/ptm/m/n/12 rounds and the SHAKE256-
  []
 
-[92]
+[93]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 294.
@@ -3242,7 +3251,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 338.
 
-[93]
+[94]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 360.
 LaTeX Font Info:    Kanji font shape `JY1/hmc/m/it' undefined
@@ -3272,7 +3281,7 @@ ints make each $[][]$ boolean with $[][] [][] \OT1/cmr/m/n/12 =
 
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 436.
-[94]
+[95]
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 442.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
@@ -3323,7 +3332,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hmc/m/sc' undefined
 (Font)              No change on input line 517.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 520.
-[95]
+[96]
 
 LaTeX Font Warning: Font shape `JY1/hmc/b/n' undefined
 (Font)              using `JY1/hmc/bx/n' instead on input line 531.
@@ -3358,7 +3367,7 @@ LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 585.
 LaTeX Font Info:    Kanji font shape `JY1/hgt/m/it' undefined
 (Font)              No change on input line 598.
-) [96] [97] [98] [99] (./main.aux)
+) [97] [98] [99] [100] (./main.aux)
  ***********
 pLaTeX2e <2023-02-14>+1, based on
 LaTeX2e <2025-11-01>
@@ -3366,12 +3375,12 @@ L3 programming layer <2026-01-19>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 30680 strings out of 468171
- 733456 string characters out of 5434472
- 1252689 words of memory out of 5000000
- 59025 multiletter control sequences out of 15000+600000
+ 30682 strings out of 468171
+ 733501 string characters out of 5434472
+ 1252725 words of memory out of 5000000
+ 59027 multiletter control sequences out of 15000+600000
  701317 words of font info for 194 fonts, out of 8000000 for 9000
  929 hyphenation exceptions out of 8191
  86i,16n,106p,2887b,2414s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.dvi (99 pages, 543208 bytes).
+Output written on main.dvi (100 pages, 543468 bytes).

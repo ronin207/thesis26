@@ -127,7 +127,7 @@ on a message $\mathcal A$ never had signed, and by the black-box-transfer hypoth
 precompile substitution leaves PLUM's EU-CMA reduction unchanged, so
 $\mathsf{psk}^\star$ is a forgery against the unmodified scheme, which $\mathcal B$
 outputs.
-Writing $\epsilon_{\mathrm{EUF}}$ for PLUM's EU-CMA advantage bound,
+Writing $\epsilon_{\mathrm{EUF}}$ for PLUM's EU-CMA advantage bound (Definition~\ref{def:euf}),
 \[
   \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
   \le \epsilon_{\mathrm{EUF}}+\epsilon_{\mathrm{KS}}+\epsilon_{\mathrm{AIR}},
@@ -312,7 +312,7 @@ last-row output lanes decode to $s'$, and all of (i)--(iii) hold under $w$.
 \begin{theorem}[Specification-level AIR soundness]\label{thm:air-sound}
 Suppose the implemented chip, comprising the per-round chip together with its
 sibling controller chip, enforces the constraint set $\mathcal{C}$ analysed below. Then for every input $s\in\mathbb{F}_p^{4}$ and every trace $w$
-satisfying $\mathcal{C}$ with claimed output $s'$, we have $s'=\pi(s)$.
+satisfying $\mathcal{C}$ (Definition~\ref{def:air-sat}) with claimed output $s'$, we have $s'=\pi(s)$.
 Equivalently, $\mathcal{C}$ admits no satisfying trace whose committed output
 differs from the reference permutation.
 \end{theorem}

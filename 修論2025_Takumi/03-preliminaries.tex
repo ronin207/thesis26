@@ -700,7 +700,7 @@ Conditional linkability allows controlled linking only when the user intentional
 If no tag is disclosed, then linkability reduces to the unlinkability requirement above. The tag $\tau$ is chosen by the \emph{user} at showing time, not by the verifier; we assume an honest user does not reuse a tag across contexts they wish to keep unlinkable, and we treat verifier-induced linkability (a verifier that refuses service unless the user supplies a fixed $\tau$) as an out-of-scope deployment risk rather than a property of the scheme.
 
 \paragraph{Revocability.}
-Let $\RL$ be a revocation state represented by $\mathsf{rt}_{\RL,e}$. A showing is revocation-valid only if
+Let $\RL$ be a revocation state represented by the sparse-Merkle revocation root $\mathsf{rt}_{\RL,e}$ (Definition~\ref{def:merkle}). A showing is revocation-valid only if
 \[
   r_U=H_{\mathsf{rev}}(\pk_U)
   \quad\land\quad

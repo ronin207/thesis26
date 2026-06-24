@@ -229,7 +229,7 @@ Griffin arm, so the model places it behind the control for every non-negative
 choice of the per-cell rates, granted a common per-cycle core area across the
 two arms; the calibration of the model's constants on these two runs is
 reported with the cost model (\S\ref{ssec:costmodel}). The feasibility recovery and the inversion are
-the same inequality (Equation~\eqref{eq:precompile-pays}) evaluated at two
+the same inequality (Proposition~\ref{prop:precompile-pays}, Equation~\eqref{eq:precompile-pays}) evaluated at two
 operating points. The precompile bought a finite measurement, and the
 accounting prices why a speedup over the control was never available: against a
 control whose hash costs the substrate no chip area at all, the Griffin arm
@@ -752,7 +752,7 @@ as a numeric crossover that favours the zkVM.
 \subsection{Update Churn}\label{ssec:churn-eval}
 
 Table~\ref{tab:churn} enumerates the regeneration footprint of
-Definition~\ref{def:update-churn} for the three localised changes of
+Definition~\ref{def:update-churn} for the three localised verification-predicate changes (Definition~\ref{def:lpc}) of
 \S\ref{ssec:update-churn}, using $\phi_1\!\to\!\phi_2$
 (par.~\ref{par:phi-examples}) as the presentation-change instance. Here
 $\phi_1\!\to\!\phi_2$ is a presentation-\emph{structure} change: it moves the

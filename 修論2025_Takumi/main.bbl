@@ -537,6 +537,14 @@ A.~Gabizon, Z.~J. Williamson,  and O.~Ciobotaru, ``{PLONK}: Permutations over
   \url{https://eprint.iacr.org/2019/953}
 \BIBentrySTDinterwordspacing
 
+\bibitem{cryptoeprint:2026/683}
+\BIBentryALTinterwordspacing
+R.~Dalal, T.~Hemo, E.~Rabinovich,  and R.~Rothblum, ``{VEIL}: Lightweight
+  zero-knowledge for hash-based multilinear proof systems,'' Cryptology
+  {ePrint} Archive, Paper 2026/683, 2026. [Online]. Available:
+  \url{https://eprint.iacr.org/2026/683}
+\BIBentrySTDinterwordspacing
+
 \bibitem{ethstark}
 \BIBentryALTinterwordspacing
 {StarkWare Team}, ``{ethSTARK} documentation,'' Cryptology {ePrint} Archive,
