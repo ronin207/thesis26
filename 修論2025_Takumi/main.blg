@@ -1,0 +1,69 @@
+This is upBibTeX, Version 0.99e-j0.36-u2.02 (utf8.euc) (TeX Live 2026)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: jieeetran.bst
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 150 items from 100.
+Reallocated singl_function (elt_size=4) to 200 items from 150.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 150 items from 100.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 9000 items from 6000.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 150 items from 100.
+Database file #1: ref.bib
+-- jIEEEtran.bst 0.18 (2022/03/26) by Haruki Ejiri and Yoshi Ri.
+-- https://github.com/ehki/jIEEEtran/
+-- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information for IEEEtran.bst.
+-- See also "howtouse.pdf" manual for usase information for jIEEEtran.bst and IEEJtran.bst.
+
+Done.
+You've used 68 entries,
+            6239 wiz_defined-function locations,
+            1657 strings with 27881 characters,
+and the built_in function-call counts, 62780 in all, are:
+= -- 9697
+> -- 1058
+< -- 197
++ -- 569
+- -- 225
+* -- 2214
+:= -- 7579
+add.period$ -- 156
+call.type$ -- 68
+change.case$ -- 189
+chr.to.int$ -- 474
+cite$ -- 68
+duplicate$ -- 3681
+empty$ -- 4092
+format.name$ -- 723
+if$ -- 16578
+int.to.chr$ -- 0
+int.to.str$ -- 68
+missing$ -- 738
+newline$ -- 337
+num.names$ -- 68
+pop$ -- 2098
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 4
+skip$ -- 6936
+stack$ -- 0
+substring$ -- 1231
+swap$ -- 2431
+text.length$ -- 39
+text.prefix$ -- 0
+top$ -- 6
+type$ -- 68
+warning$ -- 0
+while$ -- 147
+width$ -- 70
+write$ -- 811
+is.kanji.str$ -- 159

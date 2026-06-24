@@ -1,0 +1,38 @@
+% Shared house style for all thesis TikZ figures.
+% Aesthetic: grayscale + a single orange accent (matches the reference zkVM
+% figures: RISC Zero pipeline, ePrint 2023/1032 Fig.1). Prints cleanly in B&W.
+% Usage in a standalone fig:  \input{figstyle.tex}  inside the preamble,
+%   then \begin{tikzpicture}[fig] ... or use the named styles below.
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc,matrix}
+
+% --- accent + neutral palette (single accent = orange; rest grayscale) ---
+\definecolor{accent}{RGB}{210,120,30}    % orange accent (sparingly)
+\definecolor{accentbg}{RGB}{250,238,224}  % pale accent fill
+\definecolor{ink}{RGB}{40,40,40}
+\definecolor{box1}{RGB}{244,244,244}      % light gray fill
+\definecolor{box2}{RGB}{228,228,228}      % mid gray fill
+\definecolor{hdrgray}{RGB}{90,90,90}      % table-header gray
+
+\tikzset{
+  fig/.style={font=\small, >={Stealth[length=2mm]}, line cap=round},
+  % generic node boxes
+  fbox/.style={draw=ink!70, rounded corners=2pt, fill=box1,
+               minimum height=8mm, inner xsep=4pt, align=center},
+  fbox2/.style={fbox, fill=box2},
+  facc/.style={draw=accent, rounded corners=2pt, fill=accentbg,
+               minimum height=8mm, inner xsep=4pt, align=center},
+  io/.style={fbox, fill=white, minimum width=22mm},
+  % witness-table matrix (chips-as-tables, 2023/1032 idiom)
+  ftbl/.style={matrix of nodes,
+    nodes={font=\scriptsize, minimum height=4.4mm, inner xsep=3pt, anchor=center, text=ink},
+    row 1/.style={nodes={fill=hdrgray, text=white, font=\scriptsize\bfseries}},
+    row sep=-\pgflinewidth, column sep=-\pgflinewidth,
+    nodes in empty cells, draw=ink!45, inner sep=0pt},
+  ftitle/.style={font=\bfseries\small, align=center, text=ink},
+  % relation arrows (dashed = lookup, double = permutation -- the paper convention)
+  flow/.style={->, thick, ink!55},
+  look/.style={->, dashed, ink!60, thick},          % lookup relation
+  perm/.style={<->, ink!60, thick},                  % permutation relation
+  accarrow/.style={->, thick, accent},               % accent flow (the "this work" path)
+  fnote/.style={font=\scriptsize\itshape, text=ink!55, align=left},
+}

@@ -28,6 +28,7 @@
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{example}[theorem]{Example}
 \newtheorem{construction}{Construction}
+\newtheorem{assumption}{Assumption}[section]
 
 % Remark environments (upright text, smaller spacing)
 \theoremstyle{remark}
@@ -93,9 +94,8 @@
 % 論文の表紙の項目
 %
 %\thesistype{令和6年度 修士論文}
-\date{, 2026}
-\title{Future-Proofing Verifiable Credentials: Quantifying the Performance Tax of Cryptographic Agility in Post-Quantum Anonymous Credentials}
-% todo: 英語版タイトルの変更
+\date{20 July, 2026}
+\title{Locating the Deployability Wall for Post-Quantum Anonymous Credentials in General-Purpose zkVMs}
 \etitle{A Thesis Submitted to the Department of Computer Science and Communications Engineering, the Graduate School of Fundamental Science and Engineering of Waseda University in Partial Fulfillment of the Requirements for the Degree of
 Master of Engineering}
 \titlesize{24truept}
@@ -112,7 +112,7 @@ Master of Engineering}
     
     %概要
     \begin{coverabstract}
-       Post-quantum anonymous credentials need a signature whose verification can be proved in zero knowledge. We ask whether one such scheme, the algebraic-hash PLUM signature, can be verified inside a general-purpose zero-knowledge virtual machine on a consumer machine, and we report a frontier result with a clear sign. Without a custom precompile, a single PLUM verification exhausts memory on $24$~GB and cannot be proved at all. With a bespoke large-field Griffin-$\mathbb{F}_p^{192}$ precompile that removes the field-emulation tax, the same verification is proved in $32.5$ minutes on SP1 at the $80$-bit setting, the largest that completes within the memory bound; the paper's $128$-bit setting does not terminate, which is itself part of the frontier. Feasibility for the standalone signature is therefore reached, but the binding constraint then moves up the stack. The zero-knowledge wrap that anonymity requires exhausts memory at $24$~GB, and the only wrap that fits is pairing-based and so not post-quantum. Deployable post-quantum anonymous credentials are not reached on this stack, and we locate exactly where the wall sits and what would move it. The proof we run is a succinct receipt and is not itself zero-knowledge. We also report update churn for both regimes; its wall-clock cost is sub-second against a transparent non-preprocessing argument, so the recompile burden does not separate the two substrates and survives only as a re-audit footprint argument conditional on the preprocessing model. We measured each substrate on consumer hardware (Apple M5~Pro, $24$~GB), against a Loquat-instantiated Aurora static-circuit reference.
+       Post-quantum anonymous credentials need a signature whose verification can be proved in zero knowledge. We ask whether the algebraic-hash PLUM signature can be verified inside a general-purpose zero-knowledge virtual machine on a consumer machine (Apple M5~Pro, $24$~GB), against a Loquat-instantiated Aurora static circuit as the reference. Without a custom precompile, a single PLUM verification does not complete on this machine: it exhausts memory under default settings and does not terminate within three hours under memory tuning. We build a Griffin-$\mathbb{F}_p^{192}$ precompile that removes the field-emulation tax. With it, the same verification is proved in $14.89$ to $32.5$ minutes (build- and machine-state-sensitive; Section~\ref{sec:evaluation}) on SP1 at the $80$-bit setting, under a documented reduced-memory configuration. The figure is conditional on the constraint-level soundness of the bespoke chip, whose per-row layer we prove and whose lookup-borne remainder we carry as an open premise; the paper's $128$-bit setting is untested and expected to exceed the memory budget. Feasibility for the standalone signature is therefore reached on this hardware. The binding constraint then moves up the stack. The receipt this proving produces is succinct and carries no zero-knowledge guarantee, the zero-knowledge wrap that anonymity requires exhausts memory before it completes, and the only wraps the toolchain offers are pairing-based and so not post-quantum. These walls are measured at the standalone verification, the cheapest relation in the credential system, and every BDEC relation contains it, so deployable post-quantum anonymous credentials are not reached on this stack. Both BDEC relations are themselves proved in succinct, non-zero-knowledge mode on SP1 (credential generation in about $27$--$31$ minutes, presentation in about $40$--$44$ minutes), so the wall is the zero-knowledge wrap rather than the base proof. The static reference, with zero knowledge enabled, produces a post-quantum zero-knowledge proof of its single-verification building block in about $22$ minutes (mean of three runs, $21.4$--$22.9$) on the same machine. We locate where the wall sits and what would move it. We also measure update churn in both regimes. Against the transparent, non-preprocessing Aurora baseline the recompile cost is sub-second and the advantage survives only as a regeneration-and-re-audit footprint; against a preprocessing baseline (Fractal) the advantage is real, the per-circuit indexing itself exceeding the memory budget at the BDEC size.
     \end{coverabstract}
     \newpage
     

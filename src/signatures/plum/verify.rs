@@ -18,9 +18,8 @@
 //!     residuosity loop checks `o_{i,j} ≠ 0 ∧ L_0^t(o_{i,j}) =
 //!     pk_{I_{i,j}} + T_{i,j}` for every (i,j) ∈ [m] × [n].
 //!
-//! ## What this implementation covers vs. defers
+//! ## What this implementation covers
 //!
-//! **Covered**:
 //!   - Step 1 in full (FS replay through Phase 5).
 //!   - Step 2 (Alg 6 lines 4-12) at the *algebraic-identity* level:
 //!     for every FS-derived query point `s ∈ U_0`, the verifier
@@ -32,41 +31,33 @@
 //!           query points and verified at the remaining `κ_0 − |H|`.
 //!       (b) The BCRSVW sumcheck identity `Σ_{a ∈ H} g̃(a) = z·µ + S`
 //!           with `µ = Σ_j ε_j · Σ_i λ_{i,j} · o_{i,j}` (Alg 6 line 11).
+//!   - Step 3 STIR low-degree / proximity test (Alg 6 lines 13–18).
+//!     The STIR-fold-consistency loop opens each round's `â_i|_{U_i}`
+//!     fibers under `stir_roots[i]` via Merkle paths, recomputes the
+//!     folded `f̂_i`, and the final-polynomial fiber check (this file
+//!     ~657–782) verifies `sig.final_coefs` against the η-point fiber
+//!     interpolation at the `r_i^fin` query points, rejecting via
+//!     `FinalPolynomialMismatch`. This is tamper-tested
+//!     (`verify_rejects_tampered_stir_a_opening_leaf` and the other
+//!     `verify_rejects_tampered_*` negative tests below).
 //!   - Step 3 residuosity check (Alg 6 line 21): for every `(i,j)`,
 //!     `o_{i,j} ≠ 0 ∧ L_0^t(o_{i,j}) = pk_{I_{i,j}} + T_{i,j} (mod 256)`.
 //!
-//! **Deferred**: STIR-verification portion of Step 3 (Alg 6 lines
-//! 13–18). Requires per-round Merkle openings of `â_i|_{U_i}` at the
-//! `κ_i` shift points and the final-poly check against `coefs`.
-//!
-//! ## Security caveat
+//! ## Security caveat (open premise)
 //!
 //! Per the paper §3.2 (p. 118) EUF-KO reduction (Theorem 1), the
 //! soundness argument routes through the *full* IOP — sumcheck +
-//! STIR + residuosity. With STIR proximity testing still deferred,
-//! the EUF-KO reduction does NOT close: a forger who commits to
-//! *non-low-degree* `c̃'_j, ŝ, ĥ : U_0 → F_p` (rather than evaluations
-//! of polynomials of the asserted degree) could in principle
-//! construct openings that pass the Merkle, residuosity, and
-//! sumcheck-identity checks. The paper's `b`-boundedness
-//! (`Pr[X+Y+Z=B]` bound) requires the STIR proximity test to
-//! constrain the prover to low-degree witnesses.
+//! STIR + residuosity. All three checks are implemented here, so the
+//! reference (out-of-circuit) verifier exercises the complete IOP.
 //!
-//! What this commit DOES add over the prior residuosity-only verify:
-//!   - Strong cross-position binding between the σ_2 responses,
-//!     committed polynomials, and the FS challenges. A naïve forger
-//!     who sampled `o_{i,j}` per-position to match residuosity (the
-//!     ~`B · t = 2¹³` attack against the prior partial verify) now
-//!     has to ALSO commit consistent `(c̃'_j, ŝ, ĥ)` Merkle roots
-//!     whose openings pass the sumcheck identity at FS-derived query
-//!     points.
-//!   - Detection of any tampering with the committed polynomial
-//!     values via Merkle path verification.
-//!
-//! Treat an `Accept` from this implementation as: "the signature
-//! passes everything Algorithm 6 checks except the STIR proximity
-//! test." For deployment-grade EUF-CMA security, the STIR portion
-//! (Phase 9c, follow-up commit) must land.
+//! What remains open is NOT a missing check but an unproven
+//! constraint-soundness assumption for the in-circuit instantiation:
+//! full EUF-KO closure additionally rests on the soundness of the
+//! Griffin-AIR gadget that realizes the hash inside the proof system
+//! (i.e. that the in-circuit Griffin permutation cannot be satisfied
+//! by an off-specification trace). That gadget-soundness argument is
+//! not yet established; until it is, the end-to-end EUF-KO/EUF-CMA
+//! claim is conditional on that assumption rather than fully closed.
 
 use core::sync::atomic::Ordering as AtomicOrdering;
 

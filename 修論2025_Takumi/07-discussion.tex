@@ -11,8 +11,33 @@ The measurements of Section~\ref{sec:evaluation} and the security analysis of
 Section~\ref{sec:security} together answer the question this thesis set out to
 ask. That question concerns whether a general-purpose zkVM is a viable
 substrate for post-quantum anonymous credentials, and at what cost, rather than
-how fast the zkVM runs in isolation. This section interprets the answer as
-guidance a deployer can act on.
+how fast the zkVM runs in isolation. We begin with the sharpest of these
+findings, the security--deployability tension, then turn the surrounding cost
+picture into guidance a deployer can act on.
+
+\subsection{The Security--Deployability Tension}\label{ssec:tension-discussion}
+
+The sharpest finding is the tension of
+Section~\ref{sec:security}, which outweighs any single timing figure. On the
+target hardware at $\lambda=80$, the proof that is feasible to generate is not
+zero-knowledge, and the proof that is zero-knowledge, the one BDEC's anonymity
+guarantee requires, is not feasible to generate within the memory budget. A
+deployer who needs anonymity on commodity hardware today cannot, on the evidence
+here and with the current toolchain versions, have it for this workload. That
+statement is scoped to the zkVM stack: the static-circuit regime produces a
+zero-knowledge post-quantum proof of the Loquat single-verification building block in
+about $22$ minutes (mean of three runs, $21.4$--$22.9$) on the same machine
+(\texttt{docs/measurements/audit5\_campaign\_20260612}), at the per-change
+regeneration cost this section weighs. More
+memory would clear the resource obstruction without restoring the post-quantum
+anonymity that motivates the construction, for the substrate-specific reasons
+established in Section~\ref{sec:security}.
+Recovering it requires a post-quantum-sound zero-knowledge wrap, a STARK- or
+lattice-based recursive argument, which the toolchains do not yet provide. We
+locate this obstruction along two axes at once, resource and primitive, and it
+holds independently of how favourable our timing numbers are and of the open
+AIR-soundness Assumption~\ref{asm:air}, which conditions the feasibility figure rather than
+the obstruction (Section~\ref{sec:security}).
 
 \subsection{A Substrate-Selection Rule}\label{ssec:decision}
 
@@ -51,18 +76,23 @@ has no wall-clock flexibility advantage. The flexibility claim we can defend is
 the \emph{qualitative} regeneration-and-re-audit footprint of
 Table~\ref{tab:churn} (zero on the zkVM side, $\geq 1$ on the static side per
 change), which is an engineering-and-assurance cost paid by humans, not prover
-time. A wall-clock advantage would require a \emph{preprocessing} baseline such
-as Groth16, Marlin, or circuit-specific PLONK; the transparent Aurora that BDEC
-uses does not offer one. This zero-regeneration property is partitioned rather
+time. A wall-clock advantage appears only against a \emph{preprocessing}
+baseline, as Section~\ref{sec:evaluation} measures for the transparent
+preprocessing argument Fractal (Table~\ref{tab:rstatic-fractal}), whose
+per-circuit indexer takes $0.86$--$18.5$~s at small synthetic sizes and is
+itself OOM-killed at the BDEC circuit size on $24$~GB, and as would hold in
+principle for Groth16, Marlin, or circuit-specific PLONK; the non-preprocessing
+Aurora that BDEC uses does not offer one. This zero-regeneration property is partitioned rather
 than absolute. A change confined to the verification predicate is a guest-program
 edit that reuses the existing universal relation, but a change to the hash family
 or to the field width still regenerates and re-audits the bespoke
 Griffin-Fp192 precompile, so the decision rule applies to predicate churn and
 not to substrate-level changes of the signature itself. What the cost model
 licenses is limited: it fixes the \emph{form} of the rule and the \emph{sign}
-of every term, but not the numeric location of the crossover, which requires a
-same-scheme static prover time we do not yet have
-(\S\ref{sssec:crossover}). So the rule gives directional guidance, telling a
+of every term, but not the numeric location of the crossover for PLUM, which
+requires a same-scheme static prover time we do not yet have at PLUM's field
+width (\S\ref{sssec:crossover}); the Loquat counterpart is measured in the next
+paragraph. So the rule gives directional guidance, telling a
 deployer which side a high- or low-churn deployment lies on without yet handing
 them a numeric threshold to evaluate.
 
@@ -71,33 +101,19 @@ them a numeric threshold to evaluate.
 (Tables~\ref{tab:plum-verify}--\ref{tab:bdec}), and the structural form of the
 static circuit's update cost is enumerated (Table~\ref{tab:churn}). The static circuit's recompile
 \emph{time} is now measured ($R_{\mathsf{static}}\approx 0.3$~s, \S\ref{ssec:churn-eval})
-and is sub-second because Aurora is non-preprocessing; the term the rule still
-lacks is therefore a \emph{same-scheme} per-proof prover time, our static point
-being Loquat and our zkVM point PLUM. Until that is available, the crossover is
-bounded in form but not located in wall-clock. We conjecture, but have not
-measured, that a same-scheme circuit-SNARK prover for PLUM over its $199$-bit field
-would remain below the zkVM's per-proof cost. Both the larger field and the
-substitution of PLUM for Loquat are uncontrolled across our measured point pair
-(static Loquat-$\mathbb{F}_{p^2}$ versus zkVM PLUM-$\mathbb{F}_{p^{199}}$), so the
-sign of a same-scheme comparison is unverified, not only its numeric location.
-Confirming it requires the same-scheme measurement we lack.
-
-\subsection{The Security--Deployability Tension}\label{ssec:tension-discussion}
-
-The sharpest finding is the tension of
-Section~\ref{sec:security}, which outweighs any single timing figure. On the
-target hardware at $\lambda=80$, the proof that is feasible to generate is not
-zero-knowledge, and the proof that is zero-knowledge, the one BDEC's anonymity
-guarantee requires, is not feasible to generate within the memory budget. A
-deployer who needs anonymity on commodity hardware today cannot, on the evidence
-here and with the current toolchain versions, have it for this workload. More
-memory would clear the resource obstruction, but the only wraps the deployed
-pipeline exposes are pairing-based and therefore not post-quantum, so they would
-not restore the post-quantum anonymity that motivates the construction.
-Recovering it requires a post-quantum-sound zero-knowledge wrap, a STARK- or
-lattice-based recursive argument, which the toolchains do not yet provide. We
-locate this obstruction along two axes at once, resource and primitive, and it
-holds independently of how favourable our timing numbers are.
+and is sub-second because Aurora is non-preprocessing; the remaining term is a
+\emph{same-scheme} per-proof prover time on both substrates. For \emph{Loquat} we
+now measure it directly: at single-verification scope, $\lambda=80$, with neither
+side zero-knowledge, the static Aurora circuit proves in $3.76$~min against
+$44$--$64$~min for the zkVM across three runs each
+(Table~\ref{tab:loquat-substrate}), so on this clean
+single-axis comparison the zkVM is the dearer per-proof substrate by
+$12$--$17\times$; the sign of the crossover for Loquat is therefore fixed, with
+the static circuit the cheaper prover. For PLUM the sign remains a conjecture: PLUM
+over its $199$-bit field has no Aurora harness (the harness is $127$-bit only), so
+we cannot yet repeat the measurement on the thesis's headline scheme. We expect the
+same direction, and the Loquat measurement is direct evidence for it, but we have
+not measured PLUM.
 
 \subsection{What Generalises and What Does Not}\label{ssec:generalise}
 
@@ -123,7 +139,9 @@ the record. For predicate-change cost, Table~\ref{tab:churn} fixes its structura
 form (zero regenerations on the zkVM side against $\geq 1$ per change on the
 static side) and \S\ref{ssec:churn-eval} bounds its wall-clock magnitude; for the
 frontier, \S\ref{ssec:resource-frontier} locates the binding constraint as the
-zero-knowledge wrap rather than the base proof. Where our per-proof timings
+zero-knowledge wrap rather than the base proof as built and measured (the
+base-proof cost is the honest-path cost of the chip and carries
+Assumption~\ref{asm:air}). Where our per-proof timings
 overlap the existing record, they agree in order of magnitude with the
 hitherto-qualitative observation that algebraic-hash workloads are expensive
 inside small-field zkVMs, now quantified at the verification level

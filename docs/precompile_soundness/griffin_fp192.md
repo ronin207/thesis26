@@ -1,5 +1,15 @@
 # Soundness note — Custom `GRIFFIN_FP192_PERMUTE` precompile for the Griffin permutation over PLUM's prime field
 
+> **Reconciliation note (2026-06-05).** This document was written incrementally and
+> some body sections below were authored as a *pre-stage-3 rubric*, contradicting the
+> header. They have been corrected against the actual chip source
+> (`submodules/sp1/crates/core/machine/src/syscall/precompiles/griffin_fp192/air.rs`,
+> 1,938 lines, 57 `FieldOpCols`/polynomial-constraint cells, `included()` events-gated):
+> **stage-3 is landed and the B-1..B-10 constraints are implemented and active.** The
+> single genuine open soundness item is the constraint-level *rejection direction* (does
+> the AIR reject a malformed Griffin trace? = property (d) / premise T2), which the
+> 2026-06-05 fault-injection test exercises and a future machine-check would finish.
+
 **Deliverable:** the "Griffin permutation" module of the thesis's
 three-precompile suite, as built for the SP1 zkVM target. This is the
 *load-bearing* precompile of the suite — PLUM §4.2's R1CS
@@ -84,11 +94,15 @@ guest side.
    round constants, d=3 S-box, 4×4 MDS matrix, 14 rounds for PLUM's
    parameters.
 
-6. **AIR chip (stage-3, TO BE WRITTEN)** at
-   `submodules/sp1/crates/core/machine/src/syscall/precompiles/griffin_fp192/`.
-   Currently a skeleton: `included() = false`, single trivial
-   `assert_bool(is_real)` constraint. Stage-3 lands the real
-   per-round constraints.
+6. **AIR chip (stage-3, LANDED 2026-05-19/20)** at
+   `submodules/sp1/crates/core/machine/src/syscall/precompiles/griffin_fp192/air.rs`.
+   Verified against source 2026-06-05: 1,938 lines, 57 `FieldOpCols`/
+   polynomial-constraint cells implementing B-1 through B-10, plus
+   `controller.rs` (memory binding) and `poly_populate.rs` (trace gen).
+   `included()` (air.rs:1623) is events-gated, not hardcoded `false`:
+   it activates whenever a `GRIFFIN_FP192_PERMUTE` event is present
+   (modulo the TrustMode gate). The earlier "skeleton / `included()=false`"
+   description was the pre-stage-3 state and is superseded.
 
 ## Trust model
 
@@ -489,16 +503,14 @@ with the lookup-balance argument that binds them on
 `is_first_round` and `is_last_round` rows, every row's clk/ptr is
 tied to the controller's single row.
 
-**Still pending (integration-C):**
+**Integration-C — LANDED (verified 2026-06-05):**
 
-  - Trace generation for the per-round chip (populates all 12
-    column families × 14 rows × N syscalls). Most columns use
-    `FieldOpCols::populate*`; B-3 and B-4 use
-    `eval_with_polynomials` and need manual
-    `populate_carry_and_witness`.
-  - Flipping `included()` to `true` on both chips when there are
-    `GRIFFIN_FP192_PERMUTE` events.
-  - First Cell 2 prove attempt.
+  - Trace generation for the per-round chip is implemented
+    (`poly_populate.rs` + `generate_trace_into` at air.rs:1165).
+  - `included()` is events-gated and active (air.rs:1623), not forced
+    `false`.
+  - Cell 2 prove completed: 32.53 min on M5 Pro 24 GB, 2026-05-20
+    (see `docs/sp1_plum_cell2_measurement.md`).
 
 - Failure mode (closed by B-7b): chip reads from wrong address; chip
   claims a write was at clk `c` but actually fired at clk `c'`.
@@ -662,9 +674,18 @@ not a substitute for stage-3's structural proof of `chip ≡ executor`.**
 
 ## What this argument does NOT cover
 
-- **Constraint-level verification of stage-3.** Stage-3 doesn't
-  exist. The B-1 to B-10 checklist above is what stage-3 needs to
-  satisfy; until stage-3 lands, this is a rubric, not an argument.
+- **Constraint-level *correctness* — the rejection direction.**
+  Stage-3 exists: B-1 to B-10 are implemented and active (verified
+  against `air.rs`, 2026-06-05). What is NOT yet established is that the
+  AIR *rejects* a malformed Griffin trace, i.e. that the constraint
+  system admits ONLY the reference permutation (property (d), premise
+  T2). The cross-codebase suite tests the POSITIVE direction
+  (executor ≡ reference on 256 vectors); it does not run the
+  constraints on a deliberately-malformed trace. The 2026-06-05
+  fault-injection test (`griffin_fp192_fault_injection.rs`) exercises
+  this rejection direction directly; a full machine-check (e.g. via the
+  Nethermind formal-verification line, since SP1's prover is Plonky3)
+  remains future work.
 
 - **QROM analysis for our Griffin parameters (T5).** Upstream of the
   AIR. A thesis-level claim that needs to be verified against the
@@ -688,7 +709,7 @@ not a substitute for stage-3's structural proof of `chip ≡ executor`.**
 | (a) Reference Griffin spec correct | UPSTREAM-TRUSTED | Griffin paper + PLUM §4.2. (T5 caveat above re: QROM.) |
 | (b) Executor compute ≡ reference compute | EMPIRICALLY TESTED | 256 random vectors + 3 hand-picked + modulus check. |
 | (c) Modulus, d, round count, MDS matrix, SHAKE seed string drift detection | PAPER-AUDITED + EMPIRICALLY TESTED | Module-doc constants quoted from spec; tests pin values. |
-| (d) Chip ≡ executor (witness ≡ constraint) | **UNVERIFIED — stage-3 deliverable** | This is the work. |
+| (d) Chip ≡ executor (witness ≡ constraint) | **STAGE-3 LANDED; rejection-direction DEMONSTRATED on the algebraic surface** | B-1..B-10 implemented + active (air.rs, verified 2026-06-05). Positive direction: 256 vectors (executor ≡ reference). Rejection direction: fault-injection test `griffin_fp192/fault_injection.rs` (run + independently re-run 2026-06-05) — positive control passes (valid trace → 0 failing rows), and 4/4 single-limb corruptions of B-1/B-3/B-4/B-5 result cells each yield exactly 1 failing row at the field-op vanishing constraint. SCOPE: `debug_constraints` checks per-row ALGEBRAIC constraints only, NOT cross-table lookups / memory binding (B-7); a full audit needs lookup-direction fault injection (full prover path) + a constraint-level machine-check. |
 | (e) AIR memory binding | MOSTLY IMPLEMENTED | Two-chip architecture + columns + constraint logic + trace generation all landed (B-7a + B-7b). Cross-chip lookup with per-round chip pending integration commit. |
 | (f) Output canonicality (per-lane `< p`) | IMPLEMENTED | B-8 landed with FieldLtCols per lane. Closes audit finding A-1 and the cross-precompile contract from uint256_mul_for_fp192.md. |
 | (g) Parameter immutability | PARTIALLY IMPLEMENTED | `Fp192FieldParams::MODULUS` + `NB_ROUNDS` constants landed (B-10). α/β/RC preprocessing tables land with B-5. |

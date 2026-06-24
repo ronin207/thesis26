@@ -69,6 +69,7 @@ PLUM's cost sit on the spectrum?**
 |-----------------------------------------------------------|---------------------------:|-----------------|
 | ECDSA-secp256k1                                           |              **13.6 sec**  | bench_pqc, 2026-05-22 |
 | PLUM-80 + Griffin precompile (Cell 2)                     |              **32.5 min**  | plum_host, 2026-05-20 |
+| PLUM-80 + Griffin precompile (Cell 2), re-measured        |  **14.89 min**, peak RSS **18.67 GB** | plum_host, 2026-06-18, clean machine; verify OK; ~5.3 GB headroom vs 24 GB. ⚠ 2.2× faster than 2026-05-20, cause unverified |
 | PLUM-80 + SHA-3 (Cell 3 control)                          |              **13.3 min**  | plum_host, 2026-05-21 |
 | PLUM-80 rv32im Griffin (Cell 1)                           |              **DNF**       | 2 failed attempts (OOM 1 m 45 s, non-term 3 h 6 m); projects to ~30 h linearly |
 | SHA-2-2048 (RISC0)                                        |              0.54 s        | cited Fenbushi 2025 |
@@ -79,6 +80,25 @@ anchors are below PLUM Cell 2 by 2–6 orders of magnitude, which by
 linear-scaling-with-cycles projects them well into the seconds
 regime; the structural picture is established by the execute
 anchors. Adding their proves to the table is a follow-up.)
+
+### Peak memory and the 24 GB budget (2026-06-18)
+
+Cell 2 prove peaks at **18.67 GB resident** on a clean machine and
+completes, leaving roughly **5.3 GB of headroom** under the 24 GB
+bound. Two consecutive runs pin the binding metric: with heavy apps
+open the prove was OOM-killed at ~5 min (resident truncated at 8.25 GB,
+`/usr/bin/time -l` footprint 85.5 GB); with apps closed it completed at
+18.67 GB resident (footprint 90.7 GB). The higher footprint on the run
+that *succeeded* shows the macOS "peak memory footprint" figure is not
+the binding constraint — resident set versus free physical RAM is. The
+24 GB fit therefore holds only on an uncluttered machine, a real
+qualifier for a consumer-hardware claim.
+
+⚠ **Open discrepancy / coherence flag.** The 2026-06-18 re-measurement
+of Cell 2 prove (14.89 min) is 2.2× faster than the 2026-05-20 figure
+(32.5 min); the cause is unverified (machine state, code change, or SP1
+version). The thesis-facing quote below still cites "32.5 min" twice —
+reconcile before quoting either number.
 
 ## The structural picture
 
@@ -118,15 +138,29 @@ anchors. Adding their proves to the table is a follow-up.)
 ### Cross-cited literature anchors
 
 - **Fenbushi Capital, *Benchmarking zkVMs: Current State and Prospects***,
-  Medium, 2026-06-18. Reports on RISC0 with appropriate precompiles:
+  Medium, 2025-06-18. Reports on RISC0 with appropriate precompiles:
   SHA-2-2048 = 0.54 s, ECDSA-secp256k1 = 1.0 s, Fibonacci-100k = 3.4 s
-  on SP1 GPU. Our SP1 measurement on M5 Pro 24 GB (CPU only) sits in
-  the same regime for the classical anchor (ECDSA = 13.6 s).
+  on SP1 GPU. The article's central observation — *that performance
+  depends heavily on which precompiles are available, and custom
+  precompiles are recommended for specialised workloads* — is the
+  setup against which this thesis's contribution is positioned. We
+  measure the SAME phenomenon (precompile-dependent cost) on a
+  workload class Fenbushi did not cover: a post-quantum credential
+  primitive structurally mismatched to the zkVM's native field.
+  Our SP1 measurement on M5 Pro 24 GB (CPU only) sits in the same
+  regime for the classical anchor (ECDSA = 13.6 s).
 - **PLUM paper §4.2** (DOI 10.1007/978-981-95-2961-2_6): reports
   116,285 R1CS constraints for PLUM-128 verify in circuit-SNARK
   arithmetisation, 91.1 % of which are Griffin permutations. Our
-  37 M AIR-chip trace cells per PLUM-80 verify
-  (`33 cells × 14 rounds × 1052 syscalls`) is the AIR-side analogue.
+  AIR-chip trace cells per PLUM-80 verify is the AIR-side analogue.
+  **[TODO: reconcile cell-count formula.** Current text claimed
+  "37 M AIR-chip trace cells per PLUM-80 verify (33 cells × 14 rounds
+  × 1052 syscalls)" but 33 × 14 × 1052 = 486,024, off by ~76×. Either
+  the headline 37 M is wrong, or the formula is missing a factor
+  (likely a rows-per-permutation multiplier ≈ 76 that the current
+  formula collapses). Verify against the Griffin Fp192 chip
+  implementation in `platforms/zkvms/sp1/.../griffin_fp192.rs` before
+  citing this number in the thesis. **]**
 
 ## Reproducer (all four schemes, execute mode)
 

@@ -1,0 +1,54 @@
+% Generic zkVM architecture — the 3-layer decomposition from the zkVM SoK
+% (ePrint 2026/525: execution layer / arithmetization (VM circuits) / proof layer),
+% drawn in the chips-as-tables idiom of ePrint 2023/1032 Fig.1. Situates WHERE this
+% thesis's precompile + PLUM guest sit, and where the field-mismatch tax arises.
+% Compile: pdflatex zkvm_architecture.tex
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usepackage{newtxtext,newtxmath}
+\input{figstyle.tex}
+\begin{document}
+\begin{tikzpicture}[fig,node distance=6mm]
+
+% ===== Layer 1: execution =====
+\node[io] (prog) {guest program\\\scriptsize (PLUM Verify / BDEC)};
+\node[fbox,right=10mm of prog] (exec) {Executor (rv32im)\\\scriptsize emit execution trace};
+\node[fbox2,below=5mm of exec,minimum width=40mm] (trace) {execution trace\\\scriptsize $(\mathsf{clk},\mathsf{pc},\mathsf{instr},\ldots)$ rows};
+
+% ===== Layer 2: arithmetization (VM circuits = chips) =====
+\node[fbox,right=22mm of exec,minimum width=24mm] (cpu) {CPU chip};
+\node[facc,below=4mm of cpu,minimum width=24mm] (pre) {precompile chips\\\scriptsize \textbf{Griffin-$\mathbb{F}_p^{192}$} (this work)\\\scriptsize $+$ bigint, byte-range};
+\node[fbox,above=4mm of cpu,minimum width=24mm] (mem) {memory chip};
+
+% ===== Layer 3: proof =====
+\node[fbox,right=20mm of cpu,minimum width=22mm] (commit) {commit\\\scriptsize (Merkle / FRI)};
+\node[fbox,right=6mm of commit,minimum width=20mm] (piop) {PIOP\\\scriptsize sumcheck/STIR};
+\node[fbox2,right=6mm of piop,minimum width=18mm] (rcv) {recursion\\$+$ wrap};
+\node[io,right=6mm of rcv] (receipt) {receipt};
+
+% ----- flows -----
+\draw[flow] (prog) -- (exec);
+\draw[flow] (exec) -- (trace);
+\draw[flow] (trace.east) -- ++(6mm,0) |- (cpu.west);
+\draw[flow] (cpu) -- (commit);
+\draw[flow] (commit) -- (piop);
+\draw[flow] (piop) -- (rcv);
+\draw[flow] (rcv) -- (receipt);
+% chips bound to CPU by lookups/permutations (the paper convention)
+\draw[look] (pre.north) -- node[fnote,right,pos=0.35]{lookup} (cpu.south);
+\draw[perm] (mem.south) -- (cpu.north);
+
+% ----- layer brackets -----
+\begin{scope}[on background layer]
+  \node[fit=(prog)(exec)(trace),draw=ink!35,rounded corners,inner sep=6pt,label={[ftitle,text=ink!70]above:1. Execution layer}]{};
+  \node[fit=(mem)(cpu)(pre),draw=ink!35,rounded corners,inner sep=8pt,label={[ftitle,text=ink!70]above:2. Arithmetization (VM circuits)}]{};
+  \node[fit=(commit)(piop)(rcv)(receipt),draw=ink!35,rounded corners,inner sep=6pt,label={[ftitle,text=ink!70]above:3. Proof layer}]{};
+\end{scope}
+
+% ----- the thesis annotation: where the field-mismatch tax lives -----
+\node[fnote,below=10mm of pre,align=center,text=accent]
+  {\textbf{Field-mismatch tax} arises here: PLUM's $\mathbb{F}_p^{199}$ ops over the
+   $31$-bit prover field.\\The Griffin precompile (orange) absorbs the dominant
+   share; layered taxonomy after the zkVM SoK (ePrint 2026/525).};
+\end{tikzpicture}
+\end{document}

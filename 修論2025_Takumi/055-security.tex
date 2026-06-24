@@ -5,14 +5,14 @@
 % (EUF-CMA / anonymity / unlinkability) and §5's precompile-soundness argument.
 % Assumptions are folded into the theorem hypotheses and discussed in prose,
 % in the manner of the cited literature, not enumerated as a graded ledger.
-% Honesty bar = Sako; proof-checker posture.
 % =============================================================================
 
 \section{Security Analysis}\label{sec:security}
 
 Section~\ref{sec:system} described an instrument: a precompile suite that moves
 PLUM's dominant field operations out of emulated guest code, together with a
-RISC~Zero and SP1 realisation of the BDEC credential-generation relation. A
+RISC~Zero realisation of the BDEC credential-generation relation (on SP1, PLUM
+verification runs in isolation). A
 performance instrument is meaningful for a credential system only if it does not
 silently weaken the security the system provides. This section makes that
 requirement precise. We fix the security model and threat model in
@@ -44,7 +44,30 @@ $\mathsf{Adv}^{\bullet}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)$ for the advanta
 $\mathsf{Adv}^{\bullet}_{\AC}(\mathcal A)$ of Section~\ref{sec:prelim} evaluated on
 the BDEC scheme instantiated with PLUM as the signature scheme $\Sig$ and the zkVM
 as the zkSNARK $\Pi$.
-\end{definition} BDEC's Theorems~1
+\end{definition}
+
+\begin{assumption}[Griffin-AIR constraint soundness]\label{asm:air}
+The Griffin-$\mathbb{F}_p^{192}$ AIR admits only the reference permutation:
+its constraint system is satisfied solely by a witnessed transition equal to
+reference Griffin-$\pi$, equivalently the arithmetisation soundness error
+$\epsilon_{\mathrm{AIR}}$ is negligible. This assumption is \emph{open}. It is
+argued at the specification level in Appendix~\ref{app:proofs} and empirically
+supported by the $256$-vector cross-codebase equivalence suite together with
+rejection-direction fault injection on seven of the ten constraint families; it
+is not established at the constraint level for the lookup-borne families and is
+not machine-checked.
+\end{assumption}
+
+\begin{assumption}[PLUM signature-transcript simulatability]\label{asm:szk}
+PLUM admits a signature-transcript simulator with negligible error
+$\epsilon_{\mathrm{sZK}}$, in the sense of Definition~\ref{def:szk}. This
+assumption is \emph{open}: PLUM's analysis establishes EU-CMA security, not
+simulatability. It is required only by the anonymity and unlinkability bounds,
+whose BDEC reductions simulate the credential and pseudonym transcripts with the
+signature's own simulator.
+\end{assumption}
+
+BDEC's Theorems~1
 through~3~\cite{10.1007/978-981-96-0957-4_3} already prove these properties, so
 this section does not re-prove them. It bounds how far the move to a zkVM
 substrate shifts each advantage.
@@ -79,17 +102,26 @@ zkVM regime is the RISC-V execution circuit, the precompile chips, and the
 lookup argument that binds them to the main execution trace.
 
 The preservation theorem of Section~\ref{ssec:preservation} and the
-precompile-soundness theorem of Section~\ref{sec:system} rest on four named
-premises, each also stated inline where it is used. Premise~(T1), that the
+precompile-soundness theorem of Section~\ref{sec:system} rest on two open
+assumptions, Assumptions~\ref{asm:air} and~\ref{asm:szk}, together with two
+further hypotheses carried inline: the cross-table lookup-argument binding
+(cited~\cite{haback2022logup}) and the black-box-transfer property (established by PLUM's reduction structure, below).
+The lookup-binding hypothesis, that the
 cross-table lookup argument binds the precompile chips to the execution trace, is
 assumed from the SP1 and RISC~Zero implementations (their logarithmic-derivative
-lookup arguments~\cite{haback2022logup}), not independently verified here. Premise~(T2), that the
+lookup arguments~\cite{haback2022logup}), not independently verified here. Assumption~\ref{asm:air}, that the
 Griffin-$\mathbb{F}_p^{192}$ AIR admits only the reference permutation,
-equivalently that $\epsilon_{\mathrm{AIR}}$ is negligible, is open: it is argued and
-empirically supported in Appendix~\ref{app:proofs} but not established at the
-constraint level. Premise~(T3), that PLUM's EU-CMA reduction treats Griffin and
-field multiplication as black-box input--output maps, is argued from the structure
-of that reduction. Premise~(T4), that PLUM admits a signature-transcript simulator,
+equivalently that $\epsilon_{\mathrm{AIR}}$ is negligible, is partially
+discharged and partially open; its constraint-family breakdown and the test
+coverage it rests on are given with the discussion after
+Theorem~\ref{thm:security-preserve}, where the assumption is load-bearing. The black-box-transfer hypothesis, that PLUM's EU-CMA reduction treats Griffin and
+field multiplication as black-box input--output maps, is established by PLUM's own
+analysis: that reduction programs the hash as a random oracle and computes field
+operations at the value level, never opening their internal structure
+(PLUM~\S3.2~\cite{10.1007/978-981-95-2961-2_6}, whose building blocks are treated as
+black boxes so the proofs carry over from Loquat~\cite{cryptoeprint:2024/868}). It is
+distinct from Assumption~\ref{asm:air}, which separately asserts that the precompile
+computes the reference permutation. Assumption~\ref{asm:szk}, that PLUM admits a signature-transcript simulator,
 equivalently that $\epsilon_{\mathrm{sZK}}$ is negligible, is open and is required
 only by the anonymity and unlinkability bounds, PLUM's analysis establishing
 EU-CMA security but not simulatability. The zkVM is additionally assumed
@@ -133,7 +165,7 @@ lookup binding, together with native control flow covered by the zkVM's
 knowledge-soundness; composing these per-operation equalities along the finite,
 input-fixed execution yields equality of the accept-or-reject decision at the
 program level. The Griffin step's constraint-level soundness rests on the AIR
-argument of Appendix~\ref{app:proofs}, so the equality holds modulo premise~(T2);
+argument of Appendix~\ref{app:proofs}, so the equality holds modulo Assumption~\ref{asm:air};
 the $9.4\times10^{9}$-cycle execute-mode run confirms the guest program's I/O but
 does not exercise the AIR constraints. The step-by-step argument, including the
 $k+2$ presentation predicates, is given in Appendix~\ref{app:preservation}.
@@ -142,18 +174,18 @@ $k+2$ presentation predicates, is given in Appendix~\ref{app:preservation}.
 \begin{theorem}[Security preservation, conditional; classical ROM]\label{thm:security-preserve}
 Suppose PLUM is EU-CMA secure in the classical random-oracle model and, for the
 anonymity and unlinkability bounds only, additionally admits a signature-transcript
-simulator with error $\epsilon_{\mathrm{sZK}}$ (premise~(T4), an \emph{open} premise
-parallel to (T2): PLUM's analysis establishes only EU-CMA, whereas BDEC's
+simulator with error $\epsilon_{\mathrm{sZK}}$ (Assumption~\ref{asm:szk}, an \emph{open} assumption
+parallel to Assumption~\ref{asm:air}: PLUM's analysis establishes only EU-CMA, whereas BDEC's
 Theorems~2--3 simulate the credential and pseudonym transcripts with the signature's
 own simulator). Suppose the zkVM is a
 knowledge-sound argument of knowledge for RISC-V execution, the host
 modular-multiplication precompile is sound, and the cross-table lookup argument
-binds the precompile tables to the trace. Suppose further, as premise~(T3), that
+binds the precompile tables to the trace. Suppose further, as the black-box-transfer hypothesis, that
 PLUM's EU-CMA reduction treats Griffin and field multiplication as black-box
 input--output maps, so that the precompile substitution leaves that reduction
-unchanged. Suppose further, as an unverified
-premise (T2), that the Griffin-$\mathbb{F}_p^{192}$ AIR admits only the reference
-permutation; this premise is argued in Appendix~\ref{app:proofs} but not
+unchanged. Suppose further, as the unverified
+Assumption~\ref{asm:air}, that the Griffin-$\mathbb{F}_p^{192}$ AIR admits only the reference
+permutation; this assumption is argued in Appendix~\ref{app:proofs} but not
 established at the constraint level (see the discussion after the proof). Then for
 every classical adversary $\mathcal{A}$ against the PLUM-instantiated,
 zkVM-executed BDEC system, in the random-oracle model, the advantage is bounded by
@@ -170,17 +202,17 @@ signature-transcript-simulation error):
   &\le \epsilon_{\mathrm{ZK}} + \epsilon_{\mathrm{sZK}},
   \label{eq:adv-anon}
 \end{align}
-and the same bound $\epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$ holds for unlinkability, whose game (BDEC Theorem~3) forwards a single challenge credential, so the one-transcript simulation applies once. These three bounds re-instantiate BDEC's Theorems~1--3~\cite{10.1007/978-981-96-0957-4_3} with PLUM as the signature scheme and the zkVM as the zkSNARK, expressed directly in the leaf errors below. The
+and the same bound $\epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$ holds for unlinkability, whose game (BDEC Theorem~3) forwards a single challenge credential, so the one-transcript simulation applies once. Equation~\eqref{eq:adv-anon} bounds anonymity by the zero-knowledge error $\epsilon_{\mathrm{ZK}}$ of the produced proof. On the target hardware that error is not made small: the succinct receipt has no established zero-knowledge simulator, and the wrap that would supply one exceeds the memory bound (Section~\ref{ssec:zk-gap}). The anonymity and unlinkability bounds are guarantees the construction inherits from BDEC under a zero-knowledge argument, and whether this substrate supplies that argument is settled negatively in Section~\ref{ssec:zk-gap}. These three bounds re-instantiate BDEC's Theorems~1--3~\cite{10.1007/978-981-96-0957-4_3} with PLUM as the signature scheme and the zkVM as the zkSNARK, expressed directly in the leaf errors below. The
 term $\epsilon_{\mathrm{AIR}}$ is the AIR's constraint-level soundness error: the
 probability, over the prover-chosen trace and the argument's verifier randomness,
 that the argument accepts a trace whose Griffin transition differs from the
-reference permutation. Premise~(T2) is the open, empirically-supported
+reference permutation. Assumption~\ref{asm:air} is the open, empirically-supported
 claim (Appendix~\ref{app:proofs}) that $\epsilon_{\mathrm{AIR}}$ is negligible.
 $\epsilon_{\mathrm{KS}}$ is the
 knowledge-soundness error of the zkVM argument, $\epsilon_{\mathrm{EUF}}$ is the
 EU-CMA error of PLUM (\cite[Theorem~1]{10.1007/978-981-95-2961-2_6}, carried over from Loquat's reduction~\cite{cryptoeprint:2024/868}), $\epsilon_{\mathrm{ZK}}$ is the zero-knowledge error of
 the produced proof, and $\epsilon_{\mathrm{sZK}}$ is the signature-transcript
-simulation error of PLUM (premise~(T4)), required because BDEC's anonymity and
+simulation error of PLUM (Assumption~\ref{asm:szk}), required because BDEC's anonymity and
 unlinkability reductions simulate the credential and pseudonym transcripts with the
 signature's own simulator (Theorems~2--3~\cite{10.1007/978-981-96-0957-4_3}), not
 only the proof simulator.
@@ -193,11 +225,11 @@ signature scheme and the zkVM as the zkSNARK; all bounds are for classical
 $\mathcal A$ in the random-oracle model. For \emph{unforgeability}, the zkVM
 knowledge extractor recovers a witness from an accepting showing (cost
 $\epsilon_{\mathrm{KS}}$); a malformed Griffin trace that passes the precompile
-costs $\epsilon_{\mathrm{AIR}}$ (premise~(T2)); the recovered signature is then a
+costs $\epsilon_{\mathrm{AIR}}$ (Assumption~\ref{asm:air}); the recovered signature is then a
 PLUM EU-CMA forgery (cost $\epsilon_{\mathrm{EUF}}$), giving~\eqref{eq:adv-unf}.
 For \emph{anonymity} and \emph{unlinkability}, a simulator replaces the credential
 and pseudonym transcripts by PLUM's signature-transcript simulator (cost
-$\epsilon_{\mathrm{sZK}}$, premise~(T4)) and the proof by the zkVM's zero-knowledge
+$\epsilon_{\mathrm{sZK}}$, Assumption~\ref{asm:szk}) and the proof by the zkVM's zero-knowledge
 (cost $\epsilon_{\mathrm{ZK}}$); no witness is extracted, so $\epsilon_{\mathrm{KS}}$
 and $\epsilon_{\mathrm{AIR}}$ do not enter, giving~\eqref{eq:adv-anon} and, for the
 single-credential unlinkability game, the same bound. Because BDEC proves its three
@@ -222,23 +254,25 @@ holds against classical adversaries and its quantum case inherits that open lift
 The soundness of the modular-multiplication precompile is established for SP1 by
 the modular-multiplication reduction of \S\ref{ssec:bigint} and is cited for
 RISC~Zero from its production release, while the knowledge-soundness hypothesis is
-obtained from the STARK and BCS analyses underlying the two
-systems~\cite{bensasson2016iop}; the cross-table lookup-argument binding
-(premise~(T1)) is instead assumed from the SP1 and RISC~Zero implementations of
+obtained by applying the STARK and BCS soundness analyses~\cite{bensasson2016iop}
+to the two systems' concrete arguments; the cross-table lookup-argument binding
+(the lookup-binding hypothesis~\cite{haback2022logup}) is instead assumed from the SP1 and RISC~Zero implementations of
 their logarithmic-derivative lookup arguments, whose published soundness analyses
 we do not re-establish here. These last are themselves
 obtained through the Fiat--Shamir compilation~\cite{fiatshamir1986}, whose soundness is a random-oracle
 property invoked twice and nested, PLUM inside the zkVM, and whose quantum case is
 again open.
 
-The one hypothesis below the level of an established or cited result is premise
-T2, the Griffin AIR's constraint-level soundness. The chip's compute matches the
+The one hypothesis below the level of an established or cited result is
+Assumption~\ref{asm:air}, the Griffin AIR's constraint-level soundness. The chip's compute matches the
 reference permutation on the $256$-vector equivalence suite, with per-vector
-false-pass at most $1/p\approx 2^{-199}$ and aggregate at most $2^{-191}$. This
+false-pass at most $1/p\approx 2^{-199}$ and aggregate at most $2^{-191}$ under a
+uniform-wrong-output model (Appendix~\ref{app:proofs}; a deterministic bug
+agreeing on the sampled inputs is not bounded by these figures). This
 figure is the test \emph{coverage} of a positive-direction equivalence suite, run
 on valid inputs, and is not a soundness bound: it does not show that the
 constraint system \emph{rejects} a malformed Griffin trace, which is the direction
-T2 actually asserts. The equality of the constraint system with the reference is
+Assumption~\ref{asm:air} actually asserts. The equality of the constraint system with the reference is
 argued rather than machine-checked in Appendix~\ref{app:proofs}. Two further points require
 disclosure. The implementation fixes a concrete $199$-bit prime $p=2^{64}p_0+1$,
 so any security-bit claim that depends on the exact value of $p$ is conditional
@@ -247,31 +281,81 @@ the instantiation used here, a degree-$3$ S-box over a width-$4$ state of the
 $199$-bit field with $14$ rounds, may be replaced by a random oracle in PLUM's
 EU-CMA argument is a question the AIR cannot settle and that we carry as open. The
 reduction of Theorem~\ref{thm:security-preserve} is therefore sound \emph{modulo
-its hypotheses}, but four of its inputs are not yet closed: the constraint-level AIR equality (T2), the
-black-box-transfer premise (T3, argued from the reduction's structure but not
-audited line by line, \S\ref{sec:system}), PLUM's signature-transcript
-simulatability (T4), and the quantum lifts of PLUM and of Fiat--Shamir. We state the
+its hypotheses}, but three of its inputs are not yet closed: the constraint-level AIR equality (Assumption~\ref{asm:air}), PLUM's signature-transcript
+simulatability (Assumption~\ref{asm:szk}), and the quantum lifts of PLUM and of Fiat--Shamir. The black-box-transfer property is established separately by PLUM's reduction structure, which programs the hash as a random oracle and never opens its internals (PLUM~\S3.2). We state the
 theorem conditionally on them rather than assert guarantees the cited proofs do
 not establish. The conservative reading is explicit: absent a PLUM transcript
-simulator (T4), only the EU-CMA-derived \emph{unforgeability} of the credential
-transfers, and anonymity and unlinkability are conditional on (T4); absent the
+simulator (Assumption~\ref{asm:szk}), only the EU-CMA-derived \emph{unforgeability} of the credential
+transfers, and anonymity and unlinkability are conditional on Assumption~\ref{asm:szk}; absent the
 quantum lift, every guarantee holds against classical adversaries only. For each
 open premise we therefore state which guarantee survives it, and we make no
 unconditional claim.
 
-Premise T2 is not firewalled from the BDEC
-credential-generation prove anomaly reported in Section~\ref{sec:evaluation}: that
-run was rejected by the zkVM's own internal verifier on a trace of the same
-relation. The constraint-level behaviour of the chip on this workload is
-exactly what T2 leaves unsettled. The genuinely dangerous
-case for T2, silent \emph{acceptance} of an invalid Griffin trace by the AIR, has
-not been tested at all; the equivalence suite exercises only valid inputs.
-Resolving T2 properly, by metamorphic and fault-injection testing of the AIR, or
-by constraint-level verification of the chip against the reference permutation
-(tractable because SP1's prover is built on Plonky3), is left as future work;
-the metamorphic and fault-injection approach is exactly that of
-Arguzz~\cite{hochrainer2025arguzz}, which targets zkVM soundness and completeness
-bugs by that technique.
+A sharper disclosure is owed for the Griffin round count itself, since the hash
+carries roughly $91\%$ of the verification cost. Neither PLUM nor Loquat prints a Griffin round count. The $14$ rounds are our own
+instantiation, derived by the original Griffin Gr\"{o}bner-resistance methodology at our
+parameters as $\lceil 1.2\times 11\rceil$, a $20\%$ margin over the floor of $11$ at which a
+constrained-input/constrained-output (CICO) solver of the FGLM type would cost $2^{64}$
+for our $(d{=}3,\,t{=}4,\,\lambda{=}128)$ instance over the $199$-bit prime. That
+methodology is no longer the state of the art. The FreeLunch
+attack~\cite{freelunch2024} solves the CICO problem below the FGLM model from which
+the count is derived, and the Improved Resultant Attack~\cite{resultant2025} reports
+that most variants of Griffin fail to reach their claimed security level, with CICO
+solutions found in practice for $8$ of $10$ rounds of a Griffin instance ($7$ for
+FreeLunch; the line continues in~\cite{cheaplunch2025}, which does not by itself
+threaten a full-round instance). The instances broken in practice use an $\alpha=3$ S-box, the same degree as
+our instantiation, and were solved at $7$--$8$ of their $10$ rounds on reduced or
+smaller-field parameters. Our $14$-round, width-$4$, $199$-bit instance is not
+among them, separated from the broken ones by its round count and field rather
+than by its S-box degree. We therefore do not claim the $14$-round count
+establishes a $128$-bit floor against the current attack frontier. Establishing such a floor would require instantiating the
+FreeLunch/resultant complexity estimator at our parameters
+($r{=}14$, $d{=}3$, $t{=}4$, $\log_2 p \approx 199$) and re-deriving the count from
+that model, which we record as required future work. This is not independent of
+Assumption~\ref{asm:szk}: a reduced-round CICO solution is precisely the non-random structure
+that replacing Griffin by a random oracle assumes absent, so the algebraic-attack
+question and Assumption~\ref{asm:szk} are two readings of one open problem.
+
+The BDEC credential-generation prove anomaly reported in
+Section~\ref{sec:evaluation} does not bear on Assumption~\ref{asm:air}: that run executed on
+RISC~Zero 3.0.5 with field arithmetic carried by \texttt{sys\_bigint}, a path on
+which the bespoke Griffin-$\mathbb{F}_p^{192}$ AIR is not invoked
+(Section~\ref{sec:system}). The anomaly localises to the segment prover's own integrity self-check, and the
+composite re-run disfavours any content-deterministic cause including a
+\texttt{sys\_bigint} trace malformation (\S\ref{ssec:cregen-anomaly}); the chip of
+Assumption~\ref{asm:air} was not exercised by that run in any case. The genuinely dangerous
+case for Assumption~\ref{asm:air} is silent \emph{acceptance} of an invalid Griffin trace by the AIR.
+The equivalence suite exercises only valid inputs, and a separate fault-injection
+suite tests the rejection direction for seven of the ten constraint families
+(the per-row families) via
+\texttt{debug\_constraints}: single-cell corruptions of a satisfying trace are
+rejected in each case (Appendix~\ref{app:proofs}). The lookup-borne families
+(round count, memory binding, and the cross-row threading of row scheduling) need a
+full-prover harness and remain untested; parameter immutability is argued
+by construction. Resolving Assumption~\ref{asm:air} fully, by extending the fault-injection suite to
+the lookup-borne families, by metamorphic testing, or by constraint-level
+verification of the chip against the reference permutation (tractable because
+SP1's prover is built on Plonky3), is left as future work; the metamorphic and
+fault-injection approach is that of Arguzz~\cite{hochrainer2025arguzz}, which
+targets zkVM soundness and completeness bugs by that technique.
+
+One structural point about Assumption~\ref{asm:air} governs how the measurements of
+Section~\ref{sec:evaluation} should be read. Only the Griffin-precompile arms
+exercise the chip at all: the precompile-free baseline, the SHA-3 control arm,
+the RISC~Zero arm (which completed in $6$\,h\,$19$\,m without invoking the
+chip), and the Aurora legs never touch it, so their figures carry no dependence
+on Assumption~\ref{asm:air}. Where the chip is exercised, every run does so on the honest path: the
+guest supplies a valid Griffin trace and the prover pays the cost of the
+constraint system as built. If that system admitted a non-reference trace, the
+defect would not have made any measured run cheaper; for any repair that
+strengthens the constraint set, the measured cost is then a cost floor for the
+corrected chip. Assumption~\ref{asm:air} is therefore a premise of the positive results
+alone, namely the $14.89$-to-$32.5$-minute feasibility figure, the $13.0$-second
+single-permutation smoke proof, and the unforgeability bound of
+Theorem~\ref{thm:security-preserve}. The negative findings either do not
+exercise the chip at all or hold a fortiori under an unsound AIR: the
+zero-knowledge wrap's memory exhaustion and the SHA-3 control's faster
+wall-clock could only widen against a corrected and at-least-as-costly chip.
 
 \subsection{The Zero-Knowledge Barrier as a Finding}\label{ssec:zk-gap}
 
@@ -296,10 +380,9 @@ bugs by that technique.
 \end{tikzpicture}
 \caption{The dual obstruction. The proof feasible to generate (left, the bare STARK
 receipt) is not zero-knowledge, hence not anonymous; the proof that would be
-zero-knowledge (right, a Groth16/PLONK wrap) is blocked by two \emph{independent}
+zero-knowledge (right, a Groth16/PLONK wrap) is blocked, at $\lambda=80$ on the $24$~GB target hardware, by two \emph{independent}
 prongs: resource (OOM at ${\approx}20$~GB) and primitive (pairing-based, not
-post-quantum, which more memory cannot fix). Solid edges mark a produced step, dashed
-a blocked one.}
+post-quantum, which more memory cannot fix).}
 \label{fig:dual-obstruction}
 \end{figure}
 
@@ -309,7 +392,7 @@ configurations we run, an argument of knowledge but not a zero-knowledge one, an
 this holds on both substrates for separately documented reasons. SP1's
 specification states plainly that its STARK proofs are not
 zero-knowledge~\cite{sp1docs-sec}. RISC~Zero documents perfect zero-knowledgeness
-for its STARK, but independent analysis by Habock and Al~Kindi, together with
+for its STARK, but independent analysis by Hab\"{o}ck and Al~Kindi, together with
 RISC~Zero's own security advisory, finds that several STARK implementations,
 RISC~Zero among them, do not provably meet the zero-knowledge
 requirement~\cite{risc0zkadvisory,l2beatzk}. We therefore treat the bare receipt
@@ -317,7 +400,10 @@ as not dependably zero-knowledge on either substrate, a concrete instance of the
 caution that a system may be called a zkVM without delivering zero-knowledge.
 Zero-knowledge is obtained only by wrapping the receipt in a succinct proof, and
 the wraps SP1 exposes, Groth16 and PLONK, are pairing-based and therefore only
-classically secure. The barrier splits into two independent obstructions, set out
+classically secure. RISC~Zero's wrap inventory is no wider: its Groth16 prover is
+likewise pairing-based and, per the vendor's documentation, runs only on x86, so
+on the Apple-silicon target hardware it is unavailable
+altogether~\cite{bruestle2023risczero}. The barrier splits into two independent obstructions, set out
 below. Both block anonymity for separate reasons, and naming each one precisely
 is the security-level result of this analysis.
 
@@ -339,10 +425,12 @@ deployed toolchains do not yet provide.
 
 We therefore use the classically secure Groth16 or PLONK wrap to locate the
 resource cost. It is not a deployable post-quantum-anonymous configuration. The
-two obstructions together leave no good option on commodity hardware: the proof
-that is feasible to generate is not anonymous, and the proof that would be
-anonymous is neither feasible to generate nor, with the available wraps,
-post-quantum. Within the scope of the
+two obstructions together leave no good option on the zkVM stack on commodity
+hardware: the proof that is feasible to generate is not anonymous, and the proof
+that would be anonymous is neither feasible to generate nor, with the available
+wraps, post-quantum, whereas a zero-knowledge-enabled Aurora run on the same
+machine proves the Loquat single-verification building block in about $22$ minutes (mean of three runs, $21.4$--$22.9$)
+(\texttt{docs/measurements/audit5\_campaign\_20260612}). Within the scope of the
 literature we surveyed, we did not find this conjunction stated explicitly for
 post-quantum anonymous credentials, and surfacing it is a contribution of this thesis: we
 quantify the resource prong, the $24$~GB wrap frontier of
@@ -353,4 +441,77 @@ The barrier is scoped to the substrate and hardware studied: an Apple M5~Pro wit
 $24$~GB of memory, the CPU-bound provers of RISC~Zero and SP1, and the parameter
 set $\lambda=80$. We do not claim the barrier is fundamental to the primitive or
 that it persists on server-class hardware. Characterising how it moves with the
-memory budget and the security level is left to Section~\ref{sec:conclusion}.
+memory budget and the security level is left as future work.
+
+A separate question is the strength of the anonymity guarantee where the argument
+is zero-knowledge. Two points bound it. The first concerns quantum adversaries. The
+bound of Equation~\eqref{eq:adv-anon} is stated in the classical random-oracle
+model, so it constrains a classical distinguisher. Lifting it to the quantum
+random-oracle model is attainable in principle: the compilation of a
+round-by-round sound interactive oracle proof into a non-interactive argument is
+post-quantum secure in the quantum random-oracle model~\cite{cryptoeprint:2019/834},
+and this has been established for the {STIR}-class proof systems PLUM
+uses~\cite{cryptoeprint:2025/2166}. The lift is not settled here. It remains
+conditional on a PLUM transcript simulator (Assumption~\ref{asm:szk}) and on a
+post-quantum analysis of PLUM's own Fiat--Shamir step, which the scheme's published
+analysis does not provide. We therefore claim computational anonymity against a
+classical distinguisher and record the quantum lift as attainable but open.
+
+\begin{remark}[The anonymity guarantee is computational]\label{rem:everlasting}
+The guarantee is computational, and it is not everlasting: a recorded transcript
+hides the witness only while the underlying commitment stays hiding. The credential
+relation proves a hash commitment $c = H(w \,\|\, r)$ to the witness inside the
+circuit, so the witness enters the execution trace, whose commitment is an
+algebraic-hash Merkle root. A salted hash leaf hides its input statistically only in
+the random-oracle model. Once $H$ is a fixed function the hiding rests on a
+computational assumption on that function, and the random-oracle methodology gives
+no assurance that the hiding survives the
+instantiation~\cite{cgh2004rom}. An adversary who stores a transcript and later
+acquires quantum computing power attacks the instantiated function, against which
+the hiding is at best computational. Recovering everlasting anonymity would require
+the trace commitment to be statistically hiding in the standard model and to be
+non-interactive, since the receipt is a single message. A non-interactive
+statistically-hiding commitment is not available from general assumptions: any
+black-box construction from one-way permutations needs $\Omega(n/\log n)$ rounds of
+interaction~\cite{hhrs2007,wee2007tcc}. Statistical hiding and statistical binding
+also cannot hold together, so binding must remain computational. The everlasting
+variant is therefore an open construction problem.
+\end{remark}
+
+\begin{proposition}[Conditional everlasting anonymity]\label{prop:everlasting}
+Suppose there is a non-interactive, post-quantum, statistically-hiding commitment to
+the witness columns of the trace that composes with the low-degree test, so that the
+witness is committed before it enters the algebraic-hash root and the proximity test
+does not re-expose it. Then, in a masked variant of the proof and under the
+hypotheses of Theorem~\ref{thm:security-preserve} and Assumption~\ref{asm:szk}, the
+zkVM-executed BDEC system is everlastingly anonymous and unlinkable: against an
+unbounded distinguisher the advantage is at most
+$\epsilon_{\mathrm{ZK}}^{\mathrm{stat}} + \epsilon_{\mathrm{sZK}}$, where
+$\epsilon_{\mathrm{ZK}}^{\mathrm{stat}}$ is statistical. Binding, and hence
+unforgeability, remains computational.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+The anonymity argument of the preservation theorem is unchanged except at the step
+that hides the witness in the trace commitment. In the construction analysed that
+step is computational, because the witness columns sit under a collision-resistant
+Merkle root (Remark~\ref{rem:everlasting}). Under the hypothesised commitment the
+witness columns are statistically hidden before they reach the root, so the root
+carries no statistical information about the witness, and the low-degree test
+operates on the committed columns without re-exposing it. The masked interactive
+oracle proof is statistically honest-verifier zero-knowledge by randomisation,
+independently of the hash~\cite{cryptoeprint:2024/1037}, so the transition incurs
+only the statistical distance $\epsilon_{\mathrm{ZK}}^{\mathrm{stat}}$, and the
+transcript-simulation step is unchanged at cost $\epsilon_{\mathrm{sZK}}$. An
+unbounded distinguisher therefore gains at most
+$\epsilon_{\mathrm{ZK}}^{\mathrm{stat}} + \epsilon_{\mathrm{sZK}}$. Binding stays
+computational, since a commitment cannot be both statistically hiding and
+statistically binding, so the unforgeability bound is unaffected.
+\end{proof}
+
+A concrete candidate for the hypothesised commitment is the Module-{SIS}-based
+commitment of Baum, Damg{\aa}rd, Lyubashevsky, Oechsner and
+Peikert~\cite{bdlop2018}, which is statistically hiding in a parameter regime that
+trades off against binding. It is post-quantum, but its proof of opening is
+interactive, so it does not by itself meet the non-interactive requirement above.
+Closing that gap is the open problem behind Proposition~\ref{prop:everlasting}.

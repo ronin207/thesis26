@@ -36,10 +36,10 @@ random-oracle model.)
 
 \begin{definition}[Arithmetisation soundness error]\label{def:eair}
 $$\epsilon_{\mathrm{AIR}}=\Pr[\text{the Griffin AIR accepts a trace whose committed
-transition differs from }\pi]$$, 
+transition differs from }\pi],$$ 
 the probability taken over the prover-chosen trace
 and the argument verifier's randomness, where $\pi$ is the reference permutation of
-Definition~\ref{def:ref-perm}. Premise~(T2) asserts $\epsilon_{\mathrm{AIR}}$
+Definition~\ref{def:ref-perm}. Assumption~\ref{asm:air} asserts $\epsilon_{\mathrm{AIR}}$
 negligible; the supporting argument is Appendix~\ref{app:proofs}.
 \end{definition}
 
@@ -49,8 +49,8 @@ $\epsilon_{\mathrm{sZK}}$} if there is a probabilistic polynomial-time algorithm
 $\mathcal{S}_\sigma$ such that, for every message $m$ and public key, the output of
 $\mathcal{S}_\sigma$ run without the secret key is
 $\epsilon_{\mathrm{sZK}}$-indistinguishable from a credential or pseudonym
-transcript produced with the secret key. Premise~(T4) asserts
-$\epsilon_{\mathrm{sZK}}$ negligible. This premise is \emph{open}: PLUM's analysis
+transcript produced with the secret key. Assumption~\ref{asm:szk} asserts
+$\epsilon_{\mathrm{sZK}}$ negligible. This assumption is \emph{open}: PLUM's analysis
 establishes EU-CMA security, which does not by itself furnish such a simulator.
 \end{definition}
 
@@ -61,9 +61,10 @@ $\mathcal{S}_\Pi$ such that, for every $(x,w)$ with $R(x;w)=1$, the simulated pr
 $\mathcal{S}_\Pi(x)$ is $\epsilon_{\mathrm{ZK}}$-indistinguishable from an honest
 proof $\Pi.\mathsf{Prove}(x,w)$. (Assumed for the analysis. In the measured deployment this premise is
 not met: the produced receipt mode (the default \texttt{prove} path) has no
-established ZK simulator, and the ZK-wrapped mode
-(\texttt{.compressed().groth16()}) is not produced within the resource and
-memory bound; see Section~\ref{ssec:zk-gap}.)
+established ZK simulator, and the ZK-wrapped modes (the \texttt{groth16()} and
+\texttt{plonk()} proof modes, which compress the STARK internally before
+wrapping) are not produced within the resource and memory bound; see
+Section~\ref{ssec:zk-gap}.)
 \end{definition}
 
 \begin{definition}[Existential unforgeability]\label{def:euf}
@@ -88,7 +89,7 @@ native control flow, whose faithful execution follows from the \emph{soundness} 
 the zkVM argument for the RISC-V execution relation (an accepting proof certifies a
 valid execution); the stronger \emph{knowledge}-soundness (Definition~\ref{def:ks})
 that extracts a witness is invoked separately, by the unforgeability reduction. For
-$R^{\Sig}_{\mathsf{cre}}$ this enumeration is complete at the predicate level, conditional on the open statement-binding refinement of Section~\ref{sec:system} and on premise~(T2). The presentation relation
+$R^{\Sig}_{\mathsf{cre}}$ this enumeration is complete at the predicate level, conditional on the open statement-binding refinement of Section~\ref{sec:system} and on Assumption~\ref{asm:air}. The presentation relation
 $R^{\Sig}_{\mathsf{show}}$ adds only $k+2$ further signature-verification
 predicates built from the same multiplications and Griffin permutations; its
 ledger-membership, non-revocation, and disclosure checks are performed by the
@@ -101,7 +102,7 @@ RISC~Zero prototype commits the verification outcome but not $x_{\mathsf{cre}}$
 itself (Section~\ref{sec:system}), so the code-level reading is conditional on
 that journal fix. The Griffin step's constraint-level
 soundness rests on Appendix~\ref{app:proofs}, which is argued rather than
-machine-verified, so the equality holds modulo premise~(T2).
+machine-verified, so the equality holds modulo Assumption~\ref{asm:air}.
 \end{proof}
 
 \subsection{Proof of the preservation theorem}\label{app:prsv-thm}
@@ -122,7 +123,7 @@ $\epsilon_{\mathrm{KS}}$. Conditioned on extraction, $w^\star$ satisfies
 $R^{\Sig}_{\mathsf{cre}}$ except when the committed Griffin transition differs from
 the reference permutation, an event of probability at most $\epsilon_{\mathrm{AIR}}$
 by Definition~\ref{def:eair}; otherwise the extracted $\mathsf{psk}^\star$ (the pseudonym secret, structurally a PLUM signature under $\pk_U$, Section~\ref{sec:prelim}) is valid
-on a message $\mathcal A$ never had signed, and by premise~(T3) the
+on a message $\mathcal A$ never had signed, and by the black-box-transfer hypothesis the
 precompile substitution leaves PLUM's EU-CMA reduction unchanged, so
 $\mathsf{psk}^\star$ is a forgery against the unmodified scheme, which $\mathcal B$
 outputs.
@@ -179,6 +180,29 @@ $\epsilon_{\mathrm{AIR}}$ does not enter.
 \end{proof}
 
 \begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unlinkability]
+The unlinkability game (BDEC Theorem~3) issues a single challenge credential under
+one of two pseudonym keys $\mathsf{psk}_0,\mathsf{psk}_1$ and the distinguisher
+$\mathcal A$, with advantage $\bigl|\Pr[b'=b]-\tfrac12\bigr|$, guesses which key
+issued it. The reduction is the anonymity reduction of the previous proof with the
+challenge bit selecting the pseudonym key rather than the credential. Game
+$\mathsf{G}_0$ is the real experiment. In $\mathsf{G}_1$ the challenge pseudonym
+signature under $\mathsf{psk}_b$ is produced by $\mathcal{S}_\sigma$ rather than with
+the secret key, so by Definition~\ref{def:szk}
+$\bigl|\Pr[\mathsf{G}_0{=}1]-\Pr[\mathsf{G}_1{=}1]\bigr|\le\epsilon_{\mathrm{sZK}}$;
+the simulation is applied once, to the single challenge credential. In
+$\mathsf{G}_2$ the proof is produced by $\mathcal{S}_\Pi$ rather than from the
+witness, so by Definition~\ref{def:zk}
+$\bigl|\Pr[\mathsf{G}_1{=}1]-\Pr[\mathsf{G}_2{=}1]\bigr|\le\epsilon_{\mathrm{ZK}}$.
+In $\mathsf{G}_2$ the only $b$-dependent component is the pseudonym signature, now
+simulated without $\mathsf{psk}_b$, and the verifier-facing pseudonym is sampled
+freshly and independently of $b$, so the challenge is distributed identically under
+$b=0$ and $b=1$ and $\Pr[b'=b]=\tfrac12$. Summing the two hops,
+$\mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
+\le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$, the same bound
+as~\eqref{eq:adv-anon}.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unlinkability]
 BDEC's unlinkability experiment
 (\cite[Appendix~A.3]{10.1007/978-981-96-0957-4_3}) forwards a single challenge
 credential $c^{(b)}$ issued under one of two pseudonym keys $\mathsf{ppk}^{(b)}$,
@@ -202,8 +226,8 @@ $\mathcal{S}_\sigma$ is needed only to produce $c^{(b)}$ without $\sk_U$ inside 
 reduction. Either way $\epsilon_{\mathrm{sZK}}$ enters once.
 \end{proof}
 
-\begin{corollary}[Preservation under closed premises]\label{cor:unconditional}
-Suppose premises~(T2) and~(T4) hold, so that $\epsilon_{\mathrm{AIR}}$ and
+\begin{corollary}[Preservation under closed assumptions]\label{cor:unconditional}
+Suppose Assumptions~\ref{asm:air} and~\ref{asm:szk} hold, so that $\epsilon_{\mathrm{AIR}}$ and
 $\epsilon_{\mathrm{sZK}}$ are negligible; the zkVM is knowledge-sound and
 zero-knowledge with negligible $\epsilon_{\mathrm{KS}},\epsilon_{\mathrm{ZK}}$; and
 PLUM is EU-CMA secure. Then zkVM-BDEC is unforgeable, anonymous, and unlinkable.
@@ -225,7 +249,7 @@ $(\text{PLUM},\text{zkVM})$. The contribution is not a new reduction but the
 explicit accounting of the substrate-specific errors $\epsilon_{\mathrm{AIR}}$ (the
 precompile's arithmetisation soundness) and
 $\epsilon_{\mathrm{KS}},\epsilon_{\mathrm{ZK}}$ (the zkVM's argument), together with
-the identification of $\epsilon_{\mathrm{sZK}}$ as the open premise~(T4) that BDEC's
+the identification of $\epsilon_{\mathrm{sZK}}$ as the open Assumption~\ref{asm:szk} that BDEC's
 generic anonymity argument silently requires of the signature. We further note
 that the relation $R^{\Sig}_{\mathsf{show}}$ places the credential $c_{U,V}$ in the
 witness rather than, as in BDEC's literal layout, the public statement; the result
@@ -233,7 +257,7 @@ is therefore a re-derivation of BDEC's Theorems~1--3 for this concrete pair, not
 verbatim re-instantiation.
 \end{remark}
 
-\section{Evidence for Premise~(T2): Specification-Level Soundness of the Griffin-$\mathbb{F}_p^{192}$ AIR}\label{app:proofs}
+\section{Evidence for Assumption~\ref{asm:air}: Specification-Level Soundness of the Griffin-$\mathbb{F}_p^{192}$ AIR}\label{app:proofs}
 
 This appendix develops the soundness argument for the Griffin-$\mathbb{F}_p^{192}$
 permutation AIR of Section~\ref{sec:system}, on which the conditional
@@ -259,17 +283,28 @@ Let $\pi\colon\mathbb{F}_p^{4}\to\mathbb{F}_p^{4}$ denote one application of the
 Griffin permutation at PLUM's parameters, a degree-$3$ S-box over a width-$4$
 state with $14$ rounds and the SHAKE256-derived round constants and base quadratic
 coefficients $(\alpha,\beta)$, scaled per lane by Griffin's index law, fixed in
-Section~\ref{sec:prelim}, as computed by the reference implementation.
+Section~\ref{sec:prelim}, as computed by the reference implementation. The
+reference permutation follows the implementation's in-place nonlinear layer,
+which deviates from the published Griffin definition in the lane-$3$
+combination ($y_2$ in place of $x_2$; Section~\ref{sec:prelim}); the lemmas
+below establish chip--reference equality, and conformance of the reference to
+the published design is the separate obligation recorded there.
 \end{definition}
 
 \begin{definition}[Algebraic satisfiability]\label{def:air-sat}
-The Griffin AIR is a finite constraint set $\mathcal{C}=\{(Q_i,H_i)\}_i$ over a
-trace $w$ comprising $14$ per-round rows and one controller row, where each $Q_i$
-is a constraint polynomial and $H_i$ its enforcement domain. A trace $w$
-\emph{satisfies} $\mathcal{C}$ on input $s\in\mathbb{F}_p^{4}$ with claimed output
-$s'\in\mathbb{F}_p^{4}$ if its first-row input lanes decode to $s$, its last-row
-output lanes decode to $s'$, and every constraint polynomial $Q_i$ vanishes on its
-enforcement domain $H_i$ under $w$.
+The Griffin AIR is a finite constraint set $\mathcal{C}$ over a trace $w$
+comprising $14$ per-round rows and one controller row. $\mathcal{C}$ comprises
+(i) the constraint polynomials $Q_i$, each with an enforcement domain $H_i$;
+(ii) the range conditions on limb columns (operand, result, and carry limbs in
+$[0,2^{8})$, offset witness limbs in $[0,2^{16})$); and (iii) the
+multiset-balance conditions of the lookup interactions (the byte-table sends,
+the round-to-round threading, and the memory binding). In the chip, (ii) and
+(iii) are realised by the byte-table and cross-table lookup arguments, whose
+soundness is the lookup-binding hypothesis; a prover for whom the lookup argument fails to bind
+can violate them while leaving every $Q_i$ vanishing. A trace $w$
+\emph{satisfies} $\mathcal{C}$ on input $s\in\mathbb{F}_p^{4}$ with claimed
+output $s'\in\mathbb{F}_p^{4}$ if its first-row input lanes decode to $s$, its
+last-row output lanes decode to $s'$, and all of (i)--(iii) hold under $w$.
 \end{definition}
 
 \subsection{Soundness}\label{app:air-soundness}
@@ -283,113 +318,213 @@ differs from the reference permutation.
 \end{theorem}
 
 \begin{proof}
-By Lemmas~\ref{lem:round-fn} and~\ref{lem:compose}. Lemma~\ref{lem:round-fn}
-fixes, for each round, the non-linear, linear, and round-constant layers of $w$ to
-equal the reference round's outputs on its inputs, and Lemma~\ref{lem:compose}
-forces the $14$ rows to compose as $14$ sequential rounds on a single state, bound
-on the controller row to the syscall's memory input and output. Composing the
-per-round equalities of Lemma~\ref{lem:round-fn} along the schedule fixed by
-Lemma~\ref{lem:compose} yields $s'=\pi(s)$. The composition is unconditional given
-the two lemmas, and the status of the chip--constraint equality (premise~(T2)) is discussed
-in Section~\ref{app:status}.
+By Lemmas~\ref{lem:limb-gadget}, \ref{lem:round-fn}, and~\ref{lem:compose}.
+Lemma~\ref{lem:limb-gadget} bridges the limb identities the chip actually
+constrains over its small base field to congruences modulo $p$;
+Lemma~\ref{lem:round-fn} composes those congruences, for each row, into the
+reference round on the row's input lanes; and Lemma~\ref{lem:compose} forces
+the $14$ rows to compose as $14$ sequential rounds on a single state, bound on
+the controller row to the syscall's memory input and output. Composing the
+per-round equalities along that schedule yields $s'=\pi(s)$. The per-row layer
+(Lemmas~\ref{lem:limb-gadget} and~\ref{lem:round-fn}) is unconditional given
+the range predicate, which the byte-table lookups discharge under
+the lookup-binding hypothesis; the cross-row layer (Lemma~\ref{lem:compose}) is lookup-borne in
+its scheduling, threading, and memory-binding steps (round count, memory binding, row scheduling), while output canonicality
+is per-row algebra and parameter immutability holds by preprocessing. The status of the
+chip--constraint equality (Assumption~\ref{asm:air}) is discussed in
+Section~\ref{app:status}.
 \end{proof}
 
 \subsection{Per-family lemmas}\label{app:air-families}
 
-The ten constraint families group into the round function (B-1 through B-5) and
-the schedule, binding, and canonicality apparatus (B-6 through B-10). Each clause
-states the reference relation a family enforces and, in contrapositive, the
-constraint a deviating trace must violate.
+The ten constraint families group into the round function (the round-function families) and
+the schedule, binding, and canonicality apparatus (the schedule-and-binding families). The
+round-function families admit a proof at the row level, given below. It is
+useful to read it adversarially: the prover chooses every cell of a row, all
+$3{,}819$ columns, subject only to the constraint polynomials and the range
+checks, and the lemmas state that no choice decodes to an input--output pair
+outside the graph of the reference round. The proof requires no computational
+assumption. Of the assumption-bearing steps in the chip's soundness, the
+round-to-round threading and the memory binding are collected in
+Lemma~\ref{lem:compose}; the byte-table range lookups enter as the
+range-predicate hypothesis of Lemmas~\ref{lem:limb-gadget}
+and~\ref{lem:round-fn}; all are carried by the lookup-binding hypothesis.
 
-\begin{lemma}[Round-function soundness; families B-1 through B-5]\label{lem:round-fn}
-Fix a round with input lanes $s=(s_0,s_1,s_2,s_3)$ and let $s'$ be the trace's
-claimed round output. Under constraint families B-1 through B-5, every trace
-satisfying $\mathcal{C}$ has $s'=\rho(s)$, where $\rho$ denotes one reference
-Griffin round.
+The constraints are not enforced over $\mathbb{F}_p$ directly: the chip
+constrains $32$-limb byte representations over the prover's base field, and the
+bridge from limb identities over the small field to congruences modulo the
+$199$-bit $p$ is itself a proof obligation. We discharge it first. Throughout,
+$q$ denotes the prover's base-field modulus (KoalaBear,
+$q = 2^{31}-2^{24}+1 = 2{,}130{,}706{,}433$, in the deployed SP1 fork),
+$\mathsf{int}(\cdot)$ decodes a limb vector as an integer in base $2^{8}$, and
+the \emph{range predicate} of a field-operation cell asserts that its operand,
+result, and carry limbs lie in $[0,2^{8})$ and its offset witness limbs in
+$[0,2^{16})$. In the chip these bounds are enforced by byte-table lookups, so
+the range predicate is exactly the part of a cell's soundness carried by
+the lookup-binding hypothesis.
+
+\begin{lemma}[Limb-gadget soundness]\label{lem:limb-gadget}
+Consider one field-operation cell for $\circ\in\{+,\times\}$ with operand limb
+vectors $a,b$, result limbs $c$, carry limbs $h$, and witness limbs $w$ stored
+with offset $2^{14}$, all satisfying the range predicate. If the cell's
+vanishing identity
+\[
+  p_{\mathsf{op}}(x) - p_{c}(x) - p_{h}(x)\,p_{\bar p}(x)
+  \;=\;
+  \bigl(p_{w}(x) - 2^{14}\,\mathbb{1}(x)\bigr)\,(x - 2^{8})
+\]
+holds coefficient-wise over $\mathbb{F}_q$, where $p_{\mathsf{op}} = p_a\,p_b$
+for $\times$ and $p_a + p_b$ for $+$, $p_{\bar p}$ is the limb polynomial of
+the Griffin modulus $p$, and $\mathbb{1}$ is the all-ones polynomial, then
+\[
+  \mathsf{int}(a) \circ \mathsf{int}(b)
+  \;=\;
+  \mathsf{int}(c) + \mathsf{int}(h)\cdot p
+  \quad\text{over } \mathbb{Z},
+  \qquad\text{hence}\qquad
+  \mathsf{int}(c) \;\equiv\; \mathsf{int}(a) \circ \mathsf{int}(b) \pmod{p}.
+\]
+The same conclusion holds for the multi-operand linear cells used by the
+linear layer, whose $p_{\mathsf{op}}$ is a fixed integer combination of up to
+four operand polynomials with coefficient sum $5$.
 \end{lemma}
 
 \begin{proof}
-For each family we exhibit the constraint polynomial it enforces on the round
-domain and observe that any deviating value leaves that polynomial non-vanishing,
-hence unsatisfying; equality of the surviving assignment with $\rho(s)$ then
-follows by composing the layers.
-\emph{Forward S-box} (lane $1$, family B-1). The chip enforces
-$Q_{\mathsf{sq}}=\mathit{sq}-s_1^{2}$ and
-$Q_{\mathsf{cube}}=\mathit{cube}-\mathit{sq}\cdot s_1$, both vanishing on the round
-domain, so the lane-$1$ nonlinear output is $\mathit{cube}=s_1^{3}\bmod p$; any
-output $\neq s_1^{3}$ leaves $Q_{\mathsf{cube}}$ non-zero.
-\emph{Inverse S-box} (lane $0$, family B-2). The chip enforces
-$Q_{\mathsf{inv}}=s_0-(s^{\mathrm{nl}}_0)^{3}$, witnessing the cube root in the
-backward direction; since $\gcd(3,p-1)=1$ (Remark~\ref{rem:prime-substitution},
-verified for the implemented modulus in Section~\ref{sec:system}), the cube map is
-a bijection on $\mathbb{F}_p$, so the witnessed $s^{\mathrm{nl}}_0$ is the unique
-cube root and equals the forward inverse S-box on $s_0$.
-\emph{Quadratic layer} (lanes $2,3$, family B-3). For $i\in\{2,3\}$ the chip
-enforces $Q_i=s^{\mathrm{nl}}_i-s_i\,(L_i^{2}+\alpha_{i-2}L_i+\beta_{i-2})$, where
-$L_i=(i-1)\,s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1+s^{\mathrm{nl}}_{i-1}$ reads the two
-updated S-box lanes ($s^{\mathrm{nl}}_0$ the inverse-S-box lane,
-$s^{\mathrm{nl}}_1$ the forward-S-box lane) and the preceding updated quadratic
-lane $s^{\mathrm{nl}}_{i-1}$; for $i=2$ the third summand is absent, so
-$L_2=s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1$. The quadratic coefficients follow
-Griffin's index law: a single base pair $(\alpha,\beta)$ is read from the SHAKE256
-seed, and $\alpha_{i-2}=(i-1)\alpha$, $\beta_{i-2}=(i-1)^{2}\beta$ (so
-$\alpha_0=\alpha,\beta_0=\beta$ for $i=2$ and $\alpha_1=2\alpha,\beta_1=4\beta$ for
-$i=3$). The base $(\alpha,\beta)$ are the first two field elements read from
-$\mathrm{SHAKE256}$ seeded by the domain string $\mathrm{PlumGriffin}(p,4,2,128)$,
-the same seed that produces the $52$ round constants; a wrong $\alpha,\beta$, a
-wrong index scaling, or an off-by-one in $L_i$ leaves $Q_i$ non-zero.
-\emph{MDS layer} (family B-4). Per output lane $j$ the chip enforces
-$Q^{\mathsf{mds}}_j=s'_j-\bigl\langle \mathrm{circ}(2,1,1,1)_j,\,s^{\mathrm{nl}}\bigr\rangle$,
-where $\mathrm{circ}(2,1,1,1)_j$ is the symmetric circulant row
-$\mathrm{first}[(j+\mathrm{col})\bmod 4]$ matching \texttt{build\_matrix}, not the
-standard $(\mathrm{col}-j)\bmod 4$ form (the two differ on rows $1,3$); any other
-matrix row leaves some $Q^{\mathsf{mds}}_j$ non-zero.
-\emph{Round constants} (family B-5). Per lane $\ell$ the chip enforces
-$Q^{\mathsf{rc}}_\ell=s'_\ell-(\text{MDS output})_\ell-\mathrm{RC}[4r+\ell]$ under
-one-hot round selection $r$, with $\mathrm{RC}$ preprocessing-bound (family B-10);
-a substituted or omitted constant leaves $Q^{\mathsf{rc}}_\ell$ non-zero. The
-preprocessing table holds $\mathrm{STATE\_WIDTH}\times(\text{rounds}-1)=52$
-constants, applied to the first $13$ rounds; the final round applies no
-round-constant layer, so its constraint is
-$Q^{\mathsf{rc}}_\ell=s'_\ell-(\text{MDS output})_\ell$.
-
-Composing B-1 through B-5 along the round, the unique satisfying assignment of
-$s'$ is the reference round $\rho(s)$.
+Under the range predicate, each coefficient of the difference of the two sides
+is an integer of absolute value at most
+\[
+  \underbrace{32\cdot 255^{2}}_{p_a p_b}
+  \;+\; \underbrace{255}_{p_c}
+  \;+\; \underbrace{32\cdot 255^{2}}_{p_h\,p_{\bar p}}
+  \;+\; \underbrace{(2^{16}-2^{14})\,(2^{8}+1)}_{\text{offset witness, two shifts}}
+  \;=\; 16{,}793{,}919 \;<\; q,
+\]
+where $32$ bounds the overlap of two $32$-limb polynomials; the additive and
+linear-combination cases are smaller. An integer that vanishes in
+$\mathbb{F}_q$ and has absolute value below $q$ is zero, so the identity holds
+in $\mathbb{Z}[x]$. Evaluating at $x = 2^{8}$ annihilates the right-hand side
+and evaluates each limb polynomial to its integer, giving
+$\mathsf{int}(a)\circ\mathsf{int}(b) - \mathsf{int}(c) - \mathsf{int}(h)\,p = 0$.
 \end{proof}
 
-\begin{lemma}[Composition, binding, canonicality; families B-6 through B-10]\label{lem:compose}
-Under constraint families B-6 through B-10, every trace satisfying $\mathcal{C}$
+The lemma concludes a congruence, not canonicality: $\mathsf{int}(c)$ is bounded
+by $2^{256}$ through its byte limbs but not by $p$, and the chip indeed admits
+non-canonical representatives in intermediate cells. Canonicality is restored
+where output canonicality and the hardening checks on the nonlinear-output cells impose
+it, which the next lemma makes explicit.
+
+\begin{lemma}[Per-row round soundness: the round-function and canonicality families]\label{lem:round-fn}
+Fix a real row with round index $r\in\{0,\dots,13\}$, input-lane limbs
+$s=(s_0,s_1,s_2,s_3)$, and claimed output-lane limbs $s'=(s'_0,\dots,s'_3)$.
+Suppose the row satisfies, over $\mathbb{F}_q$, the per-row constraints of
+the round-function and canonicality families and the per-row row-scheduling selectors,
+and that every cell satisfies the range predicate. Then each
+$\mathsf{int}(s'_\ell)$ is the canonical representative of lane $\ell$ of
+$\rho_r(s \bmod p)$, where $\rho_r$ is the reference Griffin round with
+constants $\mathrm{RC}[4r],\dots,\mathrm{RC}[4r{+}3]$ (zero for $r=13$), and
+the $\mathbb{F}_p$-classes of all intermediate result cells are determined by
+$s$.
+\end{lemma}
+
+\begin{proof}
+\emph{Selectors.} The per-row row-scheduling constraints make each
+$\mathsf{is\_round}_r$ boolean with $\sum_r \mathsf{is\_round}_r = 1$ and
+$\sum_r r\cdot\mathsf{is\_round}_r = \mathsf{round\_idx}$ on a real row, so
+exactly one selector is set, at position $r$, and the round-constant mux
+evaluates to the byte-bounded limbs of $\mathrm{RC}[4r{+}\ell]$.
+
+\emph{Forward S-box} (lane $1$). Lemma~\ref{lem:limb-gadget}
+applied to the squaring cell and then the cube cell gives
+$\mathsf{int}(\mathit{cube}) \equiv s_1^{3} \pmod{p}$; the bytewise binding of
+the lane-$1$ nonlinear output to $\mathit{cube}$ transfers this congruence to
+the lane.
+
+\emph{Inverse S-box} (lane $0$). The chip witnesses the nonlinear
+output $s^{\mathrm{nl}}_0$ and checks the backward cube: two applications of
+Lemma~\ref{lem:limb-gadget} give
+$\mathsf{int}(\mathit{cube}_0) \equiv (s^{\mathrm{nl}}_0)^{3} \pmod{p}$, and the
+bytewise binding $\mathit{cube}_0 = s_0$ yields
+$(s^{\mathrm{nl}}_0)^{3} \equiv s_0 \pmod{p}$. Since $\gcd(3,p-1)=1$
+(Remark~\ref{rem:prime-substitution}), cubing is a bijection on
+$\mathbb{F}_p$, so the class of $s^{\mathrm{nl}}_0$ is the unique cube root
+$s_0^{1/3}$, the reference inverse S-box.
+
+\emph{Quadratic layer} (lanes $2,3$). The composite relation
+$s^{\mathrm{nl}}_i = s_i\,(L_i^{2}+\alpha_{i-2}L_i+\beta_{i-2})$ is enforced as
+a chain of binary cells (sums building $L_i$, its square, the
+$\alpha$-multiple, the shifted sum, and the final product). Each link satisfies
+the range predicate, since every cell's result limbs are byte-checked, so
+Lemma~\ref{lem:limb-gadget} applies link by link and the congruences compose to
+$s^{\mathrm{nl}}_i \equiv s_i\,(L_i^{2}+\alpha_{i-2}L_i+\beta_{i-2}) \pmod{p}$
+with $L_2 = s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1$ and
+$L_3 = 2s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1+s^{\mathrm{nl}}_2$, the updated
+lanes, and with the index law $\alpha_0=\alpha$, $\beta_0=\beta$,
+$\alpha_1=2\alpha$, $\beta_1=4\beta$ baked into the constant operands; the base
+pair $(\alpha,\beta)$ and the $52$ round constants are read from
+$\mathrm{SHAKE256}$ seeded by the domain string
+$\mathrm{PlumGriffin}(p,4,2,128)$ and enter the constraints as
+preprocessing-bound constants (parameter immutability), not prover columns.
+
+\emph{Linear layer}. The four linear cells, by the multi-operand
+case of Lemma~\ref{lem:limb-gadget}, give
+$\mathsf{mds}_j \equiv \bigl\langle \mathrm{circ}(2,1,1,1)_j,\,
+s^{\mathrm{nl}} \bigr\rangle \pmod{p}$, where $\mathrm{circ}(2,1,1,1)_j$ is the
+symmetric circulant row $\mathrm{first}[(j+\mathrm{col})\bmod 4]$ matching
+\texttt{build\_matrix}, not the standard $(\mathrm{col}-j)\bmod 4$ form (the
+two differ on rows $1,3$).
+
+\emph{Round constants}. The four addition cells give
+$\mathsf{int}(s'_\ell) \equiv \mathsf{mds}_\ell + \mathrm{RC}[4r{+}\ell]
+\pmod{p}$, the mux having been fixed by the selector step; the preprocessing
+table holds $56$ entries of which the final round's $4$ are zero, so the
+uniform constraint covers all $14$ rounds and degenerates to the bare linear
+layer on the last.
+
+\emph{Canonicality}. The bytewise less-than cells enforce
+$\mathsf{int}(s'_\ell) < p$, so each output lane is the canonical
+representative of its class.
+
+Composing the five layers, the class of every intermediate result cell is
+determined by $s$ (lane $0$ by bijectivity of cubing, the remaining cells as
+images of deterministic operations; the carry and witness columns vary with the
+representatives the prover chooses), and $\mathsf{int}(s'_\ell)$ is the
+canonical representative of lane $\ell$ of $\rho_r(s \bmod p)$.
+\end{proof}
+
+\begin{lemma}[Composition, binding, canonicality: the schedule-and-binding families]\label{lem:compose}
+Under the schedule-and-binding families, every trace satisfying $\mathcal{C}$
 realises its $14$ rows as the $14$ sequential reference rounds on a single state
 bound to the syscall's memory input and output, with canonical output lanes.
 \end{lemma}
 
 \begin{proof}
-\emph{Round count} (family B-6). The schedule is fixed to $14$ rounds by the
+\emph{Round count}. The schedule is fixed to $14$ rounds by the
 trace-generation row count and the controller's lookup anchors at directions $0$
 and $\mathrm{NB\_ROUNDS}$, rather than by a dedicated algebraic constraint; under
-the lookup binding (premise~(T1)) a trace with a different round count produces an
+the lookup binding (the lookup-binding hypothesis) a trace with a different round count produces an
 unbalanced lookup and has no satisfying assignment.
-\emph{Memory binding} (family B-7). The controller chip constrains the input and
+\emph{Memory binding}. The controller chip constrains the input and
 output state lanes to the values at the syscall's memory addresses and clock, a
-memory-consistency lookup constraint resolved under premise~(T1), so a trace
+memory-consistency lookup constraint resolved under the lookup-binding hypothesis, so a trace
 reading or writing a different address or clock produces an unbalanced lookup.
-\emph{Output canonicality} (family B-8). Each output lane $s'_j$ carries the range
+\emph{Output canonicality}. Each output lane $s'_j$ carries the range
 constraint $0\le s'_j<p$ enforced by a byte-wise less-than comparison
-(\texttt{FieldLtCols}); a non-canonical lane violates it.
-\emph{Row scheduling} (family B-9). The real/padding and first/last-round selector
+(\texttt{FieldLtCols}); this is the per-row step already proved within
+Lemma~\ref{lem:round-fn} and is restated here only for the family inventory.
+\emph{Row scheduling}. The real/padding and first/last-round selector
 flags enforce one ordered run with cross-row state threading
 $\mathsf{state\_out}_r=\mathsf{state\_in}_{r+1}$, realised by the per-row lookup
 interactions (a \textsc{receive} at direction $r$ and a \textsc{send} at direction
-$r{+}1$) under the lookup binding (premise~(T1)); a ghost or mis-ordered row
+$r{+}1$) under the lookup binding (the lookup-binding hypothesis); a ghost or mis-ordered row
 creates an unbalanced lookup.
-\emph{Parameter immutability} (family B-10). The modulus, round count, MDS entries,
+\emph{Parameter immutability}. The modulus, round count, linear-layer entries,
 round constants, and quadratic coefficients are preprocessing-bound rather than
 prover-supplied, so a per-row choice of any of them has no satisfying assignment.
 
-By B-9, and given the lookup binding~(T1), the per-round equalities of
+By row scheduling, and given the lookup binding (the lookup-binding hypothesis), the per-round equalities of
 Lemma~\ref{lem:round-fn} chain into $14$ sequential rounds on one state; with the
-round count fixed by the lookup schedule (B-6, premise~(T1)) and with B-8 and
-B-10, this is the reference permutation, and with B-7 it is bound to the
+round count fixed by the lookup schedule (round count, the lookup-binding hypothesis) and with output canonicality and
+parameter immutability, this is the reference permutation, and with memory binding it is bound to the
 syscall's memory input and output.
 \end{proof}
 
@@ -403,11 +538,14 @@ a trace satisfying $\mathcal{C}$ with output $\pi(s)$.
 \begin{proof}
 Following the practice of~\cite{cairoverify}, where soundness is the
 load-bearing direction and completeness is discharged operationally, we support
-the claim by the cross-codebase equivalence tests: the trace
-generator populated from the reference computation produces a satisfying
-assignment on every tested input, namely the $256$-vector randomised suite, the
-hand-picked and zero/high-entropy vectors, and the single-permutation smoke proof
-that completes execute, prove, and verify (Section~\ref{sec:system}).
+the claim by the tests that evaluate the constraints on an honest trace: the
+single-permutation smoke proof that completes execute, prove, and verify
+(Section~\ref{sec:system}), and the fault-injection suite's positive control, in
+which the uncorrupted satisfying trace yields zero failing rows under
+\texttt{debug\_constraints} (Section~\ref{app:status}). The $256$-vector
+randomised suite and the hand-picked and zero/high-entropy vectors pin the trace
+generator's underlying executor against the reference computation and do not
+themselves evaluate the constraints.
 \end{proof}
 
 \subsection{The argument layer}\label{app:argument}
@@ -428,9 +566,11 @@ soundness needs both, and we keep them separate.
 \subsection{The open step}\label{app:status}
 
 The compositional argument of Theorem~\ref{thm:air-sound} is unconditional given
-Lemmas~\ref{lem:round-fn} and~\ref{lem:compose} and the premise that the
-implemented chip enforces exactly the analysed constraint set $\mathcal{C}$. That
-premise is the one step we do not machine-verify. The evidence for it is the
+Lemmas~\ref{lem:limb-gadget}, \ref{lem:round-fn}, and~\ref{lem:compose} and the
+premise that the implemented chip enforces at least the analysed constraint set
+$\mathcal{C}$ (the chip carries further hardening checks beyond $\mathcal{C}$,
+which only shrink the satisfying set). That premise, the fidelity of the
+code-to-constraint transcription, is the step we do not machine-verify. The evidence for it is the
 cross-codebase agreement of the chip's native compute with the reference
 permutation on $256$ random vectors, with per-vector false-pass at most
 $1/p\approx2^{-199}$ and aggregate at most $2^{-191}$ across the suite, together
@@ -442,22 +582,24 @@ set and is \emph{not} a bound on the open constraint-level premise. The suite pi
 \emph{executor} against the reference, but the \emph{constraint system} checked against that
 executor is what the vector suite does not reach.
 A separate fault-injection suite reaches the constraint system in the
-\emph{rejection} direction for eight of the ten families (B-1 through B-5, B-8, and
-the per-row B-9 selectors): a single-cell corruption of a satisfying trace is
-rejected by the per-row constraints in each case, including the MDS lanes $1$ and
+\emph{rejection} direction for seven of the ten families (the per-row families): a single-cell corruption of a satisfying trace is
+rejected by the per-row constraints in each case, including the linear-layer lanes $1$ and
 $3$ that distinguish the implemented symmetric circulant from the standard one.
 This evidence is itself bounded, and we state the bounds. It is evaluated through
 \texttt{debug\_constraints}, which checks the per-row algebraic constraints but not
-the cross-table lookups, so the lookup-borne families (round count B-6, memory
-binding B-7, and the cross-row threading of B-9) lie outside its reach and would
-require a full-prover harness; parameter immutability (B-10) is enforced by
+the cross-table lookups, so the lookup-borne families (round count, memory
+binding, and the cross-row threading of row scheduling) lie outside its reach and would
+require a full-prover harness; parameter immutability is enforced by
 construction, with no prover-chosen column to reject. The suite thus shows that
 specific local deviations are caught, not that no wrong witness satisfies
 $\mathcal{C}$, which remains the open premise.
 Closing it fully requires deriving the AIR witness directly from the reference code and
 checking, ideally by machine, that $\mathcal{C}$ admits only that witness. We
-therefore report Theorem~\ref{thm:air-sound} as argued at the specification level
-and supported empirically at the implementation level, with the
-chip--constraint equality carried as the open premise~(T2) of both this theorem
-and the conditional precompile-soundness theorem
-Theorem~\ref{thm:precompile-sound}.
+therefore report Theorem~\ref{thm:air-sound} as \emph{proved} at the
+specification level for the per-row layer (Lemmas~\ref{lem:limb-gadget}
+and~\ref{lem:round-fn}, conditional on the range predicate that the byte-table
+lookups discharge under the lookup-binding hypothesis), argued for the lookup-borne layer
+(Lemma~\ref{lem:compose}), and supported empirically at the implementation
+level; what Assumption~\ref{asm:air} still carries is the code-to-constraint transcription
+fidelity together with the lookup-borne families, for both this theorem and the
+conditional precompile-soundness theorem Theorem~\ref{thm:precompile-sound}.
