@@ -420,7 +420,7 @@ exact share differs by cost model and is reported here in the zkVM's own units.
 \paragraph{Execute-mode delta for the Griffin precompile (PLUM-80).}
 For the bespoke Griffin AIR specifically, the precompile-free versus
 precompile-enabled execute-mode cycle counts differ by a factor of
-$56.4\times$ at $\lambda=80$, the ratio of precompile-free to Griffin-AIR-enabled cycles on the Griffin arm; this is distinct from the $37.9\%/70.5\%$ of Table~\ref{tab:ablation}, a separate field-multiplication-reduction ablation reported at $\lambda=128$. % commit 2c1392b
+$56.4\times$ at $\lambda=80$, the ratio of precompile-free to Griffin-AIR-enabled cycles on the Griffin arm, consistent with the field-mismatch lower bound of Proposition~\ref{prop:fmt-lb} (which predicts a per-multiplication tax of up to ${\approx}49$ for PLUM's $199$-bit field on BabyBear); this is distinct from the $37.9\%/70.5\%$ of Table~\ref{tab:ablation}, a separate field-multiplication-reduction ablation reported at $\lambda=128$. % commit 2c1392b
 We report this as an \emph{execute-mode cycle ratio} rather than a wall-clock speedup:
 it is the machine-independent counterpart of the infeasible-to-feasible prove
 transition of Table~\ref{tab:plum-verify}, and it is the figure that should be

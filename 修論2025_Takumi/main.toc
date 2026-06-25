@@ -66,8 +66,8 @@
 \contentsline {subsection}{\numberline {4.2}The Field-Mismatch Tax}{38}{}%
 \contentsline {subsection}{\numberline {4.3}Update Churn}{41}{}%
 \contentsline {subsection}{\numberline {4.4}Cost Decomposition of BDEC Relations}{42}{}%
-\contentsline {paragraph}{CreGen.}{42}{}%
-\contentsline {paragraph}{ShowCre.}{42}{}%
+\contentsline {paragraph}{CreGen.}{43}{}%
+\contentsline {paragraph}{ShowCre.}{43}{}%
 \contentsline {section}{\numberline {5}Construction: The Precompile Suite and PLUM-in-BDEC}{44}{}%
 \contentsline {subsection}{\numberline {5.1}Scope of the Implementation}{44}{}%
 \contentsline {subsection}{\numberline {5.2}The Field-Arithmetic Substrate: \texttt {Fp192} Multiplication via the Host Precompile}{45}{}%

@@ -37,6 +37,24 @@ Writing $\mathsf{ops}(\Pred)$ for the multiset of field operations executed by a
 \]
 \end{definition}
 
+The tax is not merely a name for a measured overhead; it admits a lower bound that depends only on the two field sizes. Write $\ell = \lceil \log_2 p / \lfloor \log_2 p_{\mathsf{vm}}\rfloor \rceil$ for the number of $\mathbb{F}_{p_{\mathsf{vm}}}$ limbs needed to represent one element of $\mathbb{F}_p$.
+
+\begin{proposition}[Field-mismatch lower bound]\label{prop:fmt-lb}
+On any zkVM whose native field is $\mathbb{F}_{p_{\mathsf{vm}}}$ and which exposes no native $\mathbb{F}_p$ multiplication, an emulated $\mathbb{F}_p$ element occupies at least $\ell$ trace cells, and emulating one $\mathbb{F}_p$ multiplication requires at least $\ell$ native $\mathbb{F}_{p_{\mathsf{vm}}}$ multiplications. Hence
+\[
+  \mathsf{FMT}(\mathsf{mult}) \;\ge\; \ell \;=\; \Omega\!\left(\frac{\log p}{\log p_{\mathsf{vm}}}\right).
+\]
+Schoolbook multi-limb multiplication, the method the evaluated zkVMs use, attains $\Theta(\ell^2)$, so the realised tax per multiplication lies between $\ell$ and $\ell^2$.
+\end{proposition}
+
+\begin{proof}
+\emph{Representation.} An injective encoding of $\mathbb{F}_p$ into tuples of $\mathbb{F}_{p_{\mathsf{vm}}}$ elements needs $k$ components with $p_{\mathsf{vm}}^{k}\ge p$, so $k\ge \log_2 p/\log_2 p_{\mathsf{vm}}$; as each limb carries at most $\lfloor\log_2 p_{\mathsf{vm}}\rfloor$ bits, at least $\ell$ limbs, hence at least $\ell$ trace cells, are required. \emph{Multiplication.} Decompose an operand $a\in\mathbb{F}_p$ into limbs $a=\sum_{i<\ell}a_i B^i$ with $B=2^{\lfloor\log_2 p_{\mathsf{vm}}\rfloor}$. The product $a\cdot b \bmod p$ is bilinear and depends on every limb $a_i$: its limb expansion contains the monomials $a_i b_j$, which are not affine in the inputs, so each $a_i$ must occur as a factor of at least one $\mathbb{F}_{p_{\mathsf{vm}}}$ multiplication in any straight-line program computing the product. The $\ell$ limbs $a_0,\dots,a_{\ell-1}$ therefore force at least $\ell$ multiplications. Normalising by the single native-instruction cost gives $\mathsf{FMT}(\mathsf{mult})\ge\ell$; the schoolbook method forms all $\ell^2$ limb products, attaining the upper end.
+\end{proof}
+
+\begin{remark}\label{rem:fmt-instantiation}
+For PLUM ($\log_2 p\approx 199$) on BabyBear ($\lfloor\log_2 p_{\mathsf{vm}}\rfloor = 30$), $\ell = 7$, so Proposition~\ref{prop:fmt-lb} places the per-multiplication tax between $7$ and $49$. The measured precompile-free-to-precompiled cycle ratio of $56.4\times$ at $\lambda=80$ (Cell~1 / Cell~2, Section~\ref{sec:evaluation}) is consistent with the schoolbook $\ell^2\approx 49$ end realised across the hash-dominated workload, the modest residual reflecting the Griffin permutation's per-round structure beyond bare multiplication.
+\end{remark}
+
 A precompile, as defined in Section~\ref{sec:prelim}, replaces $\mathsf{cyc}_{\mathsf{em}}(\mathsf{op})$ for a designated operation by a single zkVM syscall, whose cost from the guest's perspective is one cycle plus the constant overhead of the syscall ABI. Writing $\mathsf{Pre}\subseteq\mathsf{ops}(\Pred)$ for the set of operations covered by precompiles and $\mathsf{cyc}_{\mathsf{syscall}}$ for the per-syscall overhead, the cumulative emulated cost of $\Pred$ under a precompile-enabled zkVM is therefore
 \[
   \mathsf{Cyc}_{\mathsf{em}}^{\mathsf{pre}}(\Pred)

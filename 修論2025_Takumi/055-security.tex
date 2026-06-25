@@ -443,6 +443,18 @@ set $\lambda=80$. We do not claim the barrier is fundamental to the primitive or
 that it persists on server-class hardware. Characterising how it moves with the
 memory budget and the security level is left as future work.
 
+What would move this barrier can be named as three levers. Reaching post-quantum
+zero-knowledge for this workload requires (i) a post-quantum-sound zero-knowledge
+wrap in place of the pairing-based ones the toolchains currently expose, for which
+two hash-based routes already exist as code (masked {FRI} and the {VEIL} compiler;
+Section~\ref{sec:conclusion}); (ii) that this wrap prove within the memory budget,
+the resource question this thesis leaves open; and, for everlasting in place of
+merely computational anonymity, (iii) a non-interactive, standard-model,
+statistically-hiding commitment to the witness-bearing trace
+(Proposition~\ref{prop:everlasting}). Levers (i) and (ii) are engineering
+questions, the techniques for (i) already implemented and (ii) reducing to whether
+the masked prover fits the budget; lever (iii) is an open construction problem.
+
 A separate question is the strength of the anonymity guarantee where the argument
 is zero-knowledge. Two points bound it. The first concerns quantum adversaries. The
 bound of Equation~\eqref{eq:adv-anon} is stated in the classical random-oracle
