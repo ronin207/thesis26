@@ -156,4 +156,45 @@ fn main() {
         "cargo:rustc-env=LOQUAT_VERIFY_ELF_PATH={}",
         canonical(loquat_dir, "loquat_verify").display(),
     );
+
+    // ─── BDEC guests (CreGen: 2 verifies, ShowCre: k+2) — SP1 port ──────
+    //
+    // Each guest is built in two arms, mirroring the plum_verify A/B above:
+    //   syscall  (default)          → Griffin via GRIFFIN_FP192_PERMUTE
+    //   emulated (griffin-emulated) → Griffin in rv32im (UINT256_MUL still on)
+    // The with/without-precompile comparison now runs on the BDEC relations
+    // themselves, not just the single signature verification.
+    for (crate_dir, bin) in [
+        ("../program_bdec_cregen", "bdec_cregen"),
+        ("../program_bdec_showcre", "bdec_showcre"),
+    ] {
+        let syscall_dir = format!("{crate_dir}/elf-syscall");
+        let emulated_dir = format!("{crate_dir}/elf-emulated");
+        build_program_with_args(
+            crate_dir,
+            BuildArgs {
+                elf_name: Some(bin.into()),
+                output_directory: Some(syscall_dir.clone().into()),
+                ..Default::default()
+            },
+        );
+        build_program_with_args(
+            crate_dir,
+            BuildArgs {
+                features: vec!["griffin-emulated".into()],
+                elf_name: Some(bin.into()),
+                output_directory: Some(emulated_dir.clone().into()),
+                ..Default::default()
+            },
+        );
+        let upper = bin.to_uppercase();
+        println!(
+            "cargo:rustc-env={upper}_SYSCALL_ELF_PATH={}",
+            canonical(&syscall_dir, bin).display(),
+        );
+        println!(
+            "cargo:rustc-env={upper}_EMULATED_ELF_PATH={}",
+            canonical(&emulated_dir, bin).display(),
+        );
+    }
 }

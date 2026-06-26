@@ -1,0 +1,25 @@
+pub_hardening S2+S3 — 2026-06-10, M5 Pro 24GB, solo runs (no contention), repo @ 9975fde+dirty
+caffeinate -is; sequential; commands in scripts/pub_hardening_runs.sh.
+
+S2: Aurora (libiop fp127 runner) Loquat single verify, lambda=80, zk=false, n=3
+  prover_s    : 226.6 / 226.4 / 223.2   (mean 225.4 s = 3.76 min; spread +-0.8%)
+  verifier_s  : 41.3 / 41.0 / 41.6      (mean 41.3 s)
+  proof_bytes : 704,416 (identical all runs; = 687.9 KiB)
+  achieved query soundness 107.5 bits; constraints 524,288 padded; ACCEPT all.
+
+S3: SP1 (v6.2.1 fork, KoalaBear) Loquat single verify, lambda=80, emulated Griffin,
+    succinct STARK core proof (NOT ZK), tuned env: SHARD_SIZE=2^22,
+    ELEMENT_THRESHOLD=2^26, HEIGHT_THRESHOLD=2^20, TRACE_CHUNK_SLOTS=2,
+    RAYON_NUM_THREADS=8. n=3:
+  prove_min   : 44.35 / 64.04 / 47.44   (mean 51.94; range 1.44x, idle machine,
+                run 2 started on a hot package -> thermal variance, not contention)
+  verify_s    : 8.14 / 12.27 / 8.17
+  proof_bytes : 424,398,184 / 424,397,160 / 424,398,184  (= 404.7 MiB core STARK)
+  peak_rss_GiB: 14.69 / 15.39 / 14.13
+  execute-mode cycles (separate execute run, deterministic): 397,227,544
+
+Substrate ratio (prove wall): 13.8x at the means; 11.8x-17.0x across SP1 runs
+vs the Aurora mean. SUPERSEDES the unarchived 2026-06-09 session numbers
+(55.93 min / 73.3 MiB / 1.58 s verify): that run's configuration was never
+recorded, defaults are now known to OOM on this machine, and its proof size is
+inconsistent with the core-STARK encoding measured here; treat it as void.

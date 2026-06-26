@@ -1,0 +1,154 @@
+Reset time counters for profiling
+(enter) Fractal SNARK indexer              	[             ]	(0.2745s x0.99 from start)
+  
+Fractal SNARK parameters
+  * security parameter (bits) = 128
+  * RS extra dimensions = 5
+  * LDT reducer soundness type = proven
+  * FRI soundness type = heuristic
+  * zero-knowledge = false
+  * domain type = multiplicative coset
+
+Fractal hIOP parameters
+  * target security parameter = 128
+  * achieved security parameter = 107.3
+  * RS extra dimensions = 5
+  * matrix domain dim = 19
+  * index domain dim = 20
+  * codeword domain dim = 27
+  * query bound = 374
+  * make zk = false
+  * domain type = multiplicative coset
+
+Holographic Multi lincheck parameters
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 233.0
+  * interactive repetitions = 1
+  * constraint domain dim = 19
+  * make zk = false
+  * domain type = multiplicative coset
+
+LDT instance reducer parameters
+  * soundness type = proven
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 226.0
+  * codeword domain dim = 27
+  * max tested degree bound = 2097152
+  * max constraint degree bound = 2097152
+  * absolute proximity parameter = 44040191
+  * fractional proximity parameter = 0.328125
+  * num output LDT instances = 1
+
+FRI parameters
+  * soundness type = heuristic
+  * target interactive soundness error (bits) = 131
+  * achieved interactive soundness error (bits) = 253.0
+  * target query soundness error (bits) = 107
+  * achieved query soundness error (bits) = 107.3
+  * codeword domain dim = 27
+  * effective proximity parameter = 0.328125
+  * number of interactive repetitions = 1
+  * number of query repetitions = 187
+  * localization parameter array = { 1 2 2 2 2 2 2 2 2 2 2 }
+  * number of reductions = 11
+
+BCS parameters
+  * digest_len (bytes) = 32
+  * digest_len (bits) = 256
+  * hash_type = blake2b
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(6.2559s x1.00 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9522s x1.00]	(8.2081s x1.00 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(8.2082s x1.00 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[157.0340s x1.00]	(165.2422s x1.00 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(166.6253s x0.99 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9845s x1.00]	(168.6098s x0.99 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(168.6098s x0.99 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[155.5741s x0.96]	(324.1839s x0.98 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(326.2904s x0.97 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9929s x1.00]	(328.2833s x0.97 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(328.2833s x0.97 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[168.4230s x0.90]	(496.7063s x0.95 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(502.9727s x0.94 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9795s x1.00]	(504.9522s x0.94 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(504.9522s x0.94 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[155.7062s x0.94]	(660.6585s x0.94 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(666.7982s x0.94 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9631s x1.00]	(668.7613s x0.94 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(668.7613s x0.94 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[146.2727s x0.99]	(815.0340s x0.95 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(816.7402s x0.95 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9629s x1.00]	(818.7031s x0.95 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(818.7032s x0.95 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[145.8429s x0.99]	(964.5461s x0.95 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(966.4984s x0.95 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9585s x1.00]	(968.4568s x0.95 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(968.4569s x0.95 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[161.4497s x0.93]	(1129.9066s x0.95 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(1131.6800s x0.95 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9770s x1.00]	(1133.6571s x0.95 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(1133.6571s x0.95 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[169.2863s x0.90]	(1302.9434s x0.94 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(1308.0150s x0.94 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9573s x1.00]	(1309.9724s x0.94 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(1309.9724s x0.94 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[154.0100s x0.96]	(1463.9824s x0.95 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(1466.7670s x0.94 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[2.0117s x0.99]	(1468.7788s x0.94 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(1468.7788s x0.94 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[167.9057s x0.91]	(1636.6845s x0.94 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(1638.3758s x0.94 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9401s x1.00]	(1640.3159s x0.94 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(1640.3159s x0.94 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[164.7015s x0.91]	(1805.0174s x0.94 from start)
+  (enter) Call to multiplicative_IFFT_wrapper	[             ]	(1806.8976s x0.94 from start)
+    * Vector size: 1048576
+    * Coset size: 1048576
+  (leave) Call to multiplicative_IFFT_wrapper	[1.9621s x1.00]	(1808.8597s x0.94 from start)
+  (enter) Call to multiplicative_FFT_wrapper 	[             ]	(1808.8597s x0.94 from start)
+    * Vector size: 1048576
+    * Subgroup size: 134217728
+  (leave) Call to multiplicative_FFT_wrapper 	[173.8071s x0.88]	(1982.6668s x0.93 from start)

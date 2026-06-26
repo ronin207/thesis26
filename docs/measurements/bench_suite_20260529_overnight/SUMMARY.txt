@@ -1,0 +1,93 @@
+Benchmark suite started: 2026-05-29 01:13:10 JST
+Machine state at kickoff:
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                    99587.
+Pages active:                                 636756.
+Pages inactive:                               373690.
+Pages speculative:                            266255.
+Pages throttled:                                   0.
+Pages wired down:                             133882.
+Pages purgeable:                               29413.
+"Translation faults":                        4437352.
+Pages copy-on-write:                          178693.
+CPU usage: 3.10% user, 6.20% sys, 90.69% idle 
+PhysMem: 17G used (2092M wired, 0B compressor), 5715M unused.
+
+=========================================
+[01:13:10] START 01_sphincs_prove
+cmd: cargo run --release --bin bench_pqc
+[01:16:00] END   01_sphincs_prove rc=0 elapsed=170s log=/tmp/bench_suite_20260528/01_sphincs_prove.log
+warning: unused variable: `full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                            ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+scheme=sphincs prove_ms=10228 (= 0.17 min = 0.00 h)
+         11259396096  maximum resident set size
+
+=========================================
+[01:16:00] START 02_dilithium_prove
+cmd: cargo run --release --bin bench_pqc
+[01:20:09] END   02_dilithium_prove rc=1 elapsed=249s log=/tmp/bench_suite_20260528/02_dilithium_prove.log
+warning: unused variable: `full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                            ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+         12594331648  maximum resident set size
+
+=========================================
+[01:20:09] START 03_plonk_zkwrap_quartered_with_rss_sampler
+[01:23:01] waiting for bench_suite_clean_boot.sh to finish...
+[01:40:03] END   03_plonk_zkwrap_quartered_with_rss_sampler rc=1 elapsed=1194s
+peak_rss_from_sampler_kb=18670112 (= 18232.53 MB = 17.80 GB)
+warning: unused variable: `full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                            ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+         19976421376  maximum resident set size
+
+=========================================
+[01:40:03] SKIP  04_loquat_lambda128_prove (no timeout binary; deferred to daytime)
+
+=========================================
+Suite finished: 2026-05-29 01:40:03 JST
+Final machine state:
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                  1016300.
+Pages active:                                  97771.
+Pages inactive:                               195274.
+Pages speculative:                             16101.
+Pages throttled:                                   0.
+Pages wired down:                             161043.
+Pages purgeable:                                1366.
+"Translation faults":                      104004660.
+Pages copy-on-write:                         3020268.
+[01:40:32] main suite done; starting Loquat λ=128 follow-up
+Machine state before Loquat:
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                   902703.
+Pages active:                                 175769.
+Pages inactive:                               202354.
+Pages speculative:                             46423.
+Pages throttled:                                   0.
+Pages wired down:                             156444.
+Pages purgeable:                                4196.
+"Translation faults":                      104332286.
+Pages copy-on-write:                         3032693.
+CPU usage: 3.15% user, 6.31% sys, 90.52% idle 
+PhysMem: 8514M used (2445M wired, 159M compressor), 14G unused.
+
+=========================================
+[01:40:32] START 04_loquat_lambda128_prove (gtimeout 4h)
+[01:40:42] END   04_loquat_lambda128_prove rc=101 elapsed=10s
+peak_rss_from_sampler_kb=1696 (= 1.65 MB = 0 GB)
+warning: unused variable: `full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+   |                            ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_full_prove_ms`
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+29 |     let (full_constraints, full_prove_ms, full_verify_ms, full_proof_bytes) =
+           717996032  maximum resident set size
+
+Loquat follow-up finished: 2026-05-29 01:40:42 JST

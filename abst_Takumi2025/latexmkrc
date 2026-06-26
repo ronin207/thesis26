@@ -1,0 +1,8 @@
+$latex = 'uplatex';
+$bibtex = 'upbibtex';
+$biber = './biber_thin --bblencoding=utf8 -u -U --output_safechars';
+$dvipdf = 'dvipdfmx %O -o %D %S';
+$makeindex = 'mendex -U %O -o %D %S';
+$pdf_mode = 3; 
+$ENV{OPENTYPEFONTS} = '/usr/share/fonts//:';
+$ENV{TTFONTS} = '/usr/share/fonts//:';

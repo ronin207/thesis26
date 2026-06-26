@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
   "program",
+  "program_bdec_cregen",
+  "program_bdec_showcre",
   "program_griffin_smoke",
   "program_ecdsa",
   "program_sphincs",

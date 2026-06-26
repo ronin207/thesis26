@@ -1,0 +1,1122 @@
+File
+Edit
+Insert
+View
+Format
+Help
+Upgrade
+mthesis_mizuno
+keyboard_arrow_down
+history
+space_dashboard
+person_add
+Share
+description
+File tree
+search
+Project search
+integration_instructions
+Integrations
+rate_review
+Review panel
+forum
+Chat
+AI assistant
+help
+settings
+Review
+inbox
+close
+undo
+Undo
+redo
+Redo
+text_fields
+expand_more
+format_bold
+Bold
+format_italic
+Italic
+calculate
+Ω
+add_link
+Insert link
+add_comment
+Add comment
+sell
+Insert cross reference
+book_5
+Insert citation
+add_photo_alternate
+table_chart
+format_list_bulleted
+Editor mode.
+Code
+Visual
+search
+Search file
+close
+block
+check
+chevron_left
+chevron_right
+WRITEFULL !
+smart_toy
+password
+text_snippet
+rotate_auto
+functions
+table_chart
+transform
+translate
+shuffle
+call_split
+content_paste
+description
+find_replace
+settings
+description
+main.tex
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+▾
+▾
+\documentclass[a4j,dvipdfmx,12pt,uplatex]{jsarticle} %platexなら",uplatex"を消すこと
+\usepackage{xcolor}
+\usepackage[hiresbb]{graphicx}
+\usepackage{ascmac}
+\usepackage{amsfonts}
+\usepackage{amsmath,amssymb}
+\usepackage{amsthm}
+\usepackage{array}
+\usepackage{float} % [H]オプションを使うために必要
+\usepackage{mathtools}
+\usepackage{comment}
+\usepackage[shortlabels]{enumitem}
+\usepackage{latexsym}
+\usepackage{multirow}
+% \usepackage[noreplace]{otf} % 日本語フォントの上下のバランスが良くなるがwarningが出る、noreplaceオプションをつけたときにはwarningが出なくなるが、何が変わっているのかよくわからないのは不安
+% \usepackage{subfigure}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{pxjahyper}%日本語ハイパーリンク
+% \usepackage{cite} % 参考文献
+\usepackage{seqsplit} % 長い英単語やURLを改行するために必要
+\usepackage{boites}
+\usepackage{listings, jlisting}
+\usepackage[style=ieee, backref=true, backend=biber]{biblatex}
+\addbibresource{ref.bib}
+
+
+% \usepackage{caption}
+% \captionsetup[table]{justification=centering}
+% \captionsetup[figure]{justification=centering}
+
+
+\usepackage{sakolab-thesis}
+
+
+\theoremstyle{definition}
+\newtheorem{thm}{定理}
+\newtheorem{dfn}[thm]{定義}
+\newtheorem{lem}[thm]{補題}
+\newtheorem{cau}[thm]{注意}
+\newtheorem{qst}[thm]{問}
+\newtheorem{ths}[thm]{命題}
+\newtheorem{sur}[thm]{観察}
+\newtheorem{ex}[thm]{例}
+\newtheorem{ser}[thm]{系}
+\newtheorem*{thm*}{定理}
+\newtheorem*{dfn*}{定義}
+\newtheorem*{lem*}{補題}
+\newtheorem*{cau*}{注意}
+\newtheorem*{qst*}{問}
+\newtheorem*{ths*}{命題}
+\newtheorem*{sur*}{観察}
+\newtheorem*{ex*}{例}
+\newtheorem*{ser*}{系}
+% \numberwithin{thm}{chapter}
+\renewcommand\proofname{\bf 証明}
+
+
+% 段落のマークを消す
+\renewcommand{\jsParagraphMark}{}
+
+
+\def\Underline{\setbox0\hbox\bgroup\let\\\endUnderline}
+\def\endUnderline{\vphantom{y}\egroup\smash{\underline{\box0}}\\}
+\def\|{\verb|}
+
+
+\hypersetup{%
+hidelinks
+}
+
+
+\renewcommand{\lstlistingname}{リスト}
+\lstset{%listings の表示設定
+    % language=json,
+    breaklines=true,%自動で折り返す
+    basicstyle={\ttfamily\scriptsize},%\footnotesize,
+    % basicstyle={\ttfamily\small},
+    % identifierstyle={\small},
+    identifierstyle={\scriptsize},
+    commentstyle={\smallitshape},
+    % commentstyle={\scriptsize},
+    % keywordstyle={\small\bfseries},
+edit
+Editing
+keyboard_arrow_down
+keyboard_arrow_down
+1-intro.tex
+11
+Kazue Sako
+17 January, 5:17 am
+check
+Resolve comment
+more_vert
+More options
+書き下す
+Shigeo MIZUNO
+23 January, 8:18 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 5:18 am
+check
+Resolve comment
+more_vert
+More options
+具体的に？
+Shigeo MIZUNO
+23 January, 8:18 pm
+more_vert
+More options
+具体化してみました
+Kazue Sako
+17 January, 5:20 am
+check
+Resolve comment
+more_vert
+More options
+これは発行元の情報？公開鍵を使っていることとの因果関係を説明できていない
+Shigeo MIZUNO
+23 January, 8:19 pm
+more_vert
+More options
+公開鍵から発行元がわかり，その情報から属性情報が推測されるという風に書いてみました
+Kazue Sako
+17 January, 5:22 am
+check
+Resolve comment
+more_vert
+More options
+どんな課題？
+Shigeo MIZUNO
+23 January, 8:19 pm
+more_vert
+More options
+現在標準化が進んでいたり，使われている署名方式の多くが群構造維持署名でないということを明記しました
+Kazue Sako
+17 January, 5:23 am
+check
+Resolve comment
+more_vert
+More options
+referenceがいるのでは
+Shigeo MIZUNO
+23 January, 8:19 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 5:24 am
+check
+Resolve comment
+more_vert
+More options
+reference
+Shigeo MIZUNO
+23 January, 8:20 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 5:25 am
+check
+Resolve comment
+more_vert
+More options
+この段落の説明は、はじめにに書くには細かすぎ、なのに説明なさすぎ、です。この説明は後にゆずって、全体の方針が書いてあるのがよいと思います。
+Shigeo MIZUNO
+23 January, 8:22 pm
+more_vert
+More options
+はじめにに示すべき背景と全体の方針のために必要な最低限の情報だと思うのですが，いかがでしょうか
+Kazue Sako
+17 January, 5:29 am
+check
+Resolve comment
+more_vert
+More options
+これの説明が必要
+Shigeo MIZUNO
+23 January, 8:22 pm
+more_vert
+More options
+「公開鍵を認証局などに登録する際に秘密鍵の所持証明も提出するという仮定である」という枕詞を付けたほか，Registered Key Modelに語彙を変更しました
+Kazue Sako
+17 January, 5:31 am
+check
+Resolve comment
+more_vert
+More options
+提示プロトコルとは
+Shigeo MIZUNO
+23 January, 8:23 pm
+more_vert
+More options
+証明生成アルゴリズムに変えました
+Kazue Sako
+17 January, 5:32 am
+check
+Resolve comment
+more_vert
+More options
+これがstructure-preserving?
+Shigeo MIZUNO
+23 January, 6:50 pm
+more_vert
+More options
+structure-preserving signature (日本語だと群構造維持署名)は具体的な署名方式ではなく、「グループ署名」のように複数の署名方式の総称を指す言葉です．
+具体的な署名方式の一...
+show more
+Kazue Sako
+17 January, 5:33 am
+check
+Resolve comment
+more_vert
+More options
+ポリシーとは
+Shigeo MIZUNO
+23 January, 8:23 pm
+more_vert
+More options
+このコメント時点で25行目にポリシーの説明を加えました
+keyboard_arrow_down
+2-preliminaries.tex
+25
+Kazue Sako
+17 January, 5:39 am
+check
+Resolve comment
+more_vert
+More options
+大文字は群で、小文字は群の要素とする方がわかりやすいのでは
+Shigeo MIZUNO
+23 January, 8:24 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 5:38 am
+check
+Resolve comment
+more_vert
+More options
+群の生成元
+Shigeo MIZUNO
+23 January, 8:24 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 5:40 am
+check
+Resolve comment
+more_vert
+More options
+そうなの？reference?
+Shigeo MIZUNO
+23 January, 8:26 pm
+more_vert
+More options
+標準モデルとはShoupがGGMを定義した際に，GGMで設けた制限を設けない（何の制限も設けない）モデルなので，GGMで「群の具体的な表現（ビット列の構造）は隠蔽されており」と対比させていましたが，そ...
+show more
+Kazue Sako
+17 January, 5:54 am
+check
+Resolve comment
+more_vert
+More options
+アブストででてきたCertified Key Modelとの違いは？なんのモデル？（GGMとは違うモデルなのでは）
+Shigeo MIZUNO
+23 January, 8:26 pm
+more_vert
+More options
+説明の都合上2章の最後に持っていき，名前もRegistered Key Modelにしています．
+Shigeo MIZUNO
+23 January, 8:27 pm
+more_vert
+More options
+というのも，Certified Key Settings / Modelとしている論文よりもKnowledge of the Secret KeyやRegistered Key Modelという名称を...
+show more
+Kazue Sako
+17 January, 5:56 am
+check
+Resolve comment
+more_vert
+More options
+システムとは？
+Shigeo MIZUNO
+23 January, 8:28 pm
+more_vert
+More options
+Issuer-Hiding ACシステムと明記しました
+Kazue Sako
+17 January, 5:54 am
+check
+Resolve comment
+more_vert
+More options
+はじめてでてきた
+Shigeo MIZUNO
+23 January, 8:28 pm
+more_vert
+More options
+後ろに持っていくことで初出で亡くなりました
+Kazue Sako
+17 January, 5:55 am
+check
+Resolve comment
+more_vert
+More options
+ふたつの違いは？
+Shigeo MIZUNO
+23 January, 8:29 pm
+more_vert
+More options
+他のところでも書きましたが，論文によって同じものの言い方が違ったり，同じ用語で微妙に指しているものが違ったりします．
+今回はRegistered Key Modelに統一する予定です
+Kazue Sako
+17 January, 5:59 am
+check
+Resolve comment
+more_vert
+More options
+この表現だと、定義1が[11]そのもののように思った。
+Shigeo MIZUNO
+23 January, 8:30 pm
+more_vert
+More options
+修正しました
+Kazue Sako
+17 January, 6:01 am
+check
+Resolve comment
+more_vert
+More options
+BellareとNevenと表現したり、Bellare らと表現したりしないで、統一させて
+Shigeo MIZUNO
+23 January, 8:30 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 5:57 am
+check
+Resolve comment
+more_vert
+More options
+何の定義？
+Shigeo MIZUNO
+23 January, 8:31 pm
+more_vert
+More options
+この節を修正する中で削除しました
+Kazue Sako
+17 January, 5:58 am
+check
+Resolve comment
+more_vert
+More options
+reference
+Shigeo MIZUNO
+23 January, 10:44 pm
+more_vert
+More options
+Extrabilityについて別途説明を記述しました
+Kazue Sako
+17 January, 6:00 am
+check
+Resolve comment
+more_vert
+More options
+そういいきっていいの？証明かreferenceが必要では
+Shigeo MIZUNO
+23 January, 8:38 pm
+more_vert
+More options
+等価であるとは言い切れなさそうだったので「同様」としました．元論文では "Both proofs reduce to the same computational assumptions used i...
+show more
+Kazue Sako
+17 January, 6:06 am
+check
+Resolve comment
+more_vert
+More options
+correctnessもかいて
+Shigeo MIZUNO
+23 January, 8:34 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 6:12 am
+check
+Resolve comment
+more_vert
+More options
+referenceと正当性条件
+Shigeo MIZUNO
+23 January, 11:22 pm
+more_vert
+More options
+Correctnessを加えました．コミットメント付きデジタル署名については今回のために定義したという認識ですが，似たような文献がないか調査します
+Kazue Sako
+17 January, 6:14 am
+check
+Resolve comment
+more_vert
+More options
+有効の意味は？
+Shigeo MIZUNO
+23 January, 11:22 pm
+more_vert
+More options
+下のCorrectnessでいかがでしょうか
+Kazue Sako
+17 January, 6:15 am
+check
+Resolve comment
+more_vert
+More options
+意味がわからない。「用いる」ではなく「検討する」？そして、その理由は？
+Shigeo MIZUNO
+23 January, 11:23 pm
+more_vert
+More options
+理由を追加しました
+Kazue Sako
+17 January, 6:16 am
+check
+Resolve comment
+more_vert
+More options
+why?
+Kazue Sako
+17 January, 6:17 am
+check
+Resolve comment
+more_vert
+More options
+Bonehが提案したのはグループ署名では
+Shigeo MIZUNO
+23 January, 11:21 pm
+more_vert
+More options
+補足しました
+Kazue Sako
+17 January, 6:21 am
+check
+Resolve comment
+more_vert
+More options
+署名アルゴリズムとするならここはメッセージでは
+Shigeo MIZUNO
+23 January, 11:21 pm
+more_vert
+More options
+少なくとも2章はメッセージに統一しました
+Kazue Sako
+17 January, 6:21 am
+check
+Resolve comment
+more_vert
+More options
+メッセージでしょ
+Shigeo MIZUNO
+23 January, 11:21 pm
+more_vert
+More options
+少なくとも2章はメッセージに統一しました
+Kazue Sako
+17 January, 6:25 am
+check
+Resolve comment
+more_vert
+More options
+「次に定義する」といれる
+Shigeo MIZUNO
+23 January, 11:20 pm
+more_vert
+More options
+done
+Kazue Sako
+17 January, 6:24 am
+check
+Resolve comment
+more_vert
+More options
+定義と同じ文字列にして
+Kazue Sako
+17 January, 6:24 am
+more_vert
+More options
+他のところもチェックして
+Shigeo MIZUNO
+23 January, 11:20 pm
+more_vert
+More options
+2章に関してはSUFに統一しています
+Kazue Sako
+17 January, 6:28 am
+check
+Resolve comment
+more_vert
+More options
+これはなに？
+Shigeo MIZUNO
+23 January, 10:43 pm
+more_vert
+More options
+すでに上で説明しています
+Kazue Sako
+17 January, 6:36 am
+check
+Resolve comment
+more_vert
+More options
+これは別のセクションがよいのでは
+Kazue Sako
+17 January, 6:38 am
+more_vert
+More options
+3.2との違いがわからなくなった
+Shigeo MIZUNO
+23 January, 7:04 pm
+more_vert
+More options
+BobolzらによるIssuer-Hiding ACでなくIssuer-Hiding ACの概要を示すことにし，3.1をIssuer-Hiding ACではなくBobolzらが示した一般的構成について...
+show more
+Kazue Sako
+17 January, 6:33 am
+check
+Resolve comment
+more_vert
+More options
+シンタックス？本来かくべきは定義のセキュリティ要件かと。
+Shigeo MIZUNO
+23 January, 7:07 pm
+more_vert
+More options
+セキュリティ要件を先に書こうかと思いましたが，あらかじめシンタックスを書いておかないとpolが説明なしで出てきてしまうためこの順にしました
+keyboard_arrow_down
+7-conclusion.tex
+3
+Kazue Sako
+17 January, 6:44 am
+check
+Resolve comment
+more_vert
+More options
+勝るものは？
+Shigeo MIZUNO
+23 January, 8:39 pm
+more_vert
+More options
+「その結果，計算モデルでは提案手法のみが
+% Standard Model
+標準モデル...
+show more
+Kazue Sako
+17 January, 6:44 am
+check
+Resolve comment
+more_vert
+More options
+そうなの？
+Shigeo MIZUNO
+23 January, 8:40 pm
+more_vert
+More options
+「総じて」という言い方があっているかはわかりませんが，計算モデルは提案方式だけ標準モデルで他はGGMであるためより優れていると言えると思いますし，計算コストもKatzらよりはポリシー生成が早く，他の方...
+show more
+Kazue Sako
+17 January, 6:45 am
+check
+Resolve comment
+more_vert
+More options
+つかいまわせるとは？
+Shigeo MIZUNO
+23 January, 7:13 pm
+more_vert
+More options
+今後の課題の方に移しましたが，別のポリシー作成で使えるか否かのことを指しています
+keyboard_arrow_down
+main.tex
+10
+Kazue Sako
+17 January, 4:48 am
+check
+Resolve comment
+more_vert
+More options
+証明者が唐突で何をする人なのかわからない
+Shigeo MIZUNO
+23 January, 6:29 pm
+more_vert
+More options
+ユーザという言葉に変えました
+Kazue Sako
+17 January, 4:48 am
+check
+Resolve comment
+more_vert
+More options
+なんの証明検証かわからない
+Shigeo MIZUNO
+23 January, 6:30 pm
+more_vert
+More options
+クレデンシャルの検証と変えました
+Kazue Sako
+17 January, 4:50 am
+check
+Resolve comment
+more_vert
+More options
+どういう状況なのか、具体的でなく、わからない。
+Shigeo MIZUNO
+23 January, 6:30 pm
+more_vert
+More options
+現在の書き振りでいかがでしょうか
+Kazue Sako
+24 January, 4:55 am
+more_vert
+More options
+発行元の公開鍵が必要なことと、発行元の情報との関係がとんでいるの、わかりますか。発行元の公開鍵から発行元の情報がわかるということを暗に仮定していませんか。「相手の電話番号が必要となるため、相手の情報が...
+show more
+Shigeo MIZUNO
+25 January, 1:06 am
+more_vert
+More options
+うまく飛んでいた部分を埋めてみました．
+いかがでしょうか
+Kazue Sako
+24 January, 4:57 am
+check
+Resolve comment
+more_vert
+More options
+どういう場合がすぐにはわからないので、例があるといいかも
+Shigeo MIZUNO
+25 January, 1:06 am
+more_vert
+More options
+例を入れてみました．
+概要なのでさらっと書いてみましたが，もう少し丁寧に例を入れた方が良いでしょうか
+Kazue Sako
+17 January, 4:51 am
+check
+Resolve comment
+more_vert
+More options
+計算モデルが強力とは？
+Kazue Sako
+17 January, 4:51 am
+more_vert
+More options
+なぜそれが問題？
+Shigeo MIZUNO
+23 January, 6:31 pm
+more_vert
+More options
+計算能力に制限をかけた計算モデルであると書き換えたほか，問題というのは言い過ぎなので標準モデルにできればなお良い程度に書き直しました
+Kazue Sako
+17 January, 5:10 am
+check
+Resolve comment
+more_vert
+More options
+これがなにかわからない
+Shigeo MIZUNO
+23 January, 6:32 pm
+more_vert
+More options
+「公開鍵の認証局への登録時に対応する秘密鍵を所持していることの証明も示す」という枕詞を付けました
+Kazue Sako
+17 January, 5:12 am
+check
+Resolve comment
+more_vert
+More options
+なにの提案方法かが不明確
+Shigeo MIZUNO
+23 January, 6:33 pm
+more_vert
+More options
+BBS署名を利用したIssuer-Hiding ACを構成したので，それを提案手法と指すと読めるように変えてみました
+Kazue Sako
+17 January, 5:12 am
+check
+Resolve comment
+more_vert
+More options
+なにかわからない
+Shigeo MIZUNO
+23 January, 6:33 pm
+more_vert
+More options
+初めの方にIssuer-Hiding ACについて軽く説明し，その際にポリシーについても説明を加えました
+Shigeo MIZUNO
+23 January, 6:36 pm
+more_vert
+More options
+またポリシー作成，証明生成，証明検証についても何を指しているのかわかるようにIssuer-Hidign ACの説明時に「〜（ポリシー作成）」のようにし，分かりやすくしてみました
+Kazue Sako
+17 January, 5:13 am
+check
+Resolve comment
+more_vert
+More options
+唯一とは？
+Shigeo MIZUNO
+23 January, 6:33 pm
+more_vert
+More options
+比較した4方式の中で唯一と明記しました
+Kazue Sako
+17 January, 6:40 am
+check
+Resolve comment
+more_vert
+More options
+提案方式　とか提案という言葉をどこかにいれた方がよいのでは
+description
+Current file
+list
+Overview
+chevron_right
+arrow_right_alt
+arrow_left_alt
+Recompile
+expand_more
+description
+1
+download
+keyboard_arrow_up
+keyboard_arrow_down
+/ 55
+remove
+add
+104%
+令和
+ 
+7
+ 
+年度 修士論文
+
+
+Issuer-Hiding Veriﬁable Credentials
+ 
+の実
+
+
+現の検討
+
+
+Consideration of Issuer-Hiding Veriﬁable Credentials
+
+
+水野
+ 
+重弦
+
+
+早稲田大学
+ 
+基幹理工学研究科
+
+
+情報理工・情報通信専攻
+
+
+5124F101-4
+
+
+提出日
+ 
+:
+ 
+令和
+ 
+8
+ 
+年
+ 
+1
+ 
+月
+ 
+26
+ 
+日
+
+
+研究指導名
+ 
+:
+ 
+暗号プロトコル研究
+
+
+指導教員
+ 
+:
+ 
+佐古 和恵 教授
+概要
+
+
+World Wide Web Consortium (W3C)
+ 
+が標準化を進める
+ 
+Veriﬁable Credentials (VC)
+ 
+は，ユーザが
+
+
+必要な属性のみを選択的に開示する「選択的開示」が可能な属性情報の証明書である．ただし，
+
+
+証明書の検証のために
+ 
+VC
+ 
+の発行元の公開鍵を参照する際，その鍵に紐づく発行元自体も特定
+
+
+される．発行元の情報がユーザの属性情報となる場合，検証者に属性を推測される可能性があ
+
+
+る．例えば，早稲田大学の学生に対して学生証が
+ 
+VC
+ 
+として発行されていた場合，発行元が「早
+
+
+稲田大学」であるということがわかると，学生が早稲田大学の学生であるということがわかっ
+
+
+てしまう．そこで，
+VC
+ 
+でも用いることが一部検討されている
+ 
+Anonymous Credentials
+（
+AC
+）に
+
+
+おいて，発行元の公開鍵を秘匿したまま証明書の検証を可能にする
+ 
+Issuer-Hiding AC
+ 
+が提案さ
+
+
+れている．
+Issuer-Hiding AC
+ 
+では，証明書の検証を行う検証者が受け入れ可能な発行元の公開
+
+
+鍵をポリシーに記載（ポリシー作成）し，ユーザはこのポリシー内に実際の証明書の発行元が含
+
+
+まれていることを証明する（証明生成）ことで，検証者が発行元を匿名にされたまま証明書の検
+
+
+証（証明検証）をすることを可能とする．しかし，既存の
+ 
+Issuer-Hiding AC
+ 
+では，標準化され
+
+
+ていない群構造維持署名方式を前提としていたり，計算コストやデータサイズが大きいなどの
+
+
+問題がある．また，計算能力に制限をかけた計算モデルである
+ 
+Generic Group Model
+ 
+を仮定に
+
+
+おいており，計算能力に制限をかけない標準モデルのもとで安全性が証明することができれば，
+
+
+なお良い．そこで本稿では標準化が進んでいる
+ 
+BBS
+ 
+署名を利用し，公開鍵の認証局への登録
+
+
+時に対応する秘密鍵を所持していることの証明も示す
+ 
+Registered Key Model
+ 
+を仮定することで
+
+
+標準モデルの下でも
+ 
+Issuer-Hiding AC
+ 
+を構成できることを示した．また，既存の
+ 
+Issuer-Hiding
+
+
+AC
+ 
+の
+ 
+3
+ 
+方式と提案した
+ 
+Issuer-Hiding AC
+ 
+の方式を計算モデル，計算コストやデータサイズの
+
+
+面で比較・評価した．その結果，提案方式は既存方式と比較してポリシー作成時の計算コスト
+
+
+が最も低く，証明生成や証明検証の処理速度も高速であることを確認した．また，提案方式は
+
+
+比較した
+ 
+4
+ 
+方式の中で唯一，計算モデルが標準モデルであることから，セキュリティ面でも優
+
+
+れていると考えられる．さらに，本稿では
+ 
+Issuer-Hiding AC
+ 
+を用いた
+ 
+Veriﬁable Credentials
+ 
+を
+
+
+構成するために，
+VC
+ 
+と
+ 
+Issuer-Hiding VP
+ 
+のデータフォーマットを提案した．
+Dimensions
+close
+Close
+Search Dimensions to find research papers.

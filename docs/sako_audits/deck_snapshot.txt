@@ -1,0 +1,316 @@
+===== SLIDE 1 (修論進捗報告) =====
+修論進捗報告
+大塚巧巳 M2
+===== SLIDE 2 (Agenda) =====
+Agenda
+Waseda University Sako Laboratory
+Page 2
+Motivation & the Trilemma
+Background
+Problem Statement
+Contributions
+Measurements & the Inversion
+Security & the Wall
+Open Items & Plan to July 20
+===== SLIDE 3 (A credential issued in 2026 must still be safe in 2036) =====
+A credential issued in 2026 must still be safe in 2036
+Post-quantum mandated: NIST FIPS 204/205 (Aug 2024); EU critical-infrastructure 2030; a 10-year credential outlives both.
+Unlinkability mandated, but BBS is not post-quantum. [eIDAS Art. 5a(4); IETF CFRG BBS]
+Runs on the user's device: mobile DLs in 20+ US states; client-side ZK is hard (≥3 GB RAM; $100k/10 kW).
+
+A deployer needs all three at once. None exists today.
+Waseda University Sako Laboratory
+Page 3
+===== SLIDE 4 (Can a proof be flexible, post-quantum, and private?) =====
+Can a proof be flexible, post-quantum, and private?
+Waseda University Sako Laboratory
+Page 4
+Flexible
+Post
+Quantum
+Private
+on a personal computer?
+Survives a policy/scheme change without circuit rebuild
+Soundness vs. a Quantum Adversary
+Zero-Knowledge/Unlinkable
+===== SLIDE 5 (Problem Statement) =====
+Problem Statement
+Waseda University Sako Laboratory
+Page 5
+Research Question
+BDEC proves its relations with a fixed Aurora circuit. A presentation-structure or signature change forces re-deriving and re-auditing that circuit. In a general-purpose zkVM the same change is a guest-program edit.
+The decision belongs to the operator of a credential ledger (a university consortium issuing digital diplomas): can holders generate the privacy-protecting proof on their own machines, and what does each future scheme or parameter change cost in regenerated and re-audited artefacts?
+This thesis asks whether a general-purpose zkVM is a viable substrate for post-quantum anonymous credentials on consumer hardware. BDEC-PLUM is the use case; the comparison of proving substrates is the contribution. We locate where the wall sits and what would move it.
+===== SLIDE 6 [HIDDEN] ([image]) =====
+===== SLIDE 7 (The Challenges) =====
+The Challenges
+Waseda University Sako Laboratory
+Page 7
+ | Post-quantum | Zero-knowledge | General-purpose zkVM | Consumer hardware
+Argo et al. (CCS 2024) | ✔ | ✔ | ✖️ | ✔
+Policharla et al. (2023) | ✔ | ✖️ | ✖️ | ✔
+CAPSS (2025) | ✔ | ✔ | ✖️ | ✖️
+This thesis (BDEC-PLUM) | ✔ | ✖️ | ✔ | ✔
+===== SLIDE 8 (The Field-Mismatch Cost) =====
+The Field-Mismatch Cost
+Waseda University Sako Laboratory
+Page 8
+To achieve the required flexibility ("late-binding"), the industry is moving toward general-purpose zkVMs, which allow developers to write dynamic policies in high-level software
+When replacing static circuits with zkVMs, we must explicitly state they are not equivalent environments for PQC
+Classical cryptography currently works in zkVMs only because developers built custom hardware shortcuts called "precompiles". For instance, a classical SHA-256 hash takes only ~68 cycles because it enjoys a precompile. However, post-quantum algebraic hashes required by PLUM's 192-bit prime field (e.g., Griffin) have no precompiles, forcing the zkVM to emulate 192-bit (about 7 BabyBear limbs) math inside a 31-bit architecture. This takes ~2,000 to 3,000 cycles per permutation.
+===== SLIDE 9 (Background) =====
+Background
+Waseda University Sako Laboratory
+Page 9
+Issuers
+Bob
+Verifier
+[2] Zoey Z. Li et al., “BDEC: Enhancing Learning Credibility via Post-Quantum Digital Credentials,” in Provable and Practical Security (ProvSec 2024), Springer LNCS, 2025
+ConditionalLink
+Q Tech: {
+	Job: Junior Software Engineer, 
+	Level: Internship, 
+	Duration: 3 Months, 
+}
+XYZ University: {
+	Name: Bob, 
+	Degree: Bachelor’s in Software Engineering, 
+	Year: 2023, 
+	GPA: 4.8/5.0,
+}
+Ledger
+===== SLIDE 10 (Background) =====
+Background
+Waseda University Sako Laboratory
+Page 10
+Ledger
+Issuers
+Bob
+Verifier
+[2] Zoey Z. Li et al., “BDEC: Enhancing Learning Credibility via Post-Quantum Digital Credentials,” in Provable and Practical Security (ProvSec 2024), Springer LNCS, 2025
+ConditionalLink
+The company updates its requirements: candidates must now present two credentials together, the degree and a completed internship. The showing structure changes from one credential to two (k: 1 to 2).
+===== SLIDE 11 (What we built and measured) =====
+What we built and measured
+Waseda University Sako Laboratory
+Page 11
+Built (this thesis): a Griffin-Fp192 zkVM precompile + prove-mode hosts for every BDEC relation (CreGen, ShowCre k=1, k=2).
+Measured: two substrates (general-purpose zkVM (RISC Zero / SP1) vs static Aurora SNARK) on the same unmodified predicate.
+Setup: Apple M-series, 24 GB; λ=80 (largest level observable in budget); every run archived with its settings.
+Metrics: proof-generation time · cycle count · trace size · peak memory.
+===== SLIDE 12 (Contributions) =====
+Contributions
+Waseda University Sako Laboratory
+Page 12
+===== SLIDE 13 (Measured: PLUM and BDEC on the Target Machine (M5 Pro, 24 GB)) =====
+Measured: PLUM and BDEC on the Target Machine (M5 Pro, 24 GB)
+Waseda University Sako Laboratory
+Page 13
+PLUM verify, SP1
+no precompile: DNF · Griffin chip: 32.5 min · SHA-3 control: 13.3 min · Griffin slower in every run (sign robust; 1.1–2.45× build-sensitive) (May calibrated ref; same-session June 17.81/16.15 = 1.10x)
+Same scheme, two substrates (Loquat, n=3 each)
+Aurora 3.76 min (zk-disabled) vs SP1 44-64 min → 12-17× per-proof gap
+BDEC relations, SP1
+CreGen 27-31 min · ShowCre k=1 40-44 min (n=2) · k=2 58.1 min · first credential-level receipts for BDEC-PLUM in a zkVM
+The wall
+ZK wrap OOMs at ~20 of 24 GB; available wraps are pairing-based (SP1) or x86-only (RISC Zero) → no post-quantum zero-knowledge proof from either zkVM (the static circuit reaches one: ~22 min, n=3)
+All receipts are succinct STARKs and none is zero-knowledge. λ=80, documented reduced-memory configuration, archived runs.
+Numbers: docs/measurements/ sp1_plum_cell2 · pub_hardening_20260610 · pub_hardening_20260611; all archived runs, configurations recorded
+===== SLIDE 14 (The Inversion: Griffin vs SHA Across Substrates) =====
+The Inversion: Griffin vs SHA Across Substrates
+A hash chosen for low R1CS (rank-1 constraint system) cost becomes the cost centre inside a zkVM: the Griffin / SHA ranking inverts across substrates. We measured the inversion.
+Static circuit (Aurora)
+Program code (SP1 zkVM)
+Griffin[7,12] 
+(algebraic hash)
+R1CS-friendly design
+~110  R1CS constraints / permutation
+CHEAP  ✓
+native field arithmetic aligns with circuit
+≈6.6 M cycles / permutation (emulated, measured)
+SLOW ✗
+199-bit non-native field, software limb arithmetic
+SHA-256 / SHA-3
+(bitwise hashes)
+industry-standard primitives
+~826,000  R1CS constraints / evaluation (SHA-256 [16,12])
+SLOW  ✗
+bitwise ops are ~7,500× more expensive than Griffin
+software SHA-3 + shared bigint precompile
+CHEAP ✓
+prove 13.3 min vs 32.5 min for the Griffin-chip arm (measured)
+⇅
+Takeaway   Hashing dominates ~91% of the verification R1CS → the scheme is engineered for the static circuit. In the zkVM the same choice is the cycle bottleneck, and the bespoke Griffin chip proves slower than the SHA-3 control in every run (sign robust; magnitude build-sensitive, 1.1–2.45×): the chip removes guest cycles but adds committed trace area.
+Why the ranking inverts
+zkVM
+cost ∝ committed trace area
+→ a cheap hash adds no chip area
+→ SHA-3 wins (sign robust; 1.1–2.45×)
+The inversion
+measured, and postdicted by the trace-area cost model
+follows from field mismatch + per-permutation chip area
+Waseda University Sako Laboratory
+Page 14
+===== SLIDE 15 (Security Preservation: What the Substrate Move Keeps) =====
+Security Preservation: What the Substrate Move Keeps
+Waseda University Sako Laboratory
+Page 15
+===== SLIDE 16 (Each substrate buys two, never three) =====
+Each substrate buys two, never three
+Waseda University Sako Laboratory
+Page 16
+Flexible
+Post
+Quantum
+Private
+zkVM + ZKP (Groth16/PLONK)
+flexible, private, not post-quantum
+pairing-based
+PLONK OOM ≈ 20/24 GB; Groth16 x86 only
+on a 24GB Macbook Pro
+18C CPU, 20C GPU
+1TB SSD
+===== SLIDE 17 (Where the Wall Sits) =====
+Where the Wall Sits
+SP1: the succinct receipt is not zero-knowledge (official security model). The ZK wrap (PLONK) is OOM-killed (out of memory) at ~20 of 24 GB. The only wraps offered are Groth16/PLONK, both pairing-based, hence not post-quantum.
+RISC Zero: the succinct receipt is blinded, but the vendor explicitly disclaims a formal zero-knowledge guarantee, so BDEC's anonymity theorems cannot be discharged on it. Its Groth16 wrap is x86-only and does not run on this machine (Apple Silicon).
+Conclusion: more memory removes neither obstruction. Both substrates fail to reach a post-quantum zero-knowledge proof, each for its own reason.
+This is the wall this thesis locates by measurement: the base proofs of both relations are measured (27-31 / 40-44 min); only the ZK wrap remains.
+
+
+
+
+Flexibility (the third corner) is reached on both substrates (the update-churn re-audit footprint); what stays empty is post-quantum and zero-knowledge together.
+SP1
+RISC Zero
+succinct receipt: PROVES
+32.5 min (verify) / 27-44 min (BDEC)
+succinct receipt: PROVES
+6 h 19 m (verify), blinded
+not zero-knowledge
+ZK wrap OOMs at ~20 of 24 GB
+formal ZK disclaimed by vendor
+anonymity theorems undischargeable
+only wraps: Groth16/PLONK
+pairing-based -> not post-quantum
+Groth16 wrap is x86-only
+unavailable on this machine
+no post-quantum zero-knowledge proof reached, on either substrate
+Waseda University Sako Laboratory
+Page 17
+===== SLIDE 18 (Open Items) =====
+Open Items
+T2, Griffin AIR soundness: the per-row layer is proven; the lookup-borne families (round count, memory binding, cross-row threading) still need a full-prover harness.
+RISC Zero prove anomaly: localized to the vendor per-segment self-check; our code is exonerated by the composite re-run; reporting upstream.
+Two inherited deviations from published Griffin (the non-MDS circulant; L3 reads the updated lane): disclosed in the draft; the cited security analysis must be re-checked against them.
+Prime instantiation: the paper p0 is composite, so we use a nearby prime; needs author confirmation.
+Wall-clock variance: thermal state alone moves identical runs 1.44x; every headline figure carries its run count and settings at the point of claim.
+Griffin cryptanalysis (FreeLunch, CRYPTO 2024 + 2025 successors): the 14-round count is sized against the superseded FGLM model, so its 128-bit margin is unvalidated (not broken); resolve via the authors’ estimator or migration to Poseidon2.
+Waseda University Sako Laboratory
+Page 18
+===== SLIDE 19 (Plan to Submission (July 20)) =====
+Plan to Submission (July 20)
+Mid-June: sensitivity runs (shard-size / thread-count curve, Cell repeats n=3). Verify T2's lookup layer with a full-prover harness.
+Report the RISC Zero prove anomaly upstream (details in Open Items).
+Late June: complete full draft, final consistency sweep.
+Early July: abstract booklet, freeze measurements, defense preparation.
+Open frontier (beyond the thesis): a static-circuit harness for PLUM (199-bit Aurora), a post-quantum-sound ZK wrap.
+Asks: (1) an introduction to the PLUM and Loquat authors, to confirm the canonical p0 and the Griffin instantiation. (2) Expectations for the defense format.
+Instantiate the FreeLunch complexity estimator at our Griffin parameters (14, d=3, t=4, ~2^199), or evaluate migrating Griffin → Poseidon2.
+Waseda University Sako Laboratory
+Page 19
+===== SLIDE 20 (zkVMs vs. SNARK Circuit Compilers) =====
+Write a program in Rust/C++
+Compile it to an architecture (eg. RISC-V)
+zkVM emulates the CPU and proves each step was correct
+
+Compiler profile (LLVM passes / -O level / tuning)
+Cycle count guides iteration. Proving time also depends on committed trace area (see the Inversion slide).
+zkVMs vs. SNARK Circuit Compilers
+Waseda University Sako Laboratory
+Page 20
+zkVMs
+Write logic in a specialized language (Circom) or compile from C/Rust (zkLLVM)
+The compiler generates a static constraint system (typically a SNARK circuit)
+The constraint system utilises a SNARK to generate a proof
+SNARK Circuit Compiler
+[24] Tim Dokchitser, & Alexandr Bulkin. (2023). Zero Knowledge Virtual Machine step by step.
+[25] Ryan Lavin, Xuekai Liu, Hardhik Mohanty, Logan Norman, Giovanni Zaarour, & Bhaskar Krishnamachari. (2024). A Survey on the Applications of Zero-Knowledge Proofs.
+[4] Bellés-Muñoz, M., Isabel, M., Munoz-Tapia, J., Rubio, A., & Baylina, J. (2023). Circom: A Circuit Description Language for Building Zero-Knowledge Applications. IEEE Trans. Dependable Secur. Comput., 20(6), 4733-4751.
+===== SLIDE 21 (Arithmetic Mismatch, the Field-Emulation Tax) =====
+Waseda University Sako Laboratory
+Page 21
+Arithmetic Mismatch, the Field-Emulation Tax
+Definitions
+Loquat native field
+SNARK native field (Aurora / libiop)
+Emulation cost model
+recombine
++ reduce mod p
+Takeaway   Aurora side-steps the tax via libiop field configuration; only the zkVM pays the Θ(k²) limb cost. The bespoke Griffin chip removes the guest-cycle tax but adds committed chip area, which is why cycles fall 56× while wall-clock does not follow (the measured inversion).
+[26] Bootle, Cerulli, Ghadafi, Groth, Hajiabadi, Jakobsen, "Linear-Time Zero-Knowledge Proofs for Arithmetic Circuit Satisfiability" (ASIACRYPT 2017). https://eprint.iacr.org/2017/872
+===== SLIDE 22 (The Per-Row Soundness Game (Premise T2)) =====
+The Per-Row Soundness Game (Premise T2)
+Waseda University Sako Laboratory
+Page 22
+Prover  P*
+Constraints  𝒞
+check B-1..B-5, B-8 + byte ranges
+accept  /  reject
+===== SLIDE 23 (Backup: The Proving Pipeline) =====
+Backup: The Proving Pipeline
+SP1
+guest: PLUM verify
+execute 125.5 M cyc  OK
+prove shards
+(tuned 2^22, 8 thr)
+succinct receipt
+32.5 min  OK,  NOT ZK
+ZK wrap
+Groth16 / PLONK
+PQ-ZK proof
+never reached
+no precompile: OOM at defaults; tuned: DNF ≥5 h
+lambda=128: untested
+PLONK OOM at ~20 of 24 GB
+wraps pairing-based: not PQ
+RISC Zero
+guest: BDEC CreGen
+execute 9.4 G cyc  OK
+segment prove
+~40 s / segment  OK
+per-segment
+self-check
+lift / join
+(never reached)
+succinct receipt
+single verify: 6 h 19 m OK
+anomaly: prover rejects own segment
+~seg 1,400 of 9,936; vendor-side
+ZK formally disclaimed by vendor
+Groth16 wrap x86-only
+Grey = measured stage (value shown). Red pins = located failures. The base pipeline completes on both substrates; every path to a post-quantum zero-knowledge proof has a pinned failure.
+Waseda University Sako Laboratory
+Page 23
+===== SLIDE 24 ([image]) =====
+Waseda University Sako Laboratory
+Page 24
+// guest: bdec_cregen, SP1
+let pp    = read::<LoquatPublicParams>();
+let pk_u  = read::<LoquatPublicKey>();
+let cred  = read::<LoquatSignature>();
+let psk   = read::<LoquatSignature>();
+let ok1 = loquat_verify(&pp, &pk_u, &h_ta, &cred);
+let ok2 = loquat_verify(&pp, &pk_u, &ppk,  &psk);
+commit(ok1 && ok2);
+===== SLIDE 25 ([image]) =====
+Waseda University Sako Laboratory
+Page 25
+// guest: bdec_cregen, SP1
+let pp    = read::<PlumPublicParams>();
+let pk_u  = read::<PlumPublicKey>();
+let cred  = read::<PlumSignature>();
+let psk   = read::<PlumSignature>();
+let ok1 = plum_verify::<GriffinFp192>(&pp, &pk_u, &h_ta, &cred);
+let ok2 = plum_verify<GriffinFp192>(&pp, &pk_u, &ppk,  &psk);
+commit(ok1 && ok2);

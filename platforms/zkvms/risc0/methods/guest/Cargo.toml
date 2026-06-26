@@ -27,3 +27,18 @@ path = "src/bin/plum_verify.rs"
 [[bin]]
 name = "plum_verify_griffin"
 path = "src/bin/plum_verify_griffin.rs"
+
+# BDEC CreGen statement (ProSec 2024 §3) — PLUM-Griffin instantiation.
+# Beachhead for PLUM-in-BDEC × RISC0. Runs two plum_verify calls under
+# a shared (witness-only) pk_U, mirroring the formal CreGen relation.
+[[bin]]
+name = "bdec_credgen_plum_griffin"
+path = "src/bin/bdec_credgen_plum_griffin.rs"
+
+# BDEC ShowCre statement (ProSec 2024 §4.1) — PLUM-Griffin instantiation.
+# The k+2 generalisation of CreGen: k pseudonym-ownership checks + one
+# verifier-facing pseudonym check + one shown-credential check, all under a
+# shared (witness-only) pk_U. phi is checked verifier-side, not in-circuit.
+[[bin]]
+name = "bdec_showcre_plum_griffin"
+path = "src/bin/bdec_showcre_plum_griffin.rs"

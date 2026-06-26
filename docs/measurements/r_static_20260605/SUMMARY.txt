@@ -1,0 +1,47 @@
+R_static measurement — Aurora/libiop static-circuit recompile cost (Loquat/Fp127 PROXY, NOT PLUM). Started 2026年 6月 5日 金曜日 16時18分24秒 JST
+Definition: R_static (per-recompile, BEFORE proving) = t_emit (R1CS construction) + t_load + t_param_setup. Prove (t_P) is per-proof, reported separately.
+================================================================
+### STAGE 1: time the R1CS emit (recompile front-end) ###
+--- emit bdec s80 ---
+[emit] mode=bdec tiny=false security=80 raw_constraints=327850 raw_vars_incl_c1=329041 -> padded_constraints=524288 padded_vars_incl_c1=524288 num_inputs=0 msg="emit_aurora_r1cs::bdec" -> "target/aurora_bdec_s80.bdec-r1cs" (39858328 B)
+real 13.76
+user 0.20
+--- emit bdec s128 ---
+[emit] mode=bdec tiny=false security=128 raw_constraints=454198 raw_vars_incl_c1=456217 -> padded_constraints=524288 padded_vars_incl_c1=524288 num_inputs=0 msg="emit_aurora_r1cs::bdec" -> "target/aurora_bdec_s128.bdec-r1cs" (49583368 B)
+real 0.48
+user 0.19
+### STAGE 2: runner sweep (R_static line + prove JSON) ###
+--- run aurora_synth_6 ---
+[runner] RECOMPILE-COST  t_load_ms=0.163084  t_setup_ms=0.002042  (R_static = load + param-setup; prove is per-proof)
+"result":"ACCEPT" "num_constraints":64 "t_P_ms":26.2283 "t_V_ms":16.4703 "proof_bytes":114496 
+--- run aurora_synth_8 ---
+[runner] RECOMPILE-COST  t_load_ms=0.304333  t_setup_ms=0.002125  (R_static = load + param-setup; prove is per-proof)
+"result":"ACCEPT" "num_constraints":256 "t_P_ms":87.8938 "t_V_ms":42.8969 "proof_bytes":174784 
+--- run aurora_synth_10 ---
+[runner] RECOMPILE-COST  t_load_ms=0.511084  t_setup_ms=0.002083  (R_static = load + param-setup; prove is per-proof)
+"result":"ACCEPT" "num_constraints":1024 "t_P_ms":347.031 "t_V_ms":105.021 "proof_bytes":256544 
+--- run aurora_synth_12 ---
+[runner] RECOMPILE-COST  t_load_ms=1.93554  t_setup_ms=0.002291  (R_static = load + param-setup; prove is per-proof)
+"result":"ACCEPT" "num_constraints":4096 "t_P_ms":1439.36 "t_V_ms":365.294 "proof_bytes":336288 
+--- run aurora_synth_14 ---
+[runner] RECOMPILE-COST  t_load_ms=4.80671  t_setup_ms=0.002459  (R_static = load + param-setup; prove is per-proof)
+"result":"ACCEPT" "num_constraints":16384 "t_P_ms":6165.1 "t_V_ms":1384.69 "proof_bytes":433088 
+--- run aurora_bdec_s80 ---
+[runner] RECOMPILE-COST  t_load_ms=84.1961  t_setup_ms=0.002916  (R_static = load + param-setup; prove is per-proof)
+"result":"ACCEPT" "num_constraints":524288 "t_P_ms":226065 "t_V_ms":41742.7 "proof_bytes":704416 
+--- run aurora_bdec_s128 ---
+[runner] RECOMPILE-COST  t_load_ms=103.031  t_setup_ms=0.003416  (R_static = load + param-setup; prove is per-proof)
+"result":"ACCEPT" "num_constraints":524288 "t_P_ms":224986 "t_V_ms":41244.8 "proof_bytes":704416 
+================================================================
+### SUMMARY TABLE ###
+circuit             constraints   emit_or_load       setup_ms     prove_ms     result
+EMIT bdec_s80                           13.76s              -            -          -
+EMIT bdec_s128                           0.48s              -            -          -
+aurora_synth_6               64 load=0.163084ms       0.002042      26.2283     ACCEPT
+aurora_synth_8              256 load=0.304333ms       0.002125      87.8938     ACCEPT
+aurora_synth_10            1024 load=0.511084ms       0.002083      347.031     ACCEPT
+aurora_synth_12            4096 load=1.93554ms       0.002291      1439.36     ACCEPT
+aurora_synth_14           16384 load=4.80671ms       0.002459       6165.1     ACCEPT
+aurora_bdec_s80          524288 load=84.1961ms       0.002916       226065     ACCEPT
+aurora_bdec_s128         524288 load=103.031ms       0.003416       224986     ACCEPT
+Finished 2026年 6月 5日 金曜日 16時27分47秒 JST

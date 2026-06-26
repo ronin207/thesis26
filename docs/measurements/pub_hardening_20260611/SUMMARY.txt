@@ -1,0 +1,19 @@
+S9 — SP1 BDEC prove, 2026-06-11 00:03-01:18 JST, tmux+caffeinate, solo, cold start.
+Config: documented Cell-2 tuning (SHARD_SIZE=2^22, ELEMENT_THRESHOLD=2^26,
+HEIGHT_THRESHOLD=2^20, TRACE_CHUNK_SLOTS=2, RAYON_NUM_THREADS=8), SP1 v6.2.1
+fork (KoalaBear), PLUM-80-Griffin, GRIFFIN_FP192_PERMUTE active, succinct core
+STARK (NOT zero-knowledge), single run each, deterministic seeds.
+
+CreGen  (2 PLUM verifs, 242,964,563 exec cycles): prove 1,618,670 ms = 26.98 min,
+  verify 5.65 s, proof 295,969,667 B (282.3 MiB), peak RSS 16.34 GiB, ACCEPTED.
+ShowCre k=1 (3 verifs, 362,637,683 exec cycles):  prove 2,409,157 ms = 40.15 min,
+  verify 8.32 s, proof 438,870,368 B (418.5 MiB), peak RSS 17.11 GiB, ACCEPTED.
+
+FIRST measured prove-mode receipts of the BDEC credential relations at lambda=80
+on consumer hardware. Receipts are succinct STARKs, NOT ZK: the dual obstruction
+now stands on credential-level measurement, not a-fortiori inference from the
+standalone verification. The RISC Zero CreGen anomaly is bypassed entirely on SP1.
+Per-cycle rate is consistent with the same-night Loquat S3 cold run (~6.7 ms/kcycle);
+Cell 2's archived 32.53 min (May, 125.5M cycles) is slow relative to tonight's
+rate — day-to-day drift to be resolved by the queued S5 repeats before any
+cross-day ratio is quoted.

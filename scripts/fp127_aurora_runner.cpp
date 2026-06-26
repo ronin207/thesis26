@@ -224,7 +224,10 @@ int main(int argc, char **argv)
     libff::start_profiling();
 
     std::cerr << "[runner] loading " << path << " ...\n";
+    auto tl0 = std::chrono::steady_clock::now();
     LoadedR1CS loaded = load_wire(path);
+    auto tl1 = std::chrono::steady_clock::now();
+    const double t_load_ms = std::chrono::duration<double, std::milli>(tl1 - tl0).count();
     std::cerr << "[runner] wire: num_vars=" << loaded.wire_num_variables
               << " (incl const-1), num_inputs=" << loaded.wire_num_inputs
               << ", num_constraints=" << loaded.wire_num_constraints << "\n";
@@ -254,6 +257,7 @@ int main(int argc, char **argv)
     std::cerr << "[runner] make_zk=" << (make_zk ? "true" : "false")
               << " RS_extra_dimensions=" << RS_extra_dimensions << "\n";
 
+    auto ts0 = std::chrono::steady_clock::now();
     libiop::aurora_snark_parameters<FieldT, HashT> params(
         security_level,
         libiop::LDT_reducer_soundness_type::proven,
@@ -265,6 +269,14 @@ int main(int argc, char **argv)
         libiop::multiplicative_coset_type,
         loaded.cs.num_constraints(),
         loaded.cs.num_variables());
+    auto ts1 = std::chrono::steady_clock::now();
+    const double t_setup_ms = std::chrono::duration<double, std::milli>(ts1 - ts0).count();
+    // R_static proxy = R1CS load + Aurora parameter setup (the per-circuit-change
+    // cost, BEFORE proving). Aurora is transparent + non-preprocessing, so this is
+    // expected to be small; the dominant FFTs are in the prover (per-proof), below.
+    std::cerr << "[runner] RECOMPILE-COST  t_load_ms=" << t_load_ms
+              << "  t_setup_ms=" << t_setup_ms
+              << "  (R_static = load + param-setup; prove is per-proof)\n";
 
     std::cerr << "[runner] Aurora prover ...\n";
     auto t0 = std::chrono::steady_clock::now();

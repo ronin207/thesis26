@@ -1,0 +1,23 @@
+\section{Evaluation}
+We measure four cells on the target hardware: PLUM verification in a zkVM
+(1)~without and (2)~with the Griffin precompile; (3)~the same verification
+using software SHA-3 as a control; and (4)~PLUM verification in an
+application-specific circuit (Aurora) as an in-SNARK reference.
+
+Without the precompile, verification does not terminate within a
+$24\,\mathrm{GB}/3\,\mathrm{h}$ bound ($\approx 7.08$ billion cycles at
+$\lambda=80$, projecting to tens of hours). With the precompile it completes
+in roughly \fbox{XX}~min on the $24\,\mathrm{GB}$ machine at a peak
+$18.67\,\mathrm{GB}$ resident---the first configuration in the study to fit
+the budget.
+% DECISION: \fbox{XX} time is unsettled -- 32.5 min (2026-05-20) vs 14.89 min
+% (2026-06-18, re-measured clean). 14.89 is more consistent with the 1.13x cycle
+% ratio vs Cell 3's 13.3 min, but cause unverified; thesis prose still cites 32.5.
+% Reconcile before submission, then replace this placeholder.
+
+The control is the sharpest result. Even with the precompile, PLUM
+verification executes $1.13\times$ more cycles ($125.5$\,M) than the same
+verification using software SHA-3 ($110.8$\,M): a standardized hash,
+unaccelerated, still beats our accelerated algebraic hash. This is the
+\emph{precompile paradox} made empirical---the cost of choosing a
+SNARK-friendly custom primitive over one the ecosystem has standardized.

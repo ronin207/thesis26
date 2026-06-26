@@ -1,1 +1,44 @@
+# Build output
 /target
+**/target/
+
+# OS / editor cruft
+.DS_Store
+**/.DS_Store
+*.textClipping
+
+# Local build cache (iCloud-excluded, multi-GB)
+.build-cache.nosync/
+
+# Large local working directories (recordings, exports, run outputs)
+meetings/
+outputs/
+results/
+boundless_export/
+
+# Compiled zkVM / program binaries
+**/elf-out/
+**/elf-sha3/
+
+# Vendored tool binaries
+abst_Takumi2025/biber_thin
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.dvi
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# Reference PDFs and bulk reference material (kept locally, not in repo)
+references/*.pdf
+references/bigfirm_pq_refs/
+references/bdec_full.txt

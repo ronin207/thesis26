@@ -1,0 +1,117 @@
+%sakolab-summary.sty
+
+\typeout{Sako Lab. summary style file}
+
+\usepackage[deluxe,jis2004]{otf}
+\usepackage[haranoaji]{pxchfon}
+\usepackage[T1]{fontenc}
+% \usepackage[top=10truemm, bottom=10truemm, left=10truemm, right=10truemm]{geometry}
+\usepackage{array}
+\usepackage{fancyhdr}
+\usepackage{multirow}
+\usepackage{setspace}
+\usepackage{silence}
+\usepackage{tgschola}
+
+% 1inch = 25.4 mm
+% A4 210mm×297mm
+\hoffset=0truemm
+\voffset=0truemm
+\textwidth=190truemm
+\textheight=264truemm
+\oddsidemargin=-15.4truemm
+\evensidemargin=-15.4truemm
+\topmargin=-20.4truemm
+
+% -------------------- フォント --------------------
+\setlightminchofont{HaranoAjiMincho-ExtraLight.otf}
+\setmediumminchofont{HaranoAjiMincho-Light.otf}
+\setmarugothicfont{HaranoAjiMincho-SemiBold.otf}
+
+% -------------------- フッター --------------------
+\pagestyle{empty}
+
+% -------------------- セクション --------------------
+\renewcommand{\section}{\@startsection{section}{1}{\z@}%
+   {.1\Cvs \@plus.5\Cvs \@minus.2\Cvs}%
+   {.1\Cvs \@plus.3\Cvs}%
+   {\normalfont\large\bfseries}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}%
+   {.1\Cvs \@plus.5\Cvs \@minus.2\Cvs}%
+   {.1\Cvs \@plus.3\Cvs}%
+   {\normalfont\large\bfseries}}
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{\z@}%
+   {.1\Cvs \@plus.5\Cvs \@minus.2\Cvs}%
+   {.1\Cvs \@plus.3\Cvs}%
+   {\normalfont\normalsize\bfseries}}
+\renewcommand{\appendix}{\par
+  \setcounter{section}{0}%
+  \setcounter{subsection}{0}%
+  \renewcommand{\thesection}{\@Alph\c@section}}
+
+% -------------------- 表紙 --------------------
+% 表紙用の新変数
+\def\department#1{\gdef\@department{#1}}
+\def\advisor#1{\gdef\@advisor{#1}}
+\def\guidance#1{\gdef\@guidance{#1}}
+\def\studentid#1{\gdef\@studentid{#1}}
+\def\title#1{\gdef\@title{#1}}
+\def\authorsize#1{\gdef\@authorsize{#1}}
+\def\titlesize#1{\gdef\@titlesize{#1}}
+
+% 表紙の枠線用太線
+\newcommand\bhline[1]{\noalign{\hrule height #1}}
+\newcommand\bvline[1]{\vrule width #1}
+
+\renewcommand{\maketitle}{
+    % 表紙の設定をグループ内スコープに閉じ込める
+    \begingroup
+        % タイトル
+        \baselineskip=18truept
+        \vspace*{0truemm}
+        \centering
+        \noindent
+        {\fontsize{20truept}{20truept}\selectfont \mgfamily{修\hspace{4truemm}士\hspace{4truemm}論\hspace{4truemm}文\hspace{4truemm}概\hspace{4truemm}要\hspace{4truemm}書}}\\
+        {\fontsize{12truept}{12truept}\selectfont Master's Thesis Summary}\\
+        \vspace{-1em}
+        
+        % テーブル
+        \begin{table}[h]
+            \center
+            \begin{tabular}{@{\bvline{1.5pt}}Wc{37.5truemm}@{\vline}Wc{32.5truemm}@{\vline}Wc{22.5truemm}@{\vline}Wc{40.0truemm}@{\vline}Wc{18truemm}@{\vline}Wc{20truemm}Wc{12truemm}@{\bvline{1.5pt}}}
+                \multicolumn{7}{r}{\hfill{\fontsize{10truept}{10truept}\selectfont Date of submission: \@date \ (MM/DD/YYYY)}}\\
+                \bhline{1.5pt}
+                \begin{tabular}{c}{\fontsize{10truept}{10truept}\selectfont 専攻名(専攻分野)}\\ {\fontsize{10truept}{10truept}\selectfont Department}\end{tabular}
+                    & \begin{tabular}{c}\fontsize{10truept}{10truept}\selectfont\@department \end{tabular}
+                    & \begin{tabular}{c}\fontsize{10truept}{10truept}\selectfont 氏名\\ \fontsize{10truept}{10truept}\selectfont Name \end{tabular}
+                    & {\fontsize{\@authorsize}{\@authorsize}\selectfont\@author}
+                    & \multirow{4}{*}{\begin{tabular}{c}{\fontsize{10truept}{10truept}\selectfont 指　導}\vspace{-1truemm}\\ {\fontsize{10truept}{10truept}\selectfont 教　員}\\ {\fontsize{10truept}{10truept}\selectfont Advisor}\end{tabular}}
+                    & \multirow{4}{*}{\fontsize{10truept}{10truept}\selectfont\@advisor}
+                    & \multirow{4}{*}{\begin{tabular}{c}\fontsize{10truept}{10truept}\selectfont 印\\ \fontsize{10truept}{10truept}\selectfont Seal\end{tabular}}
+                    \rule[-1.25em]{0pt}{11truemm} \\ \cline{1-4}
+                
+                \begin{tabular}{c}\fontsize{10truept}{10truept}\selectfont 研究指導名\\ \fontsize{10truept}{10truept}\selectfont Research guidance\end{tabular}
+                    & \begin{tabular}{c}\fontsize{10truept}{10truept}\selectfont\@guidance \end{tabular}
+                    & \begin{tabular}{c}\fontsize{10truept}{10truept}\selectfont 学籍番号\vspace{-1truemm}\\ \fontsize{10truept}{10truept}\selectfont Student ID\vspace{-1truemm}\\ \fontsize{10truept}{10truept}\selectfont number\end{tabular}
+                    & \fontsize{10truept}{10truept}\selectfont\@studentid
+                    & & & 
+                    \rule[-5.5truemm]{0pt}{14truemm} \\ \hline
+                
+                \begin{tabular}{c}\fontsize{10truept}{10truept}\selectfont 研究題目\\ \fontsize{10truept}{10truept}\selectfont Title\end{tabular}
+                    & \multicolumn{6}{c@{\bvline{1.5pt}}}{{\fontsize{\@titlesize}{\@titlesize}\selectfont\@title}\rule[-4.75truemm]{0pt}{12truemm}}\\ \bhline{1.5pt}
+            \end{tabular}
+        \end{table}
+        \vspace{-5truemm}
+    \endgroup
+
+    % 図表を使用可能に
+    \makeatletter
+    \renewenvironment{table}
+      {\def\@captype{table}}
+      {}
+    
+    \renewenvironment{figure}
+      {\def\@captype{figure}}
+      {}
+    \makeatother
+}

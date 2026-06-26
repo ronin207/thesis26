@@ -26,7 +26,15 @@
 //! Modes:
 //!   * `synthetic` — mirrors `libiop::generate_r1cs_example` exactly, so the
 //!     wire format can be end-to-end validated against the in-memory probe.
-//!   * `bdec` — (TBD) serializes a real BDEC R1CS built via `build_loquat_r1cs`.
+//!   * `bdec` — serializes ONE `build_loquat_r1cs_pk_witness` relation (a single
+//!     Loquat Verify with pk-as-witness). NB: this is the single-verify building
+//!     block the BDEC layer *consumes*, not the composed 2-verify+revocation BDEC
+//!     relation (that lives in `anoncreds::bdec`). The legacy mode name is kept
+//!     for back-compat; prefer `loquat-verify` for the honestly-scoped output.
+//!   * `loquat-verify` — identical constraint generation to `bdec` (one
+//!     `build_loquat_r1cs_pk_witness`), but emits to a `.loquat-verify-r1cs`
+//!     file with a single-verify-scoped label. Use this for the same-scheme
+//!     substrate comparison vs the zkVM Loquat-verify leg.
 //!
 //! Usage:
 //!   cargo run --release --bin emit_aurora_r1cs -- \
@@ -217,12 +225,19 @@ fn parse_args() -> Args {
         }
     }
     let out = out.unwrap_or_else(|| {
-        let tag = if mode == "bdec" {
+        let is_loquat_relation = mode == "bdec" || mode == "loquat-verify";
+        let tag = if is_loquat_relation {
             if tiny { "tiny".to_string() } else { format!("s{}", security) }
         } else {
             format!("{}", log_n)
         };
-        PathBuf::from(format!("target/aurora_{mode}_{tag}.bdec-r1cs"))
+        // The single-verify mode gets its own honest file suffix.
+        let suffix = if mode == "loquat-verify" {
+            "loquat-verify-r1cs"
+        } else {
+            "bdec-r1cs"
+        };
+        PathBuf::from(format!("target/aurora_{mode}_{tag}.{suffix}"))
     });
     Args {
         mode,
@@ -280,7 +295,10 @@ fn main() {
                 bytes,
             );
         }
-        "bdec" => {
+        "bdec" | "loquat-verify" => {
+            // Both modes emit ONE `build_loquat_r1cs_pk_witness` relation = a
+            // single Loquat Verify (pk-as-witness). Identical constraint
+            // generation; only the output label/suffix differs (set above).
             // ---- 1. Loquat params + signature over Fp127 ----
             let params = if a.tiny {
                 loquat_setup_tiny().expect("loquat_setup_tiny")
@@ -328,8 +346,9 @@ fn main() {
             write_wire(&a.out, &padded_instance, &padded_witness, 0).expect("write wire file");
             let bytes = std::fs::metadata(&a.out).map(|m| m.len()).unwrap_or(0);
             println!(
-                "[emit] mode=bdec tiny={} security={} raw_constraints={} raw_vars_incl_c1={} \
+                "[emit] mode={} (single Loquat-verify, pk-witness) tiny={} security={} raw_constraints={} raw_vars_incl_c1={} \
                  -> padded_constraints={} padded_vars_incl_c1={} num_inputs=0 msg={:?} -> {:?} ({} B)",
+                a.mode,
                 a.tiny,
                 a.security,
                 raw_num_constraints,

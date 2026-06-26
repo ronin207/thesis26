@@ -34,9 +34,9 @@ LIBFF_A="${LIBIOP_BUILD_ROOT}/depends/libff/libff/libff.a"
 echo "[runner] libiop.a = $LIBIOP_A" >&2
 echo "[runner] libff.a  = $LIBFF_A"  >&2
 
-LIBIOP_SRC="libiop"
-LIBFF_SRC="libiop/depends/libff"
-LIBFQFFT_SRC="libiop/depends/libfqfft"
+LIBIOP_SRC="submodules/libiop"
+LIBFF_SRC="submodules/libiop/depends/libff"
+LIBFQFFT_SRC="submodules/libiop/depends/libfqfft"
 
 OUT_BIN="target/fp127_aurora_runner"
 mkdir -p target

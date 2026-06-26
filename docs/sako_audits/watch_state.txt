@@ -1,0 +1,4 @@
+slides=25 visible=25
+md5=2895f783cac9f38bad9f983311b8cb6f
+snapshot=deck_snapshot.txt
+updated=2026-06-15 (Audit 11 learner-fix: REORDER definition-before-use [Background+zkVM-explainer before Problem]; +7 glosses circuit/non-native/limb/substrate/lambda/DNF/OOM + BBS/DLs/field-mismatch; S6 ZK-misread note+descriptors)

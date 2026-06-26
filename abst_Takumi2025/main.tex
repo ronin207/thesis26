@@ -1,0 +1,63 @@
+\documentclass[a4j, 9pt,uplatex,dvipdfmx]{jsarticle}
+\usepackage{color}
+\usepackage[hiresbb]{graphicx}
+% \usepackage[utf8]{inputenc}
+% \usepackage{ascmac}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{comment}
+\usepackage[shortlabels]{enumitem}
+\usepackage{here}
+\usepackage{latexsym}
+\usepackage{multicol}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage{pxjahyper}
+\usepackage[style=ieee, citestyle=numeric, backref=false, backend=biber]{biblatex}
+\addbibresource{ref.bib}
+
+\usepackage{sakolab-summary}
+
+% 表紙の項目
+% \summarytype{修 士 論 文 概 要 書}
+% \esummarytype{Summary of Master's Thesis}
+\date{XX/XX/2026} % MM/DD/YYYYの形式で記入
+\department{情報理工・\\\fontsize{10truept}{10truept}\selectfont 情報通信専攻}
+\author{Takumi Otsuka}
+\advisor{Kazue Sako}
+\guidance{暗号プロトコル\\\fontsize{10truept}{10truept}\selectfont 研究}
+\studentid{5124FG15}
+\title{Quantifying the Performance Tax of Cryptographic Agility in Post-Quantum Anonymous Credentials}
+\authorsize{12truept}
+\titlesize{8.5truept}
+
+\begin{document}
+    % 二段組(タイトルを除く)
+    \maketitle
+
+    \begin{multicols*}
+        {2}
+        % 本文
+		\input{sections/01-introduction}
+        % \input{sections/02-preliminaies}
+        \input{sections/03-theoretical}
+        \input{sections/04-system}
+        \input{sections/05-evaluation}
+        \input{sections/06-discussion}
+        \input{sections/07-conclusion}
+
+    	% \section*{謝辞}
+    	% 本研究の成果の一部は，公益財団法人セコム科学技術振興財団の特定領域研究「権限の濫用を抑止する技術的・社会的しくみに関する研究」によって得られたものです．ここに感謝の意を表します．
+
+
+	    %
+	    %  参考文献
+	    %  ref.bibを用意する。
+	    %
+	    % \bibliographystyle{junsrt}
+	    % \bibliography{ref}
+		\printbibliography[title=参考文献]
+	\end{multicols*}
+\end{document}

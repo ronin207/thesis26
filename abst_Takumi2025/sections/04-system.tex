@@ -1,0 +1,12 @@
+\section{System Design}
+We construct a custom \emph{precompile suite} that bypasses field emulation
+for the primitives that dominate the cost, mirroring how zkVMs already ship
+precompiles for standardized primitives (e.g.\ SHA-2, secp256k1). Three AIR
+modules are specified, in expected cycle-share order: (i) the Griffin
+permutation over PLUM's $192$-bit prime field, the load-bearing $91\%$
+target; (ii) multi-limb $192$-bit modular arithmetic over $p = 2^{64}p_0+1$;
+and (iii) the $t$-th power-residue PRF symbol check ($t=256$ fixed), a
+constant-exponent routine for $a^{(p-1)/t} \bmod p$. Each module ships with a
+written soundness argument tying its AIR constraints to the reference
+specification, so the precompile layer preserves the scheme's unforgeability
+under the assumption that the zkVM's cross-table lookup argument is sound.

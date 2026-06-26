@@ -1,0 +1,71 @@
+Audit-5 measurement campaign — bounded stages complete (2026-06-12 08:17)
+Machine: M5 Pro 24 GB; commit 9975fde + dirty tree; serial, tmux+caffeinate,
+600 s cooldowns between stages; documented tuning unless stated. All runs
+exit 0, receipts verified, no OOM in any bounded stage.
+
+S5 (Cell 2/3 repeats, λ=80, documented tuning)
+  Cell 2 (Griffin chip): 17.80, 17.82 min  (peak RSS 14.5/15.6 GB)
+  Cell 3 (SHA-3 ctrl)  : 15.86, 16.43 min  (peak RSS 15.8/15.6 GB)
+  Same-session matched ratio: 17.81/16.15 = 1.10x  (sign: Griffin slower, both runs)
+  WITH May archives (32.53 / 13.28): cross-session ratio of means 1.50x,
+  envelope 1.08x-2.45x. May Cell-2 (32.53) is 1.83x tonight's repeats —
+  outside the 1.44x thermal envelope; cause unattributed (code/toolchain
+  drift since May suspected). Cross-session ratios are NOT defensible;
+  same-session pairs are.
+
+S4 (shard sweep + thread probe, Cell 2)
+  SHARD_SIZE 2^21 / 2^22 / 2^23 : 17.51 / 17.39 / 17.34 min (RSS 15.3/15.1/15.9 GB)
+  2^22 + 12 threads             : 15.36 min, RSS 14.4 GB (fits; ~12% faster)
+  Reading: at this workload the documented tuning is not a special setting —
+  the shard knob is flat and the 8-thread choice is conservative. NOTE: true
+  SP1 defaults (2^24, 18 threads) were NOT retested tonight; the May
+  "OOM at defaults in ~3 min" datum is now suspect for the same drift reason
+  and needs one re-run (queued after Cell 1).
+
+B (BDEC prove repeats + new k=2 point, λ=80, succinct, NOT ZK)
+  CreGen     : 26.98 (S9) + 31.11 → n=2, range 27-31 min (RSS 15.7 GB)
+  ShowCre k=1: 40.15 (S9) + 44.24 → n=2, mean 42.20 min (RSS 16.8 GB)
+  ShowCre k=2: 58.14 min (RSS 16.2 GB) — NEW
+  Additive model (k+2)/3 x k=1-mean predicts 56.26; measured 58.14 (+3.3%).
+  Prove-mode linearity of the additive cost model is now MEASURED at three
+  points (2, 3, 4 verifications); §6.6's "extrapolation, not a measured fit"
+  caveat can be retired for the succinct-prove regime.
+
+C1U (Cell 1, emulated arm, documented tuning, UNCAPPED) — RUNNING
+  CHECKPOINT_3H logged 11:18:12 — "does not terminate within three hours
+  under memory tuning" (abstract's missing datum) is now measured.
+  Run continues to its true outcome. (RSS sampler bound a wrong PID; final
+  peak RSS will come from /usr/bin/time -l at exit.)
+
+ADDENDUM (13:25): Cell 1 uncapped run terminated by Operator after 5h07m
+(08:17:42-13:24:50) still proving, no receipt, no OOM — strengthens the
+"does not terminate within three hours under memory tuning" datum to five
+hours on the current build. True-defaults Cell-2 re-check cancelled before
+start; both queued for a later session. CAVEAT for the rerun: run them on
+the SAME build state as the S5/S4/B anchors (commit 9975fde + current dirty
+tree, prebuilt binaries) or all cited numbers must be re-anchored together.
+
+S1 (Aurora Loquat-verify, lambda=80 instance, ZK ENABLED) — COMPLETED 2026-06-12
+  ACCEPT, zk=true, same 2^19 R1CS (524,288 constraints), RS_extra_dimensions=5.
+  Prover 1376.1 s (22.94 min; wall 1418.5 s incl. load) vs zk=false mean 225.4 s
+  -> measured ZK premium ~6.1x. Verifier 41.8 s (unchanged). Proof 876,768 B
+  (856 KiB) vs 688 KiB zk=false (+24%). Achieved security 107.5 bits (target
+  128, same as zk=false legs). Peak RSS 9.17 GiB (internal prover state ~20 GiB
+  virtual) — completes comfortably inside 24 GB. Single run.
+  READING: the static side's post-quantum ZERO-KNOWLEDGE proof is now MEASURED
+  on the target machine (22.9 min, 9.2 GiB), where the zkVM's only ZK route
+  OOMs at ~20 GB and is pairing-based. The dual obstruction is measured on
+  both sides; fig1's "reachable in principle" can become "measured". Note:
+  ZK-enabled Aurora (22.9 min) is still faster than the zkVM with ZK DISABLED
+  (44-64 min, same scheme, same lambda).
+
+S1 REPEATS (2026-06-13, repeats 2-3; n=3 with the 2026-06-12 run)
+  Prover: 1376.1 / 1291.4 / 1285.7 s -> mean 1317.7 s (21.96 min), range
+  21.43-22.94 min, spread +-3.5% (repeat 2 overlapped ~2 min of latexmk
+  builds at 00:29-00:31 and came in FASTER; contention immaterial).
+  Verifier: 41.8 / 41.4 / 40.8 s. Proof: 876,768 B identical in all three
+  runs. Peak RSS 9.17 / 10.96 / 10.32 GiB. All ACCEPT, zk=true, 107.5-bit.
+  ZK premium at the means: 1317.7/225.4 = 5.8x.
+  WORDING IMPACT: "22.9 min single run" is now the slowest of three; honest
+  form is "~22 min (mean of three runs, 21.4-22.9)". 06-evaluation aurora-ref
+  updated to n=3; six prose sites still carry 22.9 pending Operator choice.

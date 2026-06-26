@@ -335,8 +335,33 @@ fn run_prove(
     let pk_proof = client.setup(elf).expect("setup elf failed");
     println!("setup_ms={}", t_setup.elapsed().as_millis() as u64);
 
+    // ZK wrapping selector — see Succinct docs
+    // (docs.succinct.xyz/docs/sp1/security/security-model):
+    // "individual STARK proofs in SP1 do not currently satisfy the
+    //  zero-knowledge property"; only Groth16/PLONK wrappers do.
+    //   PLUM_ZK_WRAP=core    → default STARK (succinct, NOT ZK; the baseline)
+    //   PLUM_ZK_WRAP=groth16 → Groth16-wrapped (ZK; recommended ZK arm)
+    //   PLUM_ZK_WRAP=plonk   → PLONK-wrapped  (ZK; alternative ZK arm)
+    let zk_wrap = std::env::var("PLUM_ZK_WRAP").unwrap_or_else(|_| "core".into());
+    println!("zk_wrap={zk_wrap}");
+
     let t_prove = Instant::now();
-    let proof = client.prove(&pk_proof, stdin).run().expect("prove failed");
+    let proof = match zk_wrap.as_str() {
+        "groth16" => client
+            .prove(&pk_proof, stdin)
+            .groth16()
+            .run()
+            .expect("prove (groth16) failed"),
+        "plonk" => client
+            .prove(&pk_proof, stdin)
+            .plonk()
+            .run()
+            .expect("prove (plonk) failed"),
+        "core" | _ => client
+            .prove(&pk_proof, stdin)
+            .run()
+            .expect("prove (core) failed"),
+    };
     let prove_ms = t_prove.elapsed().as_millis() as u64;
     println!("prove_ms={prove_ms} (= {:.2} min = {:.2} h)",
         prove_ms as f64 / 60_000.0,

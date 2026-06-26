@@ -1,0 +1,1562 @@
+{
+ "claimCount": 97,
+ "claims": [
+  {
+   "id": "C-base-noncompl",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "Without a custom precompile, a single PLUM verification does not complete on $24$~GB within this study's bounds: it exhausts memory under default settings and does not terminate within three hours under memory tuning.",
+   "kind": "negative",
+   "evidence": "Cell 1 measurement (SP1 emulation arm): OOM under defaults, 3-hour DNF under tuned memory settings. No T2 dependence: claim is about the precompile-FREE arm, which does not invoke the Griffin AIR at all.",
+   "premises": [
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-feas-80",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "With a bespoke large-field Griffin-$\\mathbb{F}_p^{192}$ precompile ... the same verification is proved in $32.5$ minutes on SP1 at the $80$-bit setting ... Feasibility for the standalone signature is therefore reached.",
+   "kind": "positive",
+   "evidence": "Cell 2 measurement (SP1, lambda=80, tuned memory settings; defaults OOM). DISCREPANCY: the abstract states this positive claim with no T2 conditioning and no mention that the 32.5-min run required tuned settings; T2 conditioning appears only at 01-intro.tex:74. If the AIR is unsound, the receipt does not attest PLUM verification, so 'is proved' is false — T2 is a genuine premise here.",
+   "premises": [
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-128-unreached",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "the paper's $128$-bit setting is untested and expected to exceed the memory budget",
+   "kind": "conditional",
+   "evidence": "Extrapolation only; no lambda=128 measurement exists ('untested'). Self-flagged as expectation. No T2 dependence (an unsound AIR would only understate cost, strengthening the expectation).",
+   "premises": [
+    "sp1-only",
+    "none"
+   ]
+  },
+  {
+   "id": "C-zkwrap-oom",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "The zero-knowledge wrap that anonymity requires exhausts memory before it completes",
+   "kind": "negative",
+   "evidence": "Measured PLONK wrap attempt on the standalone PLUM-verify receipt, OOM at ~20 GB of 24 GB (quantified at 01-intro.tex:72). No T2 dependence: wrap memory exhaustion occurs regardless of AIR soundness.",
+   "premises": [
+    "sp1-only",
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-wrap-not-pq",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "the only wrap the toolchain offers is pairing-based and so not post-quantum",
+   "kind": "negative",
+   "evidence": "Fact about the deployed SP1 toolchain (Groth16/PLONK wraps are pairing-based); per 01-intro.tex:85 'holds independently of how favourable any timing number is'. No measurement or T2 dependence; but 'the only wrap the toolchain offers' is an SP1 statement generalized to the stack.",
+   "premises": [
+    "sp1-only",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-not-deployable",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "Deployable post-quantum anonymous credentials are not reached on this stack, and we locate exactly where the wall sits and what would move it.",
+   "kind": "negative",
+   "evidence": "Conjunction of C-zkwrap-oom and C-wrap-not-pq. No T2 dependence (negative verdict holds a fortiori if AIR unsound). 'On this stack' quantifies over the zkVM substrate; RISC Zero's ZK-wrap status is not separately measured in these files.",
+   "premises": [
+    "sp1-only",
+    "lambda80-only",
+    "risc0-zk-status-unverified",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-receipt-not-zk",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "The proof we run is a succinct receipt and is not itself zero-knowledge.",
+   "kind": "definitional",
+   "evidence": "SP1 security model (Succinct docs: default prove() STARK proofs are not ZK). Toolchain property, not a measurement. No T2 dependence.",
+   "premises": [
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-flex-verdict",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "its wall-clock cost is sub-second against a transparent non-preprocessing argument, so against that baseline the recompile burden survives only as a regeneration-and-re-audit footprint argument; a wall-clock flexibility advantage appears only against a preprocessing baseline, where the per-circuit indexing itself exceeds the memory budget at the BDEC size.",
+   "kind": "conditional",
+   "evidence": "R_static measurements: Aurora recompile ~0.3 s (non-preprocessing baseline, refutes wall-clock flexibility advantage); Fractal preprocessing indexing 0.86–18.5 s synthetic, OOM at BDEC size 2^19 on 24 GB (conditional rescue). No T2 dependence.",
+   "premises": [
+    "single-run",
+    "none"
+   ]
+  },
+  {
+   "id": "C-fmt-impractical",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 29,
+   "claim": "in our measurements the precompile-free standalone PLUM verification exhausts memory (OOM) on the SP1 emulation arm on Apple M-series hardware with $24$~GB, and the full credential relation's succinct proof did not complete, in an anomaly examined in Section~\\ref{sec:evaluation}.",
+   "kind": "negative",
+   "evidence": "Cell 1 OOM measurement plus the CreGen internal-verifier anomaly (explicitly distinguished from a resource limit at lines 72/80). No T2 dependence: the OOM arm does not use the precompile; the anomaly claim carries no feasibility weight by its own framing.",
+   "premises": [
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-first-artifact",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 70,
+   "claim": "To our knowledge this is the first realisation of PLUM-based BDEC components, both credential generation and presentation, in execute mode and the first standalone PLUM-verify prove-mode measurement, inside a general-purpose zkVM.",
+   "kind": "positive",
+   "evidence": "Execute-mode runs: CreGen 9.4e9 cycles, ShowCre 1.41e10 (k=1) / 1.88e10 (k=2) confirming the additive cost model; prior-art distinguished in Section 2 (comment notes S3 done 2026-06-06). No T2 dependence: execute-mode functional validation and the existence of a prove-mode measurement do not require AIR soundness. Firstness rests on the literature search, not a listed premise tag.",
+   "premises": [
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-no-zk-realised",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 72,
+   "claim": "Neither BDEC relation yet yields a zero-knowledge \\emph{proof} on the target hardware ... the PLONK wrap of the standalone PLUM-verification receipt exhausts memory at roughly $20$~GB of the $24$~GB budget.",
+   "kind": "negative",
+   "evidence": "Measured standalone wrap OOM (~20/24 GB); CreGen anomaly; ShowCre wrap NOT attempted — its infeasibility is an a-fortiori INFERENCE from the standalone obstruction, explicitly flagged as inferred rather than measured. No T2 dependence.",
+   "premises": [
+    "sp1-only",
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-precompile-instrument",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 74,
+   "claim": "against the precompile-free path, which exhausts memory (OOM at $\\approx$1m45s; Table~\\ref{tab:plum-verify}) on the target hardware, the precompile reduces PLUM signature verification to a $32.5$-minute standalone prove on SP1 at $\\lambda=80$ ... the security statement is therefore \\emph{conditional} on the constraint-level soundness of the Griffin AIR ... premise~(T2).",
+   "kind": "conditional",
+   "evidence": "Cell 2 vs Cell 1 (Table tab:plum-verify). This is the ONE place in these two files where T2 is correctly attached to the positive claim; the dependency direction is correct here (T2 conditions the positive security statement, not the negatives). The 32.5-min figure required tuned memory settings, not stated in this sentence.",
+   "premises": [
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-sha3-inversion",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 76,
+   "claim": "the Griffin-$\\mathbb{F}_p^{192}$ precompile arm (Cell~2) does not outperform a PLUM arm that uses a software SHA-3 hasher and the existing big-integer precompile alone (Cell~3): it runs about $2.45\\times$ slower in prove wall-clock ($32.5$ versus $13.3$ minutes).",
+   "kind": "negative",
+   "evidence": "Cell 2 vs Cell 3 prove wall-clock at matched lambda=80. NO T2 dependence: if the AIR were unsound, the honest-path 32.5 min would UNDERSTATE the true sound cost, making the inversion stronger, never weaker. (Note: the headline 1.13x figure in working memory vs the 2.45x stated here — different arms or updated measurement; the thesis text says 2.45x, 32.5 vs 13.3 min.)",
+   "premises": [
+    "tuned-settings",
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-churn-measured",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 78,
+   "claim": "We define update churn quantitatively as the regeneration footprint incurred by a localised change to the verification relation ... and use it to characterise a deployment-lifecycle trade-off that the current evaluation literature ignores.",
+   "kind": "definitional",
+   "evidence": "Definition plus footprint enumeration for both regimes; the quantitative verdict lives in C-flex-verdict / C-churn-recompile-small. No measurement premises for the definition itself.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-frontier",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 80,
+   "claim": "PLUM signature verification proves in $32.5$ minutes on SP1, whereas BDEC CreGen runs correctly in execute mode but its succinct proof terminated in an internal-verifier rejection: an anomaly under diagnosis ... on which no claim of this thesis rests.",
+   "kind": "positive",
+   "evidence": "Cell 2 prove measurement + CreGen anomaly. The positive half ('proves in 32.5 minutes') inherits T2 — if the AIR is unsound the receipt does not prove verification — but this sentence states it without T2 conditioning (conditioning is two bullets earlier at line 74). Tuned-settings also unstated here.",
+   "premises": [
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-answer-not-yet",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 85,
+   "claim": "whether a general-purpose zkVM is a viable substrate for post-quantum anonymous credentials on consumer hardware. The answer is \\emph{not yet}.",
+   "kind": "negative",
+   "evidence": "Synthesis of the dual obstruction. No T2 dependence: the 'not yet' verdict survives an unsound AIR a fortiori (the affordable proof would then be neither ZK nor sound). Correctly stated unconditionally in the prose.",
+   "premises": [
+    "sp1-only",
+    "lambda80-only",
+    "risc0-zk-status-unverified",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-dual-obstruction",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 85,
+   "claim": "on this hardware the proof one can afford to generate (the standalone PLUM-verification succinct receipt) fails to be zero-knowledge, while the only zero-knowledge wraps the toolchain exposes are pairing-based and so fail to be post-quantum, and the attempted PLONK wrap additionally exhausts memory. ... This dual obstruction is the central finding of the thesis.",
+   "kind": "negative",
+   "evidence": "Prong 1: SP1 security model (default STARK receipt not ZK). Prong 2: toolchain fact (pairing-based wraps) + measured wrap OOM. The text itself notes the pairing limitation 'holds independently of how favourable any timing number is and more memory does not remove it'. No T2 dependence — and the prose does NOT condition it on T2 (correct direction). Caveat: 'the proof one can afford to generate' presupposes the 32.5-min affordability datum, but the obstruction verdict does not require that proof to be sound.",
+   "premises": [
+    "sp1-only",
+    "lambda80-only",
+    "risc0-zk-status-unverified",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-churn-recompile-small",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 23,
+   "claim": "the per-change recompile wall-clock turns out to be small (Section~\\ref{ssec:churn-eval}), but the regeneration-and-re-audit footprint it forces is not, and that footprint is what goes unmeasured.",
+   "kind": "conditional",
+   "evidence": "R_static measurement vs Aurora (~0.3 s recompile). Honest both-sides statement; the surviving rigidity claim is the footprint/re-audit argument, not wall-clock. No T2 dependence.",
+   "premises": [
+    "single-run",
+    "none"
+   ]
+  },
+  {
+   "id": "C-security-open-premises",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 95,
+   "claim": "the security of the resulting system reduces to those already established for Loquat, PLUM, BDEC, RISC Zero, and SP1, together with a small number of premises that we state explicitly and carry as \\emph{open} where they arise (the constraint-level soundness of the Griffin AIR, the existence of a PLUM signature-transcript simulator, and the quantum-random-oracle lifts).",
+   "kind": "conditional",
+   "evidence": "Forward reference to Section sec:security conditional security-preservation theorem and premises (T1)–(T4) (line 99 names the range explicitly). This is the security headline a committee would quote; it is conditional on all open premises, T2 included, since the security statement is false if the AIR admits non-reference traces.",
+   "premises": [
+    "T1",
+    "T2",
+    "T3",
+    "T4"
+   ]
+  },
+  {
+   "id": "C-falsified-predictions",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 85,
+   "claim": "two of them are findings precisely because they \\emph{falsify} a natural prediction: a bespoke algebraic-hash precompile was expected to make verification fast, yet at matched $\\lambda$ it runs slower than a software SHA-3 control ... and a zkVM was expected to be more flexible than a static circuit, yet against the transparent baseline the recompile advantage is negligible ... becoming large only against a preprocessing baseline.",
+   "kind": "negative",
+   "evidence": "Restates C-sha3-inversion and C-flex-verdict as falsified predictions. Both prongs are negatives with no T2 dependence; an unsound AIR strengthens the SHA-3 prong. Correctly stated without T2 conditioning.",
+   "premises": [
+    "tuned-settings",
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-preserve-unf",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 167,
+   "claim": "Adv^unf_zkVM-BDEC(A) <= eps_EUF + eps_KS + eps_AIR (Theorem: Security preservation, conditional; classical ROM)",
+   "kind": "conditional",
+   "evidence": "Re-instantiation of BDEC Theorem 1 with PLUM as Sig and the zkVM as the zkSNARK; Lemma relation-preserve; proof sketch via the zkVM knowledge extractor; full reductions deferred to Appendix app:preservation. T2 is an explicit theorem hypothesis (lines 155-158); the headline reading 'unforgeability preserved up to negligible error' is false if the AIR is unsound (eps_AIR non-negligible).",
+   "premises": [
+    "T1",
+    "T2",
+    "T3"
+   ]
+  },
+  {
+   "id": "C-preserve-anon",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 170,
+   "claim": "Adv^anon_zkVM-BDEC(A) <= eps_ZK + eps_sZK, and the same bound holds for unlinkability",
+   "kind": "conditional",
+   "evidence": "Re-instantiation of BDEC Theorems 2-3; proof sketch states explicitly 'no witness is extracted, so eps_KS and eps_AIR do not enter' (lines 202-203) — so this bound does NOT depend on T2; it depends on the open simulator premise T4 and on the produced proof being ZK (eps_ZK), which §ssec:zk-gap shows is not delivered on the target hardware.",
+   "premises": [
+    "T4"
+   ]
+  },
+  {
+   "id": "C-relation-preserve",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 115,
+   "claim": "Lemma (Relation preservation): the zkVM guest with the precompile suite active accepts (x,w) iff R^Sig(x;w)=1, for both BDEC relations",
+   "kind": "conditional",
+   "evidence": "Hypotheses: sound mulmod precompile, lookup binding (T1), zkVM knowledge-soundness, Griffin AIR admits only the reference permutation (T2). Lemma itself flags that the code-level reading is additionally conditional on the unimplemented journal binding of x (lines 122-127). False if the AIR is unsound, so T2 is listed.",
+   "premises": [
+    "T1",
+    "T2"
+   ]
+  },
+  {
+   "id": "C-T1-assumed",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 84,
+   "claim": "Premise (T1), that the cross-table lookup argument binds the precompile chips to the execution trace, is assumed from the SP1 and RISC Zero implementations, not independently verified here",
+   "kind": "definitional",
+   "evidence": "Cites the logarithmic-derivative lookup arguments (haback2022logup); explicitly an assumed upstream premise.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-T2-open",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 235,
+   "claim": "The one hypothesis below the level of an established or cited result is premise T2, the Griffin AIR's constraint-level soundness; the 256-vector figure 'is the test coverage of a positive-direction equivalence suite... and is not a soundness bound'",
+   "kind": "definitional",
+   "evidence": "256-vector equivalence suite (per-vector false-pass <= 1/p ~ 2^-199, aggregate 2^-191, uniform-wrong-output model); fault-injection suite rejects single-cell corruptions for 7 of 10 constraint families (B-1..B-5, B-8, per-row B-9); lookup-borne families B-6, B-7, cross-row B-9 untested; B-10 argued by construction (Appendix app:proofs, lines 272-285).",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-anomaly-not-T2",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 265,
+   "claim": "The BDEC credential-generation prove anomaly reported in Section 6 does not bear on premise T2",
+   "kind": "definitional",
+   "evidence": "The anomaly run executed on RISC Zero 3.0.3 with field arithmetic via sys_bigint, a path on which the bespoke Griffin-Fp192 AIR is not invoked; it could at most implicate sys_bigint's trace or RISC Zero's recursion/segment-composition layer. Correctly keeps the dependency direction: the anomaly does not contaminate T2, and T2 does not rescue the anomaly.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-anon-not-delivered",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 208,
+   "claim": "'the produced receipt mode has no established zero-knowledge simulator, and ... the ZK-wrapped mode is not produced within the resource and memory bound of the target hardware, so anonymity and unlinkability are not delivered there'",
+   "kind": "negative",
+   "evidence": "Follows from §ssec:zk-gap: SP1 docs state STARK proofs are not ZK; RISC Zero advisory + Habock/Al-Kindi analysis; PLONK wrap OOM at ~20 GB / 24 GB (Section 6). Negative finding — does not depend on T2 (an unsound AIR would not make the receipt ZK).",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-bare-not-zk",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 318,
+   "claim": "'The succinct STARK receipt produced by either zkVM is, in the configurations we run, an argument of knowledge but not a zero-knowledge one'",
+   "kind": "negative",
+   "evidence": "SP1 prong: sp1docs-sec states plainly its STARK proofs are not ZK. RISC Zero prong: documents perfect ZK, but Habock/Al-Kindi analysis + RISC Zero's own security advisory (risc0zkadvisory, l2beatzk) find the ZK requirement not provably met; the thesis therefore treats the bare receipt as 'not dependably zero-knowledge' on both substrates. No T2 dependency.",
+   "premises": [
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-obstr-resource",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 334,
+   "claim": "First prong of the dual obstruction: 'On the target hardware at lambda=80 the PLONK wrap exhausts memory at ~20 GB on the 24 GB machine ... so the anonymity-providing proof is infeasible to generate even though the bare, non-anonymous receipt is'",
+   "kind": "negative",
+   "evidence": "Killed under memory pressure; measurement in Section 6 (sec:evaluation). PLONK is one of 'the wraps SP1 exposes'. Negative finding — independent of T2 (unsound AIR would only understate the honest-path cost, strengthening infeasibility).",
+   "premises": [
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-obstr-primitive",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 338,
+   "claim": "Second prong: 'Even with unlimited memory, wrapping a post-quantum STARK receipt in a pairing-based Groth16 or PLONK proof re-introduces a quantum-vulnerable assumption into the anonymity guarantee'",
+   "kind": "negative",
+   "evidence": "Toolchain fact: the available wraps (Groth16, PLONK) are pairing-based, hence classically secure only; explicitly scoped — 'Groth16 and PLONK are not unsuitable in general. They are ruled out here only by the thesis's post-quantum-anonymity goal.' Independent of T2 and of any measurement.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-dual-obstruction",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 351,
+   "claim": "'The two obstructions together leave no good option on commodity hardware: the proof that is feasible to generate is not anonymous, and the proof that would be anonymous is neither feasible to generate nor, with the available wraps, post-quantum'",
+   "kind": "negative",
+   "evidence": "Conjunction of the resource prong (OOM ~20 GB, Section 6) and the primitive prong (pairing-based wraps); Figure fig:dual-obstruction names the prongs as independent. Does NOT depend on T2: an unsound AIR would only make the 'feasible' branch weaker, never restore anonymity or feasibility of the wrap. The 'feasible to generate' phrase references the 32.5-min positive but the negative conjunction survives even if that proof is unsound.",
+   "premises": [
+    "lambda80-only",
+    "sp1-only",
+    "single-run",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-novelty",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 355,
+   "claim": "'Within the scope of the literature we surveyed, we did not find this conjunction stated explicitly for post-quantum anonymous credentials, and surfacing it is a contribution of this thesis'",
+   "kind": "positive",
+   "evidence": "Self-scoped literature-survey claim; quantifies the resource prong (24 GB wrap frontier, Section 6) and identifies the primitive prong as a toolchain gap. No T2 dependency; vulnerable only to prior-art discovery, not to AIR soundness.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-scope-caveat",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 362,
+   "claim": "'The barrier is scoped to the substrate and hardware studied ... We do not claim the barrier is fundamental to the primitive or that it persists on server-class hardware'",
+   "kind": "definitional",
+   "evidence": "Explicit scoping: Apple M5 Pro / 24 GB, CPU-bound RISC Zero and SP1 provers, lambda=80; memory-budget and security-level scaling left as future work.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-conservative-reading",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/055-security.tex",
+   "line": 258,
+   "claim": "'absent a PLUM transcript simulator (T4), only the EU-CMA-derived unforgeability of the credential transfers, and anonymity and unlinkability are conditional on (T4); absent the quantum lift, every guarantee holds against classical adversaries only'",
+   "kind": "definitional",
+   "evidence": "Premise-dependency map for Theorem thm:security-preserve; four open inputs named: T2, T3 (argued, not line-audited), T4, and the quantum lifts of PLUM and Fiat-Shamir. This passage states the dependency structure itself, so it has no premises of its own.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-feas-sp1-80",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 12,
+   "claim": "'PLUM signature verification on SP1, suite active. Built; proves end-to-end (32.5 min at lambda=80)'",
+   "kind": "positive",
+   "evidence": "Measurement in Section 6 (sec:evaluation). THE positive feasibility headline — inherits T2: if the AIR is unsound the receipt does not certify PLUM verification and the 32.5-min figure understates the sound cost. NOTE: the line as written carries no tuned-memory-settings qualifier, although the established record is that default settings OOM and 32.53 min required tuned settings — the qualifier lives elsewhere, a candidate prose gap.",
+   "premises": [
+    "T1",
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-feas-r0-80",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 13,
+   "claim": "'PLUM signature verification on RISC Zero (standalone guest, Griffin hasher emulated in guest code, field arithmetic via sys_bigint). Built; proves end-to-end (6 h 19 m at lambda=80)'",
+   "kind": "positive",
+   "evidence": "Measurement in Section 6. Positive feasibility claim but on the sys_bigint path where the bespoke Griffin AIR is not invoked — NOT T2-dependent; rests instead on lookup binding (T1) and the cited (not re-derived) RISC Zero sys_bigint soundness.",
+   "premises": [
+    "T1",
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-griffin-smoke",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 11,
+   "claim": "Bespoke Griffin-Fp192 AIR for SP1: all ten constraint families implemented; 'a single-permutation smoke proof completes (execute+prove+verify) in 13.0 s on the target hardware'; 'constraint-level chip-equivalence not yet verified'",
+   "kind": "positive",
+   "evidence": "~3,900 lines of Rust over 24 commits; smoke proof at line 73 (§ssec:griffin-air 'What works'). The 13.0-s per-syscall cost claim inherits T2: an unsound AIR could mean the sound version costs more. The caveat clause itself is the in-prose acknowledgment of T2's open status.",
+   "premises": [
+    "T1",
+    "T2",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-cregen-anomaly",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 14,
+   "claim": "CreGen on RISC Zero: 'validated in execute mode (9.4e9 guest cycles, both signature verifications accepting); its succinct proof did not yield a receipt, ending in an internal-verifier rejection under diagnosis rather than a resource limit'",
+   "kind": "negative",
+   "evidence": "Section 6 (sec:evaluation); 055-security.tex lines 265-272 establish the anomaly ran on RISC Zero 3.0.3 / sys_bigint, so it does not implicate T2 and T2 does not bear on it. Negative finding, no T2 dependency.",
+   "premises": [
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-showcre-exec",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 15,
+   "claim": "ShowCre on RISC Zero: 'Built; validated in execute mode at k=1 (1.41e10 guest cycles) and k=2 (1.88e10 cycles), all k+2 verifications accepting; its succinct proof was not attempted, sharing CreGen's prover path'",
+   "kind": "positive",
+   "evidence": "Execute-mode validation only — no proving, hence no T1/T2 dependency; the prove gap is inherited from the CreGen anomaly path.",
+   "premises": [
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-suite-not-uniform",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 18,
+   "claim": "'\"the precompile\" does not denote one artefact uniform across both zkVMs. On SP1 the suite includes the bespoke Griffin AIR. On RISC Zero the same arithmetic is carried by sys_bigint'",
+   "kind": "definitional",
+   "evidence": "Scope statement; the RISC Zero port of the bespoke Griffin AIR is deliberately not built (future work). This is the definitional anchor that confines T2 to the SP1 arm — load-bearing for the correct dependency direction across the whole evaluation.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-thm-precompile-sound",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 82,
+   "claim": "Theorem (Precompile soundness, conditional): under (T1), (T2), (T3) and the upstream modular-multiplication guarantee, 'substituting the precompile suite for the emulated operations preserves the input-output value of every PLUM and BDEC verification predicate' and PLUM's EU-CMA reduction transfers unchanged",
+   "kind": "conditional",
+   "evidence": "Self-described as a functional equivalence statement plus a (T3)-conditional reduction transfer, not a standalone security claim; QROM-replaceability of the Griffin instantiation explicitly carved out as a separate upstream assumption. False if the AIR is unsound, so T2 listed.",
+   "premises": [
+    "T1",
+    "T2",
+    "T3"
+   ]
+  },
+  {
+   "id": "C-bigint-sound",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 10,
+   "claim": "Fp192 modular multiplication via the host precompile (SP1 UINT256_MUL / RISC Zero sys_bigint): 'Built; reduction argued; empirically tested (14/14 adversarial cases)'",
+   "kind": "conditional",
+   "evidence": "Reduction in §ssec:bigint (lines 27-34): upstream host-AIR constraint x' = x*y mod m with range check, pinned to SP1 v6.2.1 (forked) and RISC Zero 3.0.5; the RISC Zero side is cited as production-audited rather than re-derived ('the weakest link'). 14-case adversarial probe (line 37) is regression evidence, not a malicious-prover characterisation. No T2 dependency — this is the non-Griffin half of the suite.",
+   "premises": [
+    "T1"
+   ]
+  },
+  {
+   "id": "C-baseline-dnf",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 61,
+   "claim": "'each Fp199 operation expands into multi-limb arithmetic that, un-precompiled, does not complete (OOM at 1m45s)' (Figure fig:fmt-precompile)",
+   "kind": "negative",
+   "evidence": "Figure caption stating the un-precompiled baseline DNF; the same caption carries the honest qualifier 'the chip's cost is charged host-side, so a guest-cycle saving need not be a wall-clock one' (the seed of the SHA-3 inversion). Negative baseline finding — uses no Griffin AIR at all, so no T2 dependency.",
+   "premises": [
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-statement-binding",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 98,
+   "claim": "'Until x_cre is committed to the journal, the artifact serves as a functional benchmark and does not yet act as a statement-bound credential verifier: an accepting receipt does not certify which statement was proved'",
+   "kind": "negative",
+   "evidence": "Prototype commits the verification outcome but not the public statement to the journal; flagged as security-relevant ('we do not treat it as a cosmetic completeness gap'); fix described as cost-negligible. Echoed as the code-level condition in Lemma relation-preserve. No T2 dependency.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-oq2-qrom",
+   "file": "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/05-system.tex",
+   "line": 92,
+   "claim": "'whether they [the Griffin analyses] cover this d=3, width-4, 199-bit-field, 14-round instantiation is not something the AIR can settle. If this instantiation were QROM-distinguishable, no amount of AIR engineering would recover security'",
+   "kind": "definitional",
+   "evidence": "Open question 2 of §ssec:soundness; flagged as a thesis-level assumption upstream of the AIR, to be checked against the Griffin literature. Independent of T2 by the prose's own statement.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-quant-first",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 2,
+   "claim": "within the scope of the literature we surveyed, these are among the first reported figures for executing and proving a PLUM-instantiated post-quantum anonymous-credential workload inside a general-purpose zkVM",
+   "kind": "positive",
+   "evidence": "Literature-scope qualifier only; no survey table cited in this section.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-feas-80",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 159,
+   "claim": "the precompile moves PLUM verification from infeasible to feasible on consumer hardware (completes in 32.53 minutes)",
+   "kind": "positive",
+   "evidence": "Table tab:plum-verify (line 109): SP1 Griffin-Fp192 precompile arm, prove 32.53 min, receipt verified, peak mem 81.31%, lambda=80, tuned SHARD_SIZE/threads config (lines 70-82).",
+   "premises": [
+    "T1",
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-dnf-baseline",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 156,
+   "claim": "without the precompile the workload does not complete on this hardware (DNF, OOM at ~1m45s)",
+   "kind": "negative",
+   "evidence": "Table tab:plum-verify row 1 (line 108): SP1 rv32im software Griffin, OOM ~1m45s at 87.94% peak mem. T2-independent: an unsound AIR cannot rescue the no-precompile arm.",
+   "premises": [
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-sha3-inversion",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 176,
+   "claim": "the bespoke Griffin-Fp192 precompile (32.53 min) is about 2.45x slower at prove than the software SHA-3 control (13.28 min) at matched lambda=80 ... a genuine property of the pipeline rather than a measurement artefact",
+   "kind": "negative",
+   "evidence": "Lines 108-111 table rows; identical harness, identical tuning (line 78-80); SHA-3 arm fires no hash precompile (lines 169-172). NOT T2-dependent: an unsound AIR understates the Griffin arm's true sound cost, strengthening the inversion.",
+   "premises": [
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-no-speedup",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 182,
+   "claim": "What the precompile bought us was a finite measurement; it did not buy a speedup.",
+   "kind": "negative",
+   "evidence": "Follows from C-dnf-baseline + C-sha3-inversion (lines 155-183); no N-times speedup headline reported by methodology rule (lines 20-25).",
+   "premises": [
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-deployable-proof",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 194,
+   "claim": "On a 24 GB machine ... the proof a deployer can actually generate is the large, shard-scaling core receipt; the 260-byte SNARK is a documented size the consumer-hardware frontier prevents us from realising",
+   "kind": "negative",
+   "evidence": "PLONK wrap killed at ~20 GB (line 192-193, cross-ref ssec:resource-frontier); core-proof size scaling cited to succinct2025prooftypes.",
+   "premises": [
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-loquat-substrate",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 243,
+   "claim": "The zkVM is the dearer per-proof substrate by ~15x (Aurora 3.76 min vs SP1 zkVM 55.93 min, same Loquat verification, lambda=80, neither zero-knowledge)",
+   "kind": "negative",
+   "evidence": "Table tab:loquat-substrate (lines 257-258); same scheme, same Fp2 127-bit field, only substrate differs; zkVM leg uses no Loquat-specific precompile (line 246-247), so T2 is not on this path.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-cycle-56x",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 340,
+   "claim": "the precompile-free versus precompile-enabled execute-mode cycle counts differ by a factor of 56.4x at lambda=80 ... the figure that should be cited when a single number is wanted",
+   "kind": "positive",
+   "evidence": "Execute-mode cycle ratio on the Griffin arm (commit 2c1392b comment, line 342). T2-free: guest cycle counts are prover-independent; fixing an unsound AIR changes prover-side constraints, not guest cycles. But its framing as counterpart of the prove-level feasibility transition (line 344-345) borrows C-feas-80's premises.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-ablation",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 309,
+   "claim": "Routing field arithmetic through the host precompile (and removing redundant reductions) cuts 37.9% of SP1 cycles and 70.5% of RISC Zero cycles",
+   "kind": "positive",
+   "evidence": "Table tab:ablation (lines 301-304), execute mode, lambda=128, SHA-3 hasher path; per-mul cycle figures 6,625 -> 1,826 (R0), 2,567 baseline (SP1). Execute mode, Griffin AIR not on path: no T2.",
+   "premises": [
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-feas-r0",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 412,
+   "claim": "The single PLUM verification does prove successfully on RISC Zero ... completes in 6h19m and the receipt verifies (SHA-3 hasher, sys_bigint)",
+   "kind": "positive",
+   "evidence": "Table tab:plum-verify row 4 (line 111) and lines 411-416. SHA-3 hasher arm; bespoke Griffin AIR not on this path (no T2), but soundness of the receipt still rests on the lookup/precompile-trace premise (T1).",
+   "premises": [
+    "T1",
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-cregen-anomaly",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 383,
+   "claim": "the succinct-prove run terminated after 15.6 hours with RISC Zero's own recursive aggregation step rejecting one of its intermediate segment proofs ... categorically different from running out of memory ... we do not report it as a frontier or fold it into any feasibility claim",
+   "kind": "negative",
+   "evidence": "Lines 383-411: peak RSS 11.24 GB of 24 GB, free memory 70-85%; prose explicitly notes the T2 chip (SP1-only Griffin AIR) was not on this RISC Zero proving path (lines 399-401) — correctly T2-independent.",
+   "premises": [
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-zkwrap-oom",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 422,
+   "claim": "the PLONK zero-knowledge wrap of the standalone PLUM single-signature-verification receipt was killed under memory pressure at ~83% of the 24 GB budget (peak RSS 19.98 GB) ... the measured form of the anonymity-deployability tension",
+   "kind": "negative",
+   "evidence": "Lines 421-429, process accounting at kill + RSS sampler ~17.8 GB. First prong of the dual obstruction. T2-independent: wrap OOM occurs regardless of AIR soundness.",
+   "premises": [
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-lattice-baseline",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 430,
+   "claim": "a non-zero-knowledge baseline proof of a standardised-lattice signature verification (ML-DSA proxy) was jetsam-killed after 249 s with peak RSS 12.59 GB and a virtual-memory footprint of 82.7 GB ... strengthens but does not instantiate the tension",
+   "kind": "negative",
+   "evidence": "Lines 430-439; SP1 baseline succinct STARK, not a ZK wrap; substrate base-cost datum. No PLUM/Griffin component: no T2.",
+   "premises": [
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-dual-obstruction",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 461,
+   "claim": "The modes produced on the target hardware are not zero-knowledge; the only zero-knowledge mode the toolchain exposes (a pairing wrap) is neither post-quantum nor produced within the memory bound, which is the dual obstruction",
+   "kind": "negative",
+   "evidence": "Table tab:proof-mode (lines 449-459): every produced row ZK=no; Groth16/PLONK wrap row not produced, not PQ. The RISC Zero succinct row's ZK=no entry is asserted without a citation in this section, hence the risc0 premise tag. T2-independent throughout (negative finding).",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "tuned-settings",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-cost-model",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 547,
+   "claim": "the per-verification cost is constant at ~4.69e9 cycles across CreGen and both ShowCre instances, so the additive (k+2) C_ver form is measured rather than assumed",
+   "kind": "positive",
+   "evidence": "Lines 510-519 (CreGen: two verifications within 0.01% of each other, sum 99.8% of total) and lines 539-549 (ShowCre k=1: 1.41e10, k=2: 1.88e10 cycles). Execute mode only; carrying to prove-mode is flagged as extrapolation (lines 482-484). No T2.",
+   "premises": [
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-hasher-tax",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 522,
+   "claim": "A single PLUM verification is markedly cheaper with the SHA-3 hasher control than with the Griffin algebraic hash, an order-of-magnitude separation that is the field-mismatch tax ... quantified (SP1 ~64x, RISC Zero ~33x, execute mode)",
+   "kind": "negative",
+   "evidence": "Lines 526-532: SP1 lambda=80 execute 7.08e9 vs 1.11e8 cycles; RISC Zero 4.69e9 vs ~1.44e8. Execute-mode cycles, software Griffin on the 64x comparison: no T2.",
+   "premises": [
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-flex-refuted",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 604,
+   "claim": "Against a transparent, non-preprocessing argument such as Aurora, the zkVM thus has no wall-clock flexibility advantage",
+   "kind": "negative",
+   "evidence": "R_static ~0.3 s measured (lines 580-586, 663-670); crossover (U/P)* on the order of thousands of changes per proof (line 603). The t_zkVM > t_static input is settled same-scheme for Loquat (tab:loquat-substrate) but granted across the cross-scheme seam for PLUM (lines 600-602), hence the transfer-conjecture tag.",
+   "premises": [
+    "single-run",
+    "lambda80-only",
+    "loquat-transfer-conjecture"
+   ]
+  },
+  {
+   "id": "C-flex-conditional",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 721,
+   "claim": "The flexibility reading is therefore conditional on the static baseline's preprocessing model: negligible against a non-preprocessing argument (Aurora) and large against a preprocessing one (Fractal), where at the BDEC circuit size the baseline's per-circuit indexing is itself infeasible on the target hardware",
+   "kind": "conditional",
+   "evidence": "Table tab:rstatic-fractal (lines 704-707): Aurora setup ~us flat; Fractal indexer 0.86 s -> 18.5 s (2^10-2^14, synthetic) and OOM-killed at ~33 min at 2^19. Loquat proxy, not PLUM, stated at line 726.",
+   "premises": [
+    "single-run",
+    "loquat-transfer-conjecture"
+   ]
+  },
+  {
+   "id": "C-churn-structural",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 656,
+   "claim": "a zkVM's relation is fixed to the ISA, so a presentation-structure or signature change is absorbed as a source edit (N_circ = N_param = 0) with no recompilation",
+   "kind": "definitional",
+   "evidence": "Table tab:churn (lines 640-642), established by construction; the scorecard caveat (lines 779-781) excepts changes to a precompiled primitive or its field, which regenerate the Griffin AIR.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-rstatic",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 661,
+   "claim": "Both components of the static side are now measured, and the result overturns the earlier conjecture that recompilation is expensive (R_static ~0.3 s)",
+   "kind": "negative",
+   "evidence": "Lines 662-670: R1CS construction ~0.2 s, Aurora parameter setup ~3 us at the 2^19 BDEC building-block size (non-preprocessing, no per-circuit indexer). Self-refutation of the thesis's own earlier flexibility conjecture.",
+   "premises": [
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-lambda128-dnf",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 63,
+   "claim": "lambda=128 proving exceeds the memory budget; lambda=80 is the largest level at which prove-mode wall-clock is observable on this hardware",
+   "kind": "negative",
+   "evidence": "Settings-justification item (lines 61-69), pointing to ssec:frontier; no dedicated lambda=128 DNF table row appears in this section, so the claim rests on the cross-reference. T2-independent (a DNF only worsens under a sound, possibly costlier AIR).",
+   "premises": [
+    "tuned-settings",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-t2-scope",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 831,
+   "claim": "the cost figures assume the chip computes the reference permutation, tested on 256 random vectors and ... single-cell fault injection on seven of the ten constraint families ... but not verified at the constraint level for the lookup-borne families",
+   "kind": "definitional",
+   "evidence": "Threats-to-validity item (lines 830-836). FLAG: 'the cost figures' is over-broad — it attaches T2 to ALL cost figures, but only the positive feasibility figures (C-feas-80, and the prove-level reading of C-cycle-56x) inherit T2; the negative findings (C-dnf-baseline, C-sha3-inversion, C-zkwrap-oom, C-lambda128-dnf, C-loquat-substrate) hold a fortiori under an unsound AIR. This is the one place the section implies the reverse dependency; line 399-401 (CreGen anomaly) by contrast scopes T2 correctly.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-dual-obstruction-disc",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 22,
+   "claim": "\"the proof that is feasible to generate is not zero-knowledge, and the proof that is zero-knowledge, the one BDEC's anonymity guarantee requires, is not feasible to generate within the memory budget\"",
+   "kind": "negative",
+   "evidence": "Cites Section sec:security; ZK-wrap OOM within 24 GB; wraps pairing-based. T2-free: an unsound AIR only understates the affordable proof's true sound cost, strengthening both prongs. The embedded word 'feasible' (the 32.5-min figure) silently carries T2 + tuned-settings, but the obstruction conclusion does not. Prose claims independence only from 'timing numbers' (line 33), not from T2.",
+   "premises": [
+    "lambda80-only",
+    "tuned-settings",
+    "single-run",
+    "sp1-only",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-wrap-not-pq",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 27,
+   "claim": "\"More memory would clear the resource obstruction, but the only wraps the deployed pipeline exposes are pairing-based and therefore not post-quantum\"",
+   "kind": "negative",
+   "evidence": "Toolchain fact about deployed SP1 wrap options (groth16/plonk). 'Recovering it requires a post-quantum-sound zero-knowledge wrap ... which the toolchains do not yet provide' (lines 30-31) extends the claim toolchain-wide, which leans on RISC Zero's wrap/ZK status.",
+   "premises": [
+    "sp1-only",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-obstruction-independent",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 32,
+   "claim": "\"We locate this obstruction along two axes at once, resource and primitive, and it holds independently of how favourable our timing numbers are.\"",
+   "kind": "negative",
+   "evidence": "Meta-robustness claim. Correct as far as it goes, but it asserts independence only from timing, not the stronger and true independence from T2 (AIR unsoundness can only worsen the resource prong). Inherits the obstruction's own scope premises.",
+   "premises": [
+    "sp1-only",
+    "risc0-zk-status-unverified",
+    "lambda80-only"
+   ]
+  },
+  {
+   "id": "C-decision-rule",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 37,
+   "claim": "\"the right choice depends on a single property of the deployment: how often the verification predicate changes relative to how often proofs are generated\"",
+   "kind": "definitional",
+   "evidence": "States the form of the substrate-selection rule; made precise via the crossover (U/P)* of sssec:crossover and Table tab:churn.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-no-wallclock-flex",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 66,
+   "claim": "\"the wall-clock crossover favours the static circuit in any realistic churn regime: against Aurora the zkVM has no wall-clock flexibility advantage\"",
+   "kind": "negative",
+   "evidence": "R_static ≈ 0.3 s measured (ssec:churn-eval) plus 'the zkVM dearer per proof'. The dearer-per-proof input is measured only for Loquat (15x, Table tab:loquat-substrate); for PLUM it is conjectured. T2-free: unsound AIR would make the zkVM side even dearer.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "loquat-transfer-conjecture"
+   ]
+  },
+  {
+   "id": "C-flex-qualitative",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 68,
+   "claim": "\"The flexibility claim we can defend is the qualitative regeneration-and-re-audit footprint of Table~churn (zero on the zkVM side, >= 1 on the static side per change), which is an engineering-and-assurance cost paid by humans, not prover time.\"",
+   "kind": "conditional",
+   "evidence": "Structural enumeration in Table tab:churn; explicitly downgraded from wall-clock to governance/assurance footprint after R_static ≈ 0.3 s refuted the wall-clock version.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-flex-preprocessing",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 72,
+   "claim": "\"A wall-clock advantage appears only against a preprocessing baseline ... Fractal (Table~rstatic-fractal), whose per-circuit indexer takes 0.86--18.5~s at small synthetic sizes and is itself OOM-killed at the BDEC circuit size on 24~GB\"",
+   "kind": "conditional",
+   "evidence": "Measured Fractal indexer times (synthetic 2^10-2^14) and BDEC-size OOM; the conditional rescue of the flexibility axis. T2-free.",
+   "premises": [
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-flex-partitioned",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 78,
+   "claim": "\"This zero-regeneration property is partitioned rather than absolute ... a change to the hash family or to the field width still regenerates and re-audits the bespoke Griffin-Fp192 precompile\"",
+   "kind": "definitional",
+   "evidence": "Scoping of the decision rule to predicate churn, excluding substrate-level signature changes. Honest self-limitation; no measurement dependency.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-rule-directional",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 84,
+   "claim": "\"it fixes the form of the rule and the sign of every term, but not the numeric location of the crossover for PLUM ... the rule gives directional guidance ... without yet handing them a numeric threshold\"",
+   "kind": "conditional",
+   "evidence": "Sign of terms fixed by the Loquat measurement and R_static; the PLUM crossover location requires an unbuilt 199-bit Aurora harness (sssec:crossover).",
+   "premises": [
+    "loquat-transfer-conjecture",
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-loquat-gap",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 99,
+   "claim": "\"at single-verification scope, lambda=80, with neither side zero-knowledge, the static Aurora circuit proves in 3.76 min against 55.93 min for the zkVM ... the zkVM is the dearer per-proof substrate by ≈15x\"",
+   "kind": "negative",
+   "evidence": "Table tab:loquat-substrate, direct same-scheme measurement. T2-free: the Loquat zkVM arm runs over Fp127^2 and does not invoke the Griffin-Fp192 AIR.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-plum-sign-conjecture",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 104,
+   "claim": "\"For PLUM the sign remains a conjecture ... We expect the same direction, and the Loquat measurement is direct evidence for it, but we have not measured PLUM.\"",
+   "kind": "conditional",
+   "evidence": "Explicitly flagged as unmeasured; PLUM-in-Aurora not runnable (127-bit-only harness, docs/r_static_finding_20260605.md). Model example of correct premise labelling.",
+   "premises": [
+    "loquat-transfer-conjecture"
+   ]
+  },
+  {
+   "id": "C-generalise",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 112,
+   "claim": "\"The arithmetic-mismatch mechanism ... and the update-churn dimension ... are substrate-independent ... The specific magnitudes ... do not generalise\"",
+   "kind": "definitional",
+   "evidence": "Boundary-drawing claim: mechanism/shape generalises to any large-field algebraic-hash signature in a small-field zkVM; numbers pinned to 199-bit field, M5 Pro 24 GB, the two zkVMs studied.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-binding-constraint",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 133,
+   "claim": "\"\\S ssec:resource-frontier locates the binding constraint as the zero-knowledge wrap rather than the base proof\"",
+   "kind": "conditional",
+   "evidence": "Depends on the base proof being feasible (32.5 min, tuned settings) — the one place a negative-sounding sentence inherits T2: if the AIR is unsound, the sound base-proof cost is unknown and could itself bind. Holds unconditionally only as a statement about the artifact as built.",
+   "premises": [
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "sp1-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-prior-agree",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 135,
+   "claim": "\"they agree in order of magnitude with the hitherto-qualitative observation that algebraic-hash workloads are expensive inside small-field zkVMs, now quantified at the verification level\"",
+   "kind": "positive",
+   "evidence": "Tables tab:plum-verify through tab:ablation. T2-free: unsoundness would only make the workload more expensive, preserving the 'expensive' agreement.",
+   "premises": [
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-dual-obstruction-central",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 7,
+   "claim": "\"The central result is a two-pronged obstruction to deployable post-quantum anonymity ... the PLONK wrap of the standalone PLUM verification receipt is killed under memory pressure at ≈20 GB of the 24 GB budget ... the only succinct wraps it offers are pairing-based ... This obstruction on both sides holds independently of any timing number, and the rest of the thesis rests on it.\"",
+   "kind": "negative",
+   "evidence": "Section ssec:zk-gap; measured OOM at ~20/24 GB plus toolchain wrap inventory. T2-free (correctly so: unsound AIR understates the affordable proof's true cost). NOTE: prose asserts independence from 'any timing number' but never states independence from T2; Limitations (line 19) then lump T2 over everything unscoped — the negatives' T2-immunity is nowhere claimed.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "sp1-only",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-feas-80",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 9,
+   "claim": "\"The custom Griffin-Fp192 precompile turns a non-terminating emulation into a finite measurement ... with it, the verification proves in 32.5 minutes on SP1 at lambda=80.\"",
+   "kind": "positive",
+   "evidence": "The headline positive result. Inherits T2: if the AIR admits non-reference traces, 32.5 min is the cost of an unsound statement and the feasibility-of-sound-verification claim fails. Prose at this line does NOT mention that the figure requires tuned (non-default) memory settings; defaults OOM.",
+   "premises": [
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-baseline-oom",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 9,
+   "claim": "\"without it, standalone PLUM verification exhausts memory at ≈1m45s on the target hardware\"",
+   "kind": "negative",
+   "evidence": "Cell-1 baseline measurement (no precompile, pure multi-limb emulation). T2-free: no bespoke AIR is in the baseline arm at all.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-sha3-inversion",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 9,
+   "claim": "\"the bespoke algebraic-hash precompile is slower than a software SHA-3 control at matched security (32.5 versus 13.3 minutes in prove wall-clock, about 2.45x)\"",
+   "kind": "negative",
+   "evidence": "Prove wall-clock comparison, Cell 2 vs Cell 3. T2-free: an unsound AIR means the sound precompile arm costs >= 32.5 min, strengthening the inversion. DISCREPANCY FLAG: working memory records the inversion as 1.13x slower; the prose says 2.45x (32.5/13.3) — likely different scopes/measurement vintages, needs reconciliation.",
+   "premises": [
+    "lambda80-only",
+    "tuned-settings",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-flex-noshow",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 9,
+   "claim": "\"against the transparent, non-preprocessing Aurora baseline the zkVM's update-churn advantage never shows up in wall-clock ... what separates the two regimes is the regeneration-and-re-audit footprint ... A wall-clock flexibility advantage would appear only against a preprocessing baseline, which is not what BDEC uses.\"",
+   "kind": "negative",
+   "evidence": "R_static ≈ 0.3 s (ssec:churn-eval) plus Table tab:churn; preprocessing escape hatch via Fractal. T2-free.",
+   "premises": [
+    "single-run",
+    "lambda80-only",
+    "loquat-transfer-conjecture"
+   ]
+  },
+  {
+   "id": "C-bdec-execute",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 11,
+   "claim": "\"credential generation executes both of its signature verifications to acceptance in 9.4x10^9 guest cycles, and the presentation relation in 1.41x10^10 (one credential shown) and 1.88x10^10 (two) cycles, consistent with the additive cost model\"",
+   "kind": "positive",
+   "evidence": "Execute-mode cycle counts on RISC Zero. T2-free even though positive: execute-mode acceptance exercises the host syscall implementation, not the AIR constraints — no proof soundness is asserted.",
+   "premises": [
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-no-zk-bdec",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 11,
+   "claim": "\"No zero-knowledge proof of either relation was produced on consumer hardware: the credential-generation succinct prove terminated in an internal-verifier rejection (RISC Zero 3.0.3; an anomaly under diagnosis ... on which no claim of this thesis rests) ... the presentation wrap is bounded by the same memory frontier.\"",
+   "kind": "negative",
+   "evidence": "CreGen anomaly + presentation memory frontier. T2-free. The anomaly is explicitly fenced off ('no claim of this thesis rests'). The 'no ZK proof' phrasing implicitly classifies any feasible RISC Zero succinct receipt as not satisfying the needed ZK, which is the unverified risc0 status.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-answer-notyet",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 15,
+   "claim": "\"The answer is not yet ... Deployable post-quantum anonymity is not reached, because it requires a zero-knowledge wrap that is at once feasible to generate within 24 GB and post-quantum-sound, and the current toolchains provide neither.\"",
+   "kind": "negative",
+   "evidence": "Synthesis of ssec:zk-gap. T2-free: AIR unsoundness cannot create a feasible PQ-sound ZK wrap. The 'toolchains provide neither' quantifies over both zkVMs.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "sp1-only",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-feas-answer",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 15,
+   "claim": "\"Standalone PLUM verification becomes feasible on consumer hardware once the precompile absorbs the field-mismatch tax.\"",
+   "kind": "positive",
+   "evidence": "Restatement of C-feas-80 inside the research-question answer, here with no lambda, tuned-settings, or T2 qualifier attached in-sentence (the qualifiers arrive 4 lines later in Limitations).",
+   "premises": [
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-lifecycle-rule-concl",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 15,
+   "claim": "\"where the verification predicate is fixed and proofs are frequent, the specialised static circuit is preferable; where the predicate, signature, or security parameters evolve ... the zkVM's fixed universal relation confines each change to a guest-program edit, provided the change leaves the precompiled primitive suite intact ... its advantage there is a smaller re-audit footprint, not a faster runtime.\"",
+   "kind": "conditional",
+   "evidence": "Decision rule of Section sec:discussion with the partition caveat inlined. The 'static preferable' arm rests on the per-proof dearness measured only for Loquat.",
+   "premises": [
+    "loquat-transfer-conjecture",
+    "lambda80-only",
+    "single-run"
+   ]
+  },
+  {
+   "id": "C-security-conditional",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 19,
+   "claim": "\"The security guarantees are conditional: the constraint-level soundness of the Griffin AIR (premise (T2)), the existence of a PLUM signature-transcript simulator (premise (T4)), the quantum-random-oracle lifts, and the canonical prime instantiation are carried as open premises\"",
+   "kind": "definitional",
+   "evidence": "Section sec:security. KEY GAP: this blanket statement does not scope T2 to the positive feasibility claim. The negatives (dual obstruction, substrate gap, SHA-3 inversion, lambda=128 non-termination) are T2-immune, but the prose never says so — it implicitly over-conditions the whole thesis on T2 rather than asserting the reverse dependency, leaving the negatives' robustness unclaimed.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-benchmark-not-credential",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 19,
+   "claim": "\"the RISC Zero prototype does not yet bind the receipt journal to the public statement, so the artifact is at present a functional benchmark rather than a statement-bound credential verifier\"",
+   "kind": "negative",
+   "evidence": "Self-reported artifact limitation; engineering fact about the journal commitment, independent of all measurements and of T2.",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-scope-lambda80",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 19,
+   "claim": "\"Prove-mode wall-clock is measured at lambda=80, the largest level at which it is observable within the memory budget and not a deployment security level ... The prove-mode figures are single runs.\"",
+   "kind": "definitional",
+   "evidence": "Scope declaration; implies lambda=128 non-termination within budget (the explicit non-termination statement lives in evaluation, not restated numerically here). Also discloses single-run status and the execute-vs-prove mode split (56.4x cycle ratio is execute-mode).",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "C-closing-feasible",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 27,
+   "claim": "\"The precompile makes post-quantum signature verification finite to prove on a personal computer.\"",
+   "kind": "positive",
+   "evidence": "Closing restatement of the positive result with ZERO in-sentence qualifiers — no lambda=80, no tuned-settings, no T2, no SP1 scope. This is the most quotable over-broad sentence in either chapter; it silently carries every premise of C-feas-80.",
+   "premises": [
+    "T2",
+    "tuned-settings",
+    "lambda80-only",
+    "single-run",
+    "sp1-only"
+   ]
+  },
+  {
+   "id": "C-closing-obstruction",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 27,
+   "claim": "\"the proof one can afford is feasible but not anonymous, and the anonymous wrap is not post-quantum, and no amount of additional memory or favourable timing removes either\"",
+   "kind": "negative",
+   "evidence": "Closing dual-obstruction restatement. The obstruction prongs are T2-free, but the embedded clause 'the proof one can afford is feasible' smuggles the positive claim (T2 + tuned-settings) into a negative-sounding sentence; again robustness is claimed against 'memory or favourable timing' but not against T2.",
+   "premises": [
+    "lambda80-only",
+    "single-run",
+    "sp1-only",
+    "risc0-zk-status-unverified"
+   ]
+  },
+  {
+   "id": "C-flex-rescue-disc",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 9,
+   "claim": "\"The static-side recompile is sub-second (R_static ≈ 0.3 s) ... what separates the two regimes is the regeneration-and-re-audit footprint ... a cost in engineering and assurance rather than in proving time.\"",
+   "kind": "conditional",
+   "evidence": "Conclusion-side statement of the refuted-then-rescued flexibility axis: wall-clock version refuted vs non-preprocessing Aurora, qualitative footprint version retained, preprocessing-baseline version conditional (Fractal). T2-free.",
+   "premises": [
+    "single-run"
+   ]
+  }
+ ],
+ "dependencyFindings": [
+  {
+   "id": "D1-evalthreats-T2-overbroad",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 831,
+   "claim": "PRIMARY reverse-dependency site. The threats-to-validity item says 'the cost figures assume the chip computes the reference permutation' — attaching T2 to ALL cost figures. Only the positive figures (32.53-min feasibility, prove-level reading of the 56.4x ratio, 13.0-s smoke proof) inherit T2; the negatives in the same chapter (DNF baseline line 108, SHA-3 inversion lines 176-183, wrap OOM lines 422-428, lambda=128 DNF line 63, Loquat 15x gap) hold a fortiori under an unsound AIR, which the chapter never states. Edit: rescope 'the cost figures' to the positive feasibility figures and add one sentence that an unsound AIR would only understate the Griffin arm's true sound cost, so every negative finding survives or strengthens.",
+   "kind": "negative",
+   "evidence": "Read lines 820-838: verbatim 'the cost figures assume the chip computes the reference permutation, tested on 256 random vectors and, in the rejection direction, by single-cell fault injection on seven of the ten constraint families'. Contrast with lines 399-401 (CreGen anomaly correctly scoped: 'the bespoke Griffin AIR named by premise (T2)... is SP1-only and was not on this proving path'), proving the author knows how to scope T2 but did not do it here.",
+   "premises": [
+    "cat1-reverse-T2",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D2-concl-limitations-blanket-T2",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 19,
+   "claim": "Blanket conditionality without scoping: 'The security guarantees are conditional: the constraint-level soundness of the Griffin AIR (premise (T2))... are carried as open premises.' This lumps T2 over the whole thesis; nowhere in the conclusion is it said that the central negative results (dual obstruction, SHA-3 inversion, baseline OOM, flexibility refutation) are immune to T2. Edit: append a sentence scoping T2 to the positive feasibility claim ('only the 32.5-minute feasibility figure and the security-preservation theorem inherit (T2); the negative findings hold a fortiori under an unsound AIR').",
+   "kind": "negative",
+   "evidence": "Read 08-conclusion.tex in full. Line 19 verbatim as quoted; no T2-immunity statement anywhere in lines 1-28. Inventory confirms no negative claim formally lists T2 — the error is purely in this blanket prose, which implies the reverse dependency a committee would read.",
+   "premises": [
+    "cat1-reverse-T2",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D3-concl-obstruction-timing-only",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 7,
+   "claim": "Missed strengthening: 'This obstruction on both sides holds independently of any timing number, and the rest of the thesis rests on it.' Robustness is claimed against timing only; the stronger true claim — independence from the open AIR-soundness premise (T2), since an unsound AIR only understates the affordable proof's sound cost — is available and unstated. Edit: extend to 'independently of any timing number and of the open AIR-soundness premise (T2)'.",
+   "kind": "conditional",
+   "evidence": "Read line 7 verbatim. The same gap recurs at line 27 ('no amount of additional memory or favourable timing removes either'). Since line 19 then blanket-conditions everything on T2, the central finding is left looking T2-conditional when it is not.",
+   "premises": [
+    "cat1-reverse-T2",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D4-disc-independence-timing-only",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 33,
+   "claim": "Same missed strengthening in the discussion: 'We locate this obstruction along two axes at once, resource and primitive, and it holds independently of how favourable our timing numbers are.' Should also assert independence from T2. Edit: one clause.",
+   "kind": "conditional",
+   "evidence": "Read lines 20-33. Verbatim match. The embedded 'the proof that is feasible to generate' (line 22) silently carries T2+tuned-settings, but the obstruction conclusion does not — correct in substance, robustness under-claimed.",
+   "premises": [
+    "cat1-reverse-T2",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D5-disc-binding-constraint-hidden-T2",
+   "file": "修論2025_Takumi/07-discussion.tex",
+   "line": 133,
+   "claim": "The one negative-sounding sentence that genuinely DOES inherit T2 and does not say so: 'locates the binding constraint as the zero-knowledge wrap rather than the base proof'. If the AIR is unsound the sound base-proof cost is unknown and could itself bind. Edit: add 'as built' or 'conditional on (T2)' — e.g. 'the zero-knowledge wrap rather than the base proof as measured'.",
+   "kind": "conditional",
+   "evidence": "Read lines 124-139. Verbatim 'ssec:resource-frontier locates the binding constraint as the zero-knowledge wrap rather than the base proof'. This is the inverse failure of D1-D4: a positive-dependent claim stated unconditionally.",
+   "premises": [
+    "cat1-reverse-T2",
+    "cat3-missing-qualifier",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D6-proofmode-table-risc0-zk-no",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 461,
+   "claim": "The proof-mode matrix (row at line 456) asserts 'Zero-knowledge? no' for the RISC Zero succinct receipt as a flat fact, and the caption (lines 461-463) generalises 'The modes produced on the target hardware are not zero-knowledge' — but the cited evidence base (055-security.tex:321-325) supports only 'not dependably/provably zero-knowledge' for RISC Zero (Habock/Al-Kindi analysis + RISC Zero advisory), against RISC Zero's own claim of perfect ZK. Edit: footnote the RISC Zero cell as 'not dependably ZK' with the risc0zkadvisory/l2beatzk citations, mirroring 055-security.tex's own careful phrasing.",
+   "kind": "negative",
+   "evidence": "Read table lines 449-468: row 456 'RISC Zero, PLUM verify, sys_bigint, SHA-3 hasher (succinct) & yes & no & yes'; no citation in the section for that 'no'. Read 055-security.tex:317-327: 'RISC Zero documents perfect zero-knowledgeness for its STARK, but independent analysis... finds that several STARK implementations, RISC Zero among them, do not provably meet the zero-knowledge requirement... We therefore treat the bare receipt as not dependably zero-knowledge.' The table cell overstates relative to this.",
+   "premises": [
+    "cat2-risc0-zk",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D7-concl-toolchains-neither",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 15,
+   "claim": "'the current toolchains provide neither' (plural) quantifies the no-PQ-ZK-wrap verdict over both zkVMs, but only SP1's wrap inventory (Groth16/PLONK) was measured/verified; RISC Zero's wrap and ZK status carry the risc0-zk-status-unverified exposure. Same-sentence 'No zero-knowledge proof of either relation was produced' (line 11) implicitly classifies the feasible RISC Zero succinct receipt as not-ZK. Low-cost edit: either keep plural with the 'not dependably ZK' citation, or scope to 'the deployed pipelines'.",
+   "kind": "negative",
+   "evidence": "Read lines 11 and 15 verbatim. Parallel exposure at 07-discussion.tex:30-31 ('which the toolchains do not yet provide') and the abstract's 'the only wrap the toolchain offers' / 'not reached on this stack' (main.tex:115). The verdict itself survives (no ZK proof was produced on either substrate) but the universal phrasing outruns the per-substrate evidence.",
+   "premises": [
+    "cat2-risc0-zk",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D8-abstract-32min-unqualified",
+   "file": "修論2025_Takumi/main.tex",
+   "line": 115,
+   "claim": "Abstract states 'the same verification is proved in 32.5 minutes on SP1 at the 80-bit setting' with: (a) no tuned-settings disclosure for THIS arm — the phrase 'under memory tuning' attaches only to the precompile-free baseline clause; (b) no T2 conditioning anywhere in the abstract ('is proved' is false if the AIR admits non-reference traces); (c) no single-run disclosure. Lambda=80 IS disclosed. Edit: 'is proved in 32.5 minutes... under a documented reduced-memory configuration, a figure conditional on the open constraint-soundness premise of the bespoke chip' (or equivalent compression).",
+   "kind": "positive",
+   "evidence": "Read main.tex:115 verbatim. Baseline clause: 'it exhausts memory under default settings and does not terminate within three hours under memory tuning' — tuning mentioned only there. The precompile sentence carries no settings or soundness qualifier. Compare 06-evaluation.tex:70-82 which correctly states 'The headline timings are therefore tuned-configuration times' and 01-intro.tex:74 which correctly attaches T2.",
+   "premises": [
+    "cat3-missing-qualifier",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D9-concl-32min-no-tuning",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 9,
+   "claim": "'with it, the verification proves in 32.5 minutes on SP1 at lambda=80' — lambda disclosed, but no tuned-settings qualifier (SP1 defaults OOM the same workload after ~3 min per 06-evaluation.tex:70-73) and no T2 conditioning at point of claim (deferred to the blanket at line 19). Edit: insert 'under the documented reduced-memory configuration' here; T2 scoping is handled by the D2 edit.",
+   "kind": "positive",
+   "evidence": "Read line 9 verbatim. Verified the tuning fact at 06-evaluation.tex:70-79: 'At SP1's default settings the Cell 2 prove is OOM-killed after about 3 minutes... The headline timings are therefore tuned-configuration times: Cell 2 completes in 32.53 min'.",
+   "premises": [
+    "cat3-missing-qualifier",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D10-concl-feasible-answer-bare",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 15,
+   "claim": "'Standalone PLUM verification becomes feasible on consumer hardware once the precompile absorbs the field-mismatch tax.' — stated inside the research-question answer with zero in-sentence qualifiers: no lambda=80, no tuned-settings, no T2, no SP1 scope. Edit: 'becomes feasible at lambda=80 on SP1, under tuned memory settings and conditional on (T2)' or a parenthetical pointing at the qualifiers.",
+   "kind": "positive",
+   "evidence": "Read line 15 verbatim. Qualifiers arrive only 4 lines later in Limitations (line 19) as a blanket, which (per D2) also mis-scopes them.",
+   "premises": [
+    "cat3-missing-qualifier",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D11-closing-most-quotable-overbroad",
+   "file": "修論2025_Takumi/08-conclusion.tex",
+   "line": 27,
+   "claim": "Closing sentence 'The precompile makes post-quantum signature verification finite to prove on a personal computer.' is the most quotable over-broad sentence in the thesis: it silently carries T2, tuned-settings, lambda80-only, SP1-only, single-run, and even generalises from PLUM to 'post-quantum signature verification' (the ML-DSA proxy in the SAME chapter was jetsam-killed at 249 s, 06-evaluation.tex:430-436, directly contradicting the generic reading). Same line: 'the proof one can afford is feasible' embeds the T2-dependent positive inside the negative closer, and 'no amount of additional memory or favourable timing removes either' again omits T2-independence. Edit: 'makes PLUM signature verification finite to prove on a personal computer at the 80-bit level' + extend the independence clause per D3.",
+   "kind": "positive",
+   "evidence": "Read line 27 verbatim. Verified the contradiction source: 06-evaluation.tex:430-436, ML-DSA-proxy baseline succinct STARK 'jetsam-killed after 249 s with peak RSS 12.59 GB' — so 'post-quantum signature verification' unqualified is falsified by the thesis's own data; only the PLUM-with-precompile instance is finite.",
+   "premises": [
+    "cat3-missing-qualifier",
+    "cat1-reverse-T2",
+    "cat4-edit-site"
+   ]
+  },
+  {
+   "id": "D12-system-scope-no-tuning",
+   "file": "修論2025_Takumi/05-system.tex",
+   "line": 12,
+   "claim": "Implementation-scope bullet 'PLUM signature verification on SP1, suite active. Built; proves end-to-end (32.5 min at lambda=80; Section 6)' carries no tuned-settings qualifier, and the section that prides itself on grading evidence ('we grade the evidence supporting each component', line 3) does not flag that the figure exists only under non-default memory settings. Low-priority edit (the pointer to Section 6 lands on the disclosure): add '(tuned memory configuration)' to the parenthetical.",
+   "kind": "positive",
+   "evidence": "Read 05-system.tex:1-18. Line 12 verbatim. Adjacent line 11 DOES carry its own caveat in-sentence ('constraint-level chip-equivalence not yet verified'), so the bullet style admits qualifiers; tuning is the one omitted.",
+   "premises": [
+    "cat3-missing-qualifier"
+   ]
+  },
+  {
+   "id": "D13-intro-frontier-32min",
+   "file": "修論2025_Takumi/01-intro.tex",
+   "line": 80,
+   "claim": "Contribution 6: 'PLUM signature verification proves in 32.5 minutes on SP1' — lambda=80 is in-sentence, but tuned-settings and single-run are not, and T2 conditioning sits two bullets earlier (line 74). Marginal: the distance is small and line 74 is explicit. Optional edit only if a one-word '(tuned configuration)' is acceptable; NOT in the minimal set.",
+   "kind": "positive",
+   "evidence": "Read lines 69-85. Line 74 verbatim correctly conditions: 'the security statement is therefore conditional on the constraint-level soundness of the Griffin AIR... premise (T2)' — this is the model sentence the other chapters should mirror; line 80 omits tuning but inherits context.",
+   "premises": [
+    "cat3-missing-qualifier"
+   ]
+  },
+  {
+   "id": "D14-correct-exemplars-no-edit",
+   "file": "修論2025_Takumi/055-security.tex",
+   "line": 265,
+   "claim": "NO EDIT NEEDED — exemplars of the correct dependency direction, to be copied not changed: (a) 055-security.tex:265-271, anomaly scoped off T2 in both directions; (b) 055-security.tex:202-203 (per inventory), anonymity bound explicitly does not involve eps_AIR; (c) 055-security.tex:325 'not dependably zero-knowledge' with citations — the phrasing the D6 table cell should adopt; (d) 06-evaluation.tex:399-401, CreGen anomaly correctly notes the T2 chip 'is SP1-only and was not on this proving path'; (e) 01-intro.tex:74, T2 attached to the positive security statement only.",
+   "kind": "definitional",
+   "evidence": "Read 055-security.tex:265-285 verbatim ('does not bear on premise T2... premise T2's chip was not exercised by that run') and 06-evaluation.tex:399-401. These confirm the KEY ANALYTIC INSIGHT is already half-implemented locally; the failures are only the global blanket statements (D1, D2) and the robustness sentences (D3, D4).",
+   "premises": [
+    "none"
+   ]
+  },
+  {
+   "id": "D15-minimal-edit-set",
+   "file": "修論2025_Takumi/06-evaluation.tex",
+   "line": 831,
+   "claim": "MINIMAL EDIT SET (8 sites, in priority order): 1) 06-evaluation.tex:831 rescope 'the cost figures' + add a-fortiori sentence (fixes the only explicit reverse-dependency); 2) 08-conclusion.tex:19 scope T2 to the positive claim + assert negatives' T2-immunity; 3) 08-conclusion.tex:7 extend 'independently of any timing number' to include T2; 4) 07-discussion.tex:33 same extension; 5) main.tex:115 tuned-settings + soundness-conditional on the 32.5-min abstract sentence; 6) 08-conclusion.tex:9 and :15 add tuned/lambda/SP1 qualifiers; 7) 08-conclusion.tex:27 narrow 'post-quantum signature verification' to PLUM + qualifiers; 8) 06-evaluation.tex:456/461 RISC Zero ZK cell 'no' -> 'not dependably' with citation. Optional: 05-system.tex:12, 01-intro.tex:80, 07-discussion.tex:133 ('as measured'). The inventory's premise lists themselves are correct — no negative claim formally carries T2 — so all edits are prose-scoping, none change any measured number or verdict.",
+   "kind": "definitional",
+   "evidence": "Every listed site read and quoted in D1-D13. The set is minimal in the sense that each edit removes one verified dependency-direction error or one verified missing-qualifier at the point of a quotable claim; the correctly-handled passages (D14) need no touch, and the evaluation chapter's settings-justification block (06-evaluation.tex:70-82) already discharges tuned-settings disclosure for in-chapter claims like line 159.",
+   "premises": [
+    "cat4-edit-site"
+   ]
+  }
+ ],
+ "plan": [
+  {
+   "title": "M1. New dependency-direction paragraph in the security chapter (anchor for all T2-scoping edits)",
+   "files": [
+    "修論2025_Takumi/055-security.tex"
+   ],
+   "rationale": "The thesis nowhere states which results inherit premise (T2). The natural site is immediately after the T2 status paragraph ending '...by that technique.' (line 285), before \\subsection{The Zero-Knowledge Barrier as a Finding} (line 287): the reader has just been told T2 is open, and this paragraph tells them what that openness does and does not condition. Every later edit (M2-M4) can then point at Section~\\ref{sec:security} instead of re-arguing.",
+   "edit_sketch": "Insert after line 285:\n\n\"One structural point about premise (T2) governs how the measurements of Section~\\ref{sec:evaluation} should be read. Every measured run exercises the chip on the honest path: the guest supplies a valid Griffin trace and the prover pays the cost of the constraint system as built. If that system admitted a non-reference trace, the defect would not have made any measured run cheaper; the measured cost is then a cost floor for any repair that strengthens the constraint set. Premise (T2) is therefore a premise of the positive results alone, namely the $32.5$-minute feasibility figure and the unforgeability bound of Theorem~\\ref{thm:security-preserve}. The negative findings either do not exercise the chip at all (the precompile-free baseline, the RISC~Zero arm, the Aurora reference) or hold a fortiori under an unsound AIR (the zero-knowledge wrap's memory exhaustion and the SHA-3 control's faster wall-clock, both of which could only widen against a corrected and at-least-as-costly chip).\"",
+   "risk": "The 'cost floor' claim assumes soundness is restored by strengthening rather than redesigning the constraint set; the hedge 'for any repair that strengthens the constraint set' is load-bearing and must not be dropped in editing. Verify Theorem label thm:security-preserve compiles (it is the label used at 055-security.tex:216)."
+  },
+  {
+   "title": "M2. Rescope the threats-to-validity T2 item from 'the cost figures' to the positive figures, with the a-fortiori sentence",
+   "files": [
+    "修論2025_Takumi/06-evaluation.tex"
+   ],
+   "rationale": "Line 831 is the only explicit reverse-dependency in the thesis: 'the cost figures assume the chip computes the reference permutation' attaches T2 to all cost figures, including the chapter's negatives (DNF baseline line 108, SHA-3 inversion, wrap OOM lines 455, lambda=128 DNF, Loquat 15x gap), which an unsound AIR would only strengthen.",
+   "edit_sketch": "Replace in the item at lines 830-835: 'the cost figures assume the chip computes the reference permutation' with 'the positive feasibility figures, namely the $32.53$-minute Cell~2 prove, the $13.0$-second smoke proof, and any prove-level reading of the $56.4\\times$ cycle ratio, assume the chip computes the reference permutation'. Then append to the item: 'The negative findings of this chapter do not carry this premise: an unsound AIR would mean the measured Griffin-arm cost understates that of a sound chip, so the non-terminating precompile-free baseline, the $\\lambda=128$ non-termination, the SHA-3 inversion, the wrap memory exhaustion, and the Loquat substrate gap survive unchanged or strengthen (Section~\\ref{sec:security}).'",
+   "risk": "The enumerated positive figures must stay in sync with the chapter (32.53 min at 06-evaluation.tex:109, 13.0 s smoke at 05-system.tex:11, 56.4x ratio). If any figure is later re-measured, this list is a second place to update."
+  },
+  {
+   "title": "M3. Scope T2 inside the conclusion's Limitations blanket",
+   "files": [
+    "修論2025_Takumi/08-conclusion.tex"
+   ],
+   "rationale": "Line 19 lumps T2 over the whole thesis ('The security guarantees are conditional...carried as open premises'), leaving a committee to read the central negative results as T2-conditional. One sentence fixes the direction.",
+   "edit_sketch": "After '...are carried as open premises (Section~\\ref{sec:security}).' at line 19, insert: 'Of these, premise~(T2) conditions only the positive results, the $32.5$-minute feasibility figure and the security-preservation theorem; the negative findings, including both prongs of the obstruction, the SHA-3 inversion, the non-terminating baselines, and the absence of a wall-clock flexibility advantage, would survive or strengthen under an unsound AIR, since the measured Griffin-arm cost would then understate that of a sound chip (Section~\\ref{sec:security}).'",
+   "risk": "T4 and the quantum lifts DO condition the anonymity-side statements, so the inserted sentence must single out (T2) and not be generalised to 'these premises' during copy-editing."
+  },
+  {
+   "title": "M4. Extend the two 'independent of timing' robustness sentences to include T2-independence",
+   "files": [
+    "修論2025_Takumi/08-conclusion.tex",
+    "修論2025_Takumi/07-discussion.tex"
+   ],
+   "rationale": "08-conclusion.tex:7 and 07-discussion.tex:33 claim the dual obstruction is robust to timing only; the stronger true claim (robust to the open AIR-soundness premise as well) is available and unstated, and is what makes the headline finding unconditional.",
+   "edit_sketch": "08-conclusion.tex:7, replace the final sentence with: 'This obstruction on both sides holds independently of any timing number and of the open AIR-soundness premise~(T2), since an unsound chip could only understate the cost of the proof one can afford, and the rest of the thesis rests on it.' 07-discussion.tex:33, replace '...and it holds independently of how favourable our timing numbers are.' with '...and it holds independently of how favourable our timing numbers are and of the open AIR-soundness premise~(T2), which conditions the feasibility figure rather than the obstruction (Section~\\ref{sec:security}).'",
+   "risk": "Low. Both sentences must stay consistent with M1's hedged form of the understatement argument; do not let either claim T2-independence for the 32.5-minute figure itself."
+  },
+  {
+   "title": "M5. Condition the one genuinely T2-dependent negative-sounding sentence ('binding constraint is the wrap')",
+   "files": [
+    "修論2025_Takumi/07-discussion.tex"
+   ],
+   "rationale": "Line 133 is the inverse failure: 'locates the binding constraint as the zero-knowledge wrap rather than the base proof' silently assumes the measured base-proof cost is the sound cost. If the AIR is unsound, the sound base proof could itself bind. This claim must carry the qualifier the negatives shed.",
+   "edit_sketch": "Replace at 07-discussion.tex:133: 'locates the binding constraint as the zero-knowledge wrap rather than the base proof' with 'locates the binding constraint as the zero-knowledge wrap rather than the base proof as built and measured (the base-proof cost is the honest-path cost of the chip and carries premise~(T2))'.",
+   "risk": "Low. Parenthetical length; if it reads heavy, the minimal form 'rather than the base proof as measured' preserves the correction."
+  },
+  {
+   "title": "M6. Decouple the dual obstruction: resource prong version-pinned, cryptographic-reach prong scoped to SP1 with RISC-Zero hedge",
+   "files": [
+    "修論2025_Takumi/08-conclusion.tex",
+    "修論2025_Takumi/07-discussion.tex",
+    "修論2025_Takumi/main.tex"
+   ],
+   "rationale": "The reach prong is currently quantified over 'the toolchains' (plural) though only SP1's wrap inventory (Groth16/PLONK, v6.2.1) was verified; RISC Zero's ZK status is contested (055-security.tex:321-325 already says 'not dependably zero-knowledge'). The hedged wording below survives either answer to the RISC Zero question because it rests on what was produced, and on the documented advisory, rather than on RISC Zero's in-principle property.",
+   "edit_sketch": "08-conclusion.tex:7, replace the second-prong sentence with: 'The second is a fact about the deployed toolchain: the only succinct zero-knowledge wraps exposed by the SP1 pipeline we measure (v6.2.1) are Groth16 and PLONK, both pairing-based, and the RISC~Zero path measured here produces a bare receipt that we treat as not dependably zero-knowledge (Section~\\ref{sec:security}), so additional memory would not restore post-quantum anonymity on either substrate.' 08-conclusion.tex:15, replace 'and the current toolchains provide neither' with 'and neither is provided by the pipelines measured here: SP1 v6.2.1 exposes only pairing-based wraps, and the RISC~Zero configuration we run yields a receipt that is not dependably zero-knowledge (Section~\\ref{sec:security})'. 07-discussion.tex:27-29, replace 'the only wraps the deployed pipeline exposes are pairing-based' with 'the only wraps the deployed SP1 pipeline exposes are pairing-based, and the RISC~Zero receipt is not dependably zero-knowledge to begin with (Section~\\ref{sec:security})'. main.tex:115, replace 'the only wrap the toolchain offers is pairing-based and so not post-quantum' with 'the only wraps the SP1 toolchain offers are pairing-based and so not post-quantum'.",
+   "risk": "Highest-coordination move: four sites must say the same thing. The 'not dependably zero-knowledge' phrase must keep its citation trail through Section 5.5 (risc0zkadvisory, l2beatzk); do not let the conclusion assert flatly that RISC Zero is not ZK, which the evidence base does not support. Also confirms-needed: whether RISC Zero's own Groth16 wrap exists but is unavailable on Apple silicon; the wording above deliberately avoids claiming anything about it."
+  },
+  {
+   "title": "M7. Soften the proof-mode matrix's RISC Zero 'Zero-knowledge? no' cell to the evidenced claim",
+   "files": [
+    "修論2025_Takumi/06-evaluation.tex"
+   ],
+   "rationale": "Row at line 456 states 'no' as flat fact and the caption (461-463) generalises 'The modes produced...are not zero-knowledge', but the evidence (055-security.tex:317-327) supports only 'not dependably zero-knowledge' for RISC Zero, against RISC Zero's own claim of perfect ZK. The table should mirror the security chapter's careful phrasing.",
+   "edit_sketch": "Line 456: change the ZK cell to 'no\\textsuperscript{\\ddag}'. Caption: change 'The modes \\emph{produced} on the target hardware are not zero-knowledge;' to 'The modes \\emph{produced} on the target hardware are not, or not dependably, zero-knowledge;' and append: '\\textsuperscript{\\ddag}RISC~Zero documents perfect zero-knowledge for its STARK; independent analysis and RISC~Zero's own advisory find the property not provably met, so we treat the receipt as not dependably zero-knowledge~\\cite{risc0zkadvisory,l2beatzk} (Section~\\ref{sec:security}).'",
+   "risk": "The \\ddag must not collide with the existing \\dag footnote in the same caption (line 464). Table width is fixed (p{1.6cm} column); the superscript fits but check the build."
+  },
+  {
+   "title": "M8. Attach tuned-settings, single-run, and T2 qualifiers to the 32.5-minute sentence in the abstract",
+   "files": [
+    "修論2025_Takumi/main.tex"
+   ],
+   "rationale": "main.tex:115 currently discloses memory tuning only for the baseline clause; the headline feasibility sentence carries no settings, run-count, or soundness qualifier, while 06-evaluation.tex:70-82 shows defaults OOM the same workload and 01-intro.tex:74 shows the thesis already conditions this claim on (T2) elsewhere. The abstract is the most-quoted site.",
+   "edit_sketch": "Replace in main.tex:115: 'the same verification is proved in $32.5$ minutes on SP1 at the $80$-bit setting, the largest level at which proving was observed to complete;' with 'the same verification is proved in $32.5$ minutes on SP1 at the $80$-bit setting, in a single run under a documented reduced-memory configuration and conditional on the open constraint-level soundness of the bespoke chip, the largest level at which proving was observed to complete;'.",
+   "risk": "Abstract length and rhythm; the sentence is already long. If compression is needed, 'in a single run under a documented reduced-memory configuration' is the non-negotiable half because the T2 conditionality is recoverable from the body, while the tuning disclosure exists nowhere else in the abstract for this arm."
+  },
+  {
+   "title": "M9. Point-of-claim qualifiers on the conclusion's two feasibility statements",
+   "files": [
+    "修論2025_Takumi/08-conclusion.tex"
+   ],
+   "rationale": "Line 9 states the 32.5-minute figure with lambda but without the tuned-settings or single-run facts; line 15 answers the research question with 'becomes feasible on consumer hardware' carrying zero in-sentence qualifiers. Deferring all qualifiers to the Limitations blanket four lines later is what M3 dismantles, so the claims must self-qualify.",
+   "edit_sketch": "Line 9: replace 'with it, the verification proves in $32.5$ minutes on SP1 at $\\lambda=80$' with 'with it, the verification proves in $32.5$ minutes on SP1 at $\\lambda=80$, a single run under the documented reduced-memory configuration, default settings exhausting memory (Section~\\ref{sec:evaluation})'. Line 15: replace 'Standalone PLUM verification becomes feasible on consumer hardware once the precompile absorbs the field-mismatch tax.' with 'Standalone PLUM verification becomes feasible on consumer hardware, at $\\lambda=80$ on SP1 under tuned memory settings and conditional on premise~(T2), once the precompile absorbs the field-mismatch tax.'",
+   "risk": "Line 15 is also touched by M6 (a later clause in the same sentence-group); apply M6 and M9 in one editing pass over subsec:conclusion-answer to avoid conflicting diffs."
+  },
+  {
+   "title": "M10. Narrow the closing sentence from 'post-quantum signature verification' to PLUM, and extend its independence clause",
+   "files": [
+    "修論2025_Takumi/08-conclusion.tex"
+   ],
+   "rationale": "Line 27 is the most quotable over-broad sentence: the generic reading is falsified by the thesis's own ML-DSA proxy data (jetsam-killed at 249 s, 06-evaluation.tex:430-436), and the same line's 'no amount of additional memory or favourable timing removes either' omits the T2-independence that M4 establishes for the parallel sentence at line 7.",
+   "edit_sketch": "Line 27: replace 'The precompile makes post-quantum signature verification finite to prove on a personal computer.' with 'The precompile makes PLUM signature verification at the $80$-bit level finite to prove on a personal computer.' In the same paragraph, replace 'and no amount of additional memory or favourable timing removes either' with 'and no amount of additional memory, favourable timing, or resolution of premise~(T2) removes either'.",
+   "risk": "Rhetorical cost: the closing loses generality on purpose. Do not compensate by re-generalising elsewhere in the paragraph; 'the proof one can afford is feasible' in the same line stays as is because the dual-prong framing it sits in is now T2-scoped by M4."
+  },
+  {
+   "title": "M11. One-phrase tuned-configuration qualifiers at the two remaining headline sites (intro contribution 6, system scope bullet)",
+   "files": [
+    "修論2025_Takumi/01-intro.tex",
+    "修論2025_Takumi/05-system.tex"
+   ],
+   "rationale": "01-intro.tex:80 states the 32.5-minute figure with lambda but without tuning or run count (T2 is handled two bullets earlier at line 74, which stays untouched as the model sentence). 05-system.tex:12 sits in a section that grades evidence per component yet omits that the figure exists only under non-default memory settings, while the adjacent bullet (line 11) shows the style admits in-bullet caveats.",
+   "edit_sketch": "01-intro.tex:80: replace 'PLUM signature verification proves in $32.5$ minutes on SP1' with 'PLUM signature verification proves in $32.5$ minutes on SP1 (a single run, tuned memory configuration)'. 05-system.tex:12: replace '($32.5$~min at $\\lambda=80$; Section~\\ref{sec:evaluation})' with '($32.5$~min at $\\lambda=80$, tuned memory configuration; Section~\\ref{sec:evaluation})'.",
+   "risk": "Minimal. Check the actual \\ref label used in 05-system.tex:12 (the bullet may cite 'Section 6' via a different label string); match the existing reference verbatim."
+  },
+  {
+   "title": "M12. Strengthen the existing single-run threats item with the measured contended re-run datum",
+   "files": [
+    "修論2025_Takumi/06-evaluation.tex"
+   ],
+   "rationale": "The threats list already has a 'Single-run timings' item (lines 802-805) saying variance is 'not characterised', but a characterising datum now exists: the retained Aurora Loquat-verify log (docs/measurements/loquat_substrate_20260610/aurora_loquat_verify_s80.log:317) records the prover at 370.0 s wall with profiler CPU share x0.67 and 569,444 involuntary context switches, against the 225.5 s of tab:aurora-ref, a factor of 1.64. Citing it converts an unquantified threat into a bounded one. Note: the parent-stated '1.7x' verifies as 1.64x from the log; use the log numbers.",
+   "edit_sketch": "Append to the 'Single-run timings' item: 'One repeat observation bounds this from below: a re-run of the Aurora Loquat-verify prover under background load completed in $370$~s wall-clock against the $225.5$~s of Table~\\ref{tab:aurora-ref}, a factor of about $1.6$, the profiler recording a CPU share of $0.67$ during the slower run. Multi-minute wall-clock figures on shared consumer hardware therefore carry at least this much scheduling sensitivity, and cross-substrate ratios near this magnitude should not be read as significant.'",
+   "risk": "Two open verifications before committing: (a) confirm which run tab:aurora-ref's 225.5 s actually cites, since the only log retained in docs/measurements/loquat_substrate_20260610/ is the 370 s contended run, so the clean run's log must be located or the provenance stated; (b) the closing clause weakens any thesis claim resting on a sub-2x ratio, so check that no headline ratio (e.g. the 2.45x SHA-3 inversion) is undercut without comment; if it is, qualify that the SHA-3 inversion's two arms were measured under like conditions or drop the final clause."
+  }
+ ],
+ "critiques": [
+  {
+   "approved": false,
+   "objections": [
+    "BLOCKING (M2, M3): the edit sketches enumerate 'the $\\lambda=128$ non-termination' / 'non-terminating baselines' among the chapter's measured negative findings, but 06-evaluation.tex contains no lambda=128 prove run (all lambda=128 references are execute-mode attribution: lines 41, 288-342), and the abstract (main.tex:115) explicitly says the 128-bit setting is 'untested and expected to exceed the memory budget'. Note also the pre-existing dangling pointer the plan would propagate: 06-evaluation.tex:63 claims '\\S\\ref{ssec:frontier} reports lambda=128 proving exceeds the memory budget' but ssec:frontier (lines 349-443) reports no such run. Fix: drop the lambda=128 item from both enumerations or restate it as 'the lambda=128 level remaining out of reach', matching the abstract's 'untested'.",
+    "BLOCKING (M2, M3, and M4's 07-discussion variant): the sketches drop M1's load-bearing hedge. M1 correctly bounds cost only 'for any repair that strengthens the constraint set' and says 'corrected and at-least-as-costly chip'; M2/M3 then assert unhedged that 'the measured Griffin-arm cost understates that of a sound chip' — false for an arbitrary sound redesign (a re-architected sound chip is not cost-bounded by the measured one, and under that case the 2.45x SHA-3 inversion could in principle reverse). The plan's own M4 risk note forbids exactly this drift. Fix: carry the hedge verbatim into M2/M3/M4 ('a corrected, at-least-as-costly chip obtained by strengthening the constraint set') or scope the inversion as a finding about the system as built.",
+    "BLOCKING-level wording (M6): the proposed 08-conclusion.tex:7 sentence concludes 'so additional memory would not restore post-quantum anonymity on either substrate', but the RISC Zero half of the evidence offered (bare receipt 'not dependably zero-knowledge', 055-security.tex:321-327) says nothing about RISC Zero's wrap path; the silent both-substrate extension of the pairing prong is a new overclaim of the kind the plan elsewhere hunts. Fix: either add the citable fact that RISC Zero's documented wrap is likewise Groth16 (pairing-based) and was not produced on this hardware, or restrict the 'additional memory' clause to SP1 and let the RISC Zero clause stand only on the receipt's ZK status. Also match the thesis's existing version phrasing 'SP1 v6.2.1 (forked)' (06-evaluation.tex:39, 05-system.tex:29): the submodule is 26 commits past the tag (git describe: v6.2.1-26-g8bf0248bc), so bare '(v6.2.1)' is looser than the prose convention already in place.",
+    "BLOCKING (M12): not commit-ready, and the provenance situation is worse than the plan's risk note states. Verified in docs/measurements/loquat_substrate_20260610/: the Aurora log is the contended run (prover leave at 370.0088s x0.67, log line 317; 569,444 involuntary context switches at line 423; its own JSON records t_P_ms=376064, t_V_ms=42079, proof_bytes=704416) — the table's 225.5s/41.2s clean-run log is NOT in this directory; AND both SP1 Loquat logs are invalid runs (sp1_loquat_prove_l80_tuned.log ends 'RUN ABORTED... Wall-clock invalid. NOT a measurement'; sp1_loquat_prove_l80.log terminates abnormally at 324.65s real, EXIT 1), so neither headline number of tab:loquat-substrate (225.5s, 55.93 min) has a located log here. Locate or state the provenance of BOTH table figures before citing the 370s run against them. Additionally: (i) 'under background load' asserts a cause the log does not establish (x0.67 CPU share shows descheduling, not its source — iCloud sync of this very working directory, E-core placement, or contention all fit); report the numbers, not the cause; (ii) 'carry at least this much scheduling sensitivity' inverts the logic — one observation shows sensitivity CAN reach ~1.64x, not that all figures carry >=1.64x; (iii) the closing significance clause grazes the 2.45x inversion — note that even deflating the Griffin arm by the observed 1.64x bound leaves 19.8 min > 13.3 min, so state the inversion as direction-robust rather than dropping the clause silently.",
+    "NON-BLOCKING (M1 vs M2 consistency): M1's 'positive results alone, namely the 32.5-minute feasibility figure and the unforgeability bound' is an incomplete enumeration relative to M2, which correctly adds the 13.0s smoke proof (05-system.tex:11) and prove-level readings of the 56.4x ratio — both exercise the chip and carry T2. Harmonize M1's 'namely' list with M2's, and fold the Loquat SP1 leg into M1's does-not-exercise-the-chip parenthesis (06-evaluation.tex:245-246: 'no Loquat-specific precompile... none exists for the 127-bit field'; the log confirms 'emulated Griffin').",
+    "NON-BLOCKING (process): M4 and M6 both rewrite sentences inside 08-conclusion.tex line 7 (M6 the second-prong sentence, M4 the final sentence); the plan flags the M6/M9 collision on line 15 but not this one — apply M4 and M6 to the paragraph in a single pass.",
+    "NON-BLOCKING (M7): checks out as sketched (06-evaluation.tex:456 is the RISC Zero succinct row; caption's existing footnote uses math-mode \\textsuperscript{$\\dagger$}, so use $\\ddagger$ in the same form; cites risc0zkadvisory/l2beatzk already exist at 055-security.tex:325). M5, M8, M9, M10, M11 verified factually clean against their cited lines (Cell-2 default-settings OOM ~3 min at 06-evaluation.tex:71-73; ML-DSA proxy jetsam kill at 06-evaluation.tex:430-436) and are approvable once the blocking objections above are folded into the shared wording they inherit from M1-M4."
+   ]
+  },
+  {
+   "approved": false,
+   "objections": [
+    "BLOCKING (M1): the inserted paragraph is self-contradictory and factually false as drafted. Its opening sentence 'Every measured run exercises the chip on the honest path' is contradicted three sentences later by '...do not exercise the chip at all (the precompile-free baseline, the RISC Zero arm, the Aurora reference)' — and is false on the thesis's own tables: the Cell-1 baseline, the SHA-3 control, the RISC Zero sys_bigint arm (05-system.tex:18), and the Aurora reference are all measured runs that never touch the bespoke chip. Must read 'Every measured run that exercises the chip does so on the honest path.' Otherwise M1 verifies (anchor at 055-security.tex:285/287 confirmed; thm:security-preserve exists at 055-security.tex:143; M1 itself correctly carries the 'corrected and at-least-as-costly chip' hedge).",
+    "BLOCKING (M2): the appended sentence enumerates 'the $\\lambda=128$ non-termination' as a measured negative finding, but no λ=128 prove attempt exists in the thesis: main.tex:115 (abstract) says the 128-bit setting is 'untested and expected to exceed the memory budget', and ssec:frontier — the section 06-evaluation.tex:63-64 cites for 'λ=128 proving exceeds the memory budget' — contains only BDEC CreGen at λ=80 (06-evaluation.tex:349-417), no λ=128 run. Committing this wording mints a measurement that does not exist and amplifies a pre-existing line-63-vs-abstract inconsistency (which itself deserves a separate fix: line 63 asserts as reported what the abstract calls untested). Drop the item or recast as 'the expected λ=128 infeasibility'.",
+    "BLOCKING (M2/M3/M4 jointly): the load-bearing hedge is dropped. M1's own risk note says 'for any repair that strengthens the constraint set' must not be dropped, yet M2's insertion states flatly 'an unsound AIR would mean the measured Griffin-arm cost understates that of a sound chip', M3 repeats it, and M4 states 'an unsound chip could only understate the cost'. A sound chip reached by redesign rather than constraint-strengthening is not bounded below by the measured cost, so the unhedged form is a new overclaim about an unmeasured counterfactual — the exact failure M1 anticipates. Propagate M1's hedged form ('a corrected, at-least-as-costly chip' / 'any repair that strengthens the constraint set') to all three sites, or fall back to M5's 'as built and measured' framing where the hedge reads heavy.",
+    "BLOCKING (M12): three defects. (a) The closing clause 'cross-substrate ratios near this magnitude should not be read as significant' derives a cross-substrate significance threshold from a same-substrate (Aurora-vs-Aurora) contended re-run — a category slip — and exempts the genuinely threatened same-pipeline 2.45× SHA-3 ratio by wording rather than argument; the plan's own risk (b) is explicitly unresolved. (b) 'Multi-minute wall-clock figures... carry at least this much scheduling sensitivity' universalizes one deliberately contended n=1 observation into a floor for all runs, while the repo contains a second UNCONTENDED observation — docs/measurements/r_static_20260605/run_aurora_bdec_s80.log, t_P_ms=226065 with proof 704,416 B, byte-identical proof size and same padded 2^19 R1CS as tab:aurora-ref's 688 KB row — within 0.3% of the table's 225.5 s. The supported and stronger statement is two-sided: uncontended repeats agree to <1% (225.5 s vs 226.1 s); one run under background load inflated to 370.0 s (CPU share ×0.67, 569,444 involuntary context switches). Rewrite M12 around both data points; this also rescues the 2.45× and 15× ratios on evidence instead of by scoping. (c) Provenance: the only log retained in docs/measurements/loquat_substrate_20260610/ is the contended 370 s run; per the discrepancy sweep (docs/discrepancy_sweep_20260610.json) the 225.5 s denominator's sole provenance is a 2026-06-09 calibration memory record — anchor the denominator to the retained 06-05 log (226.1 s) or state the provenance before committing the 1.6× ratio. The raw figures themselves verify (370.0088 s ×0.67 at log line 321; 569,444 at line 423; 370.0/225.5 = 1.64, so 'about 1.6' is correct against the parent's 1.7×).",
+    "Minor (M8): the insertion severs the appositive 'the largest level at which proving was observed to complete' from its noun 'the $80$-bit setting', leaving it to dangle after 'bespoke chip' in the thesis's most-quoted sentence. Reorder: place the appositive immediately after 'setting', then the single-run/tuning/T2 qualifiers.",
+    "Minor (M6): the thesis consistently writes 'SP1 v6.2.1 (forked)' (05-system.tex:29, 06-evaluation.tex:39; 03-preliminaries.tex:753 says 'the SP1 v6.2.1 fork'); M6's bare 'v6.2.1' in the conclusion and the 'the pipelines measured here: SP1 v6.2.1' phrasing implies upstream. Keep the fork qualifier at all four sites. The version itself verifies (Cargo.toml pin 'v6.2.1 commit 98a376e8').",
+    "Minor (M3 vs M2 consistency): M3 says T2 'conditions only the positive results' and enumerates two items, while M2 enumerates three (adding the 13.0 s smoke proof and prove-level readings of the 56.4× ratio). 'Only' plus a shorter list invites a committee to read the two sites as disagreeing; either align the enumerations or soften M3 to 'chiefly the 32.5-minute feasibility figure and the security-preservation theorem'.",
+    "Minor (M4): the justification clause 'since an unsound chip could only understate the cost of the proof one can afford' attaches the cost-floor argument to the wrong prong — the not-zero-knowledge fact (SP1 documentation) and the pairing-based fact are T2-independent for documentation reasons, and only the OOM persistence needs the cost argument. Reword so each prong gets its own reason, e.g. '...premise (T2): the wrap inventory and the receipt's non-zero-knowledge status are toolchain facts, and an unsound chip could only understate the memory the wrap exhausts.'",
+    "Note (no action in this plan, but adjacent): the discrepancy sweep already flags tab:aurora-ref's 41.2 s verifier cell as belonging to the λ=128 log (run_aurora_bdec_s128.log: 41.2232 s) while the λ=80 log gives 41.7 s; M12 will draw reviewer eyes to this table, so that pending fix should land in the same pass."
+   ]
+  },
+  {
+   "approved": false,
+   "objections": [
+    "BLOCKING (M2, M3, M4) — dropped load-bearing hedge: M1 correctly states the cost-floor argument as conditional ('for any repair that strengthens the constraint set', 'corrected and at-least-as-costly chip') and M1's own risk note says the hedge must not be dropped, yet the M2 sketch prints flatly 'an unsound AIR would mean the measured Griffin-arm cost understates that of a sound chip', M3 prints 'would then understate that of a sound chip', and M4 prints 'an unsound chip could only understate the cost'. A sound chip reached by redesign (replacing a wrong constraint with a cheaper correct one) need not be costlier than the as-built chip, so the flat form is a new overclaim printed at three quotable sites. Fix: propagate M1's hedge into all three sentences (e.g. 'understates that of any sound chip obtained by strengthening the constraint set') before applying.",
+    "BLOCKING (M6) — unsupported substrate universal and prong-mixing: the 08-conclusion.tex:7 replacement ends 'so additional memory would not restore post-quantum anonymity on either substrate', but the only RISC Zero fact cited (bare receipt not dependably zero-knowledge, 055-security.tex:325-327) is first-prong content and says nothing about RISC Zero's wrap inventory, which the plan itself marks 'confirms-needed'. The 07-discussion.tex:27-29 insertion has the same defect: 'More memory would clear the resource obstruction, but ... the RISC Zero receipt is not dependably zero-knowledge to begin with' is a non-sequitur inside a sentence about wraps and memory. The 08-conclusion.tex:15 sketch ('neither is provided by the pipelines measured here') is the correctly scoped form; restate the line-7 and discussion sites in that shape, restricting the second prong to the SP1 pipeline measured and saying RISC Zero's wrap path was not exercised, or verify RISC Zero's wrap inventory first.",
+    "BLOCKING (M12) — wrong quantifier direction plus unresolved provenance precondition: the contended re-run (370.0 s wall, CPU share x0.67, 569,444 involuntary context switches — all verified at aurora_loquat_verify_s80.log lines 317 and 423; 1.64x against 225.5 s is correct) shows background load CAN inflate wall-clock by 1.64x; it does not show headline figures 'carry at least this much scheduling sensitivity', since a dedicated uncontended run may vary far less. Rephrase as an observed contention bound, not a lower bound on sensitivity. Additionally, tab:aurora-ref's 225.5 s (06-evaluation.tex:219, 'single run') has no retained log in docs/measurements/loquat_substrate_20260610/ — only the 370 s run is on disk — so the plan's own risk (a) provenance work must be completed before this edit, and the like-conditions sentence protecting the 2.45x SHA-3 inversion (both arms identical tuning, same substrate, 06-evaluation.tex:78-80) is mandatory, not optional, because the proposed closing clause sits 1.5x under that headline ratio.",
+    "Non-blocking (M1) — misclassification: 'the RISC Zero arm' is listed among negative findings that do not exercise the chip, but that arm completed (6h19m, receipt verified, 06-evaluation.tex:111); its T2-independence is correct (chip not invoked per 055-security.tex:265-271) but the 'negative' label is not. Say 'the chip-free arms' or list it separately as a T2-free cost datum.",
+    "Non-blocking (M4 + M6 coordination) — both moves rewrite sentences inside the same paragraph at 08-conclusion.tex:7 (M6 the second-prong sentence, M4 the final sentence); the plan prescribes a single editing pass for the line-15 collision (M6+M9) but not for line 7. Apply M4 and M6 to that paragraph in one pass.",
+    "Verification record supporting the rest of the plan: all cited line numbers and target strings check out verbatim (055-security.tex:285/287 insertion site, thm:security-preserve in use at :216; 06-evaluation.tex:108-119, 453-466, 802-805, 830-835; 07-discussion.tex:27-33, 133; 08-conclusion.tex:7, 9, 15, 19, 27; main.tex:115; 01-intro.tex:74, 80; 05-system.tex:11-12 with the exact \\ref{sec:evaluation} string M11 flagged). The key analytic insight is confirmed by the thesis's own text and is stronger than the plan claims: 055-security.tex:202-203 states epsilon_AIR does not enter the anonymity bound, so M1's statement that T2 conditions only the unforgeability bound of the theorem is exactly right. No negative finding was found to secretly depend on T2 (wrap OOM, SHA-3 inversion, substrate gap, baseline DNF, lambda=128 DNF all checked). M10's narrowing is forced by the thesis's own ML-DSA jetsam datum (249 s, 06-evaluation.tex:430-436). M7's \\ddag does not collide with the existing \\dagger in tab:proof-mode's caption. No move is unnecessary: 06-evaluation.tex:831 is the only directional T2 statement in the thesis and it points the wrong way. M5, M7, M8, M9, M10, M11 are approved as sketched once the blocking items above are fixed."
+   ]
+  }
+ ]
+}
