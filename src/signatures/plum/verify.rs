@@ -145,17 +145,23 @@ pub enum VerificationFailure {
 
 /// Algorithm 6 — PLUM signature verification.
 ///
-/// Replays the prover's Fiat-Shamir transcript and runs every check
-/// the current `PlumSignature` representation supports. Specifically:
+/// Replays the prover's Fiat-Shamir transcript and runs the full
+/// Algorithm 6 verification (mapped step-by-step in the module-level
+/// doc-comment). The checks performed are:
 ///
-///   - Re-derives the residuosity index `(I_{i,j})` from `h_1`.
-///   - Checks every (i,j): `o_{i,j} ≠ 0` and
+///   - FS challenge replay through all five phases.
+///   - Recomputation of the query-point polynomial evaluations.
+///   - Merkle authentication-path openings for the STIR fibers, the
+///     round-0 queries, and the final-polynomial fibers.
+///   - The STIR fold-consistency check, the low-degree (sumcheck)
+///     identity test, and the final-polynomial consistency check.
+///   - Residuosity: for every `(i,j)`, `o_{i,j} ≠ 0` and
 ///     `L_0^t(o_{i,j}) ≡ pk_{I_{i,j}} + T_{i,j} (mod t)`.
 ///
-/// The STIR-fold check and Merkle openings are not currently performed
-/// (see the module-level doc-comment for what's deferred). Callers
-/// should treat an `Accept` here as "passed every check the current
-/// implementation supports", not as "verified per Algorithm 6 in full".
+/// An `Accept` means every Algorithm 6 check passed; each has a tamper
+/// test forcing the corresponding reject. The only remaining open premise
+/// is the in-circuit Griffin-AIR gadget-soundness assumption, out of scope
+/// of this out-of-circuit reference verifier.
 pub fn plum_verify<H: PlumHasher>(
     pp: &PlumPublicParams,
     pk: &PlumPublicKey,
