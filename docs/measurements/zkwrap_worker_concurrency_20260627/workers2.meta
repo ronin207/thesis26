@@ -1,0 +1,5 @@
+TAG=workers2 RW=2 CW=2 SHARD_SIZE=4194304 wrap=plonk arm=syscall lambda=80
+start_epoch=1782550379
+end_epoch=1782551677 rc=-6 wall_s=1297.1 wall_min=21.62
+getrusage_maxrss_bytes=18579390464 GB=17.303
+sampler_peak_kb=16367712 GB=15.609

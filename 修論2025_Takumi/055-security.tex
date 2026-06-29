@@ -67,6 +67,15 @@ whose BDEC reductions simulate the credential and pseudonym transcripts with the
 signature's own simulator.
 \end{assumption}
 
+\begin{assumption}[Griffin (Q)ROM instantiation]\label{asm:qrom}
+PLUM's EU-CMA argument under Fiat--Shamir models Griffin as a (quantum) random
+oracle. The published Griffin analyses cover the original instantiations; whether
+they extend to the $d=3$, width-$4$, $199$-bit-field, $14$-round instantiation
+used here is \emph{open}, and the question is upstream of the AIR: were this
+instantiation (Q)ROM-distinguishable, no amount of AIR engineering would recover
+security.
+\end{assumption}
+
 BDEC's Theorems~1
 through~3~\cite{10.1007/978-981-96-0957-4_3} already prove these properties, so
 this section does not re-prove them. It bounds how far the move to a zkVM
@@ -202,7 +211,7 @@ signature-transcript-simulation error):
   &\le \epsilon_{\mathrm{ZK}} + \epsilon_{\mathrm{sZK}},
   \label{eq:adv-anon}
 \end{align}
-and the same bound $\epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$ holds for unlinkability, whose game (BDEC Theorem~3) forwards a single challenge credential, so the one-transcript simulation applies once. Equation~\eqref{eq:adv-anon} bounds anonymity by the zero-knowledge error $\epsilon_{\mathrm{ZK}}$ of the produced proof. On the target hardware that error is not made small: the succinct receipt has no established zero-knowledge simulator, and the wrap that would supply one exceeds the memory bound (Section~\ref{ssec:zk-gap}). The anonymity and unlinkability bounds are guarantees the construction inherits from BDEC under a zero-knowledge argument, and whether this substrate supplies that argument is settled negatively in Section~\ref{ssec:zk-gap}. These three bounds re-instantiate BDEC's Theorems~1--3~\cite{10.1007/978-981-96-0957-4_3} with PLUM as the signature scheme and the zkVM as the zkSNARK, expressed directly in the leaf errors below. The
+and the same bound $\epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$ holds for unlinkability, whose game (BDEC Theorem~3) forwards a single challenge credential, so the one-transcript simulation applies once. Equation~\eqref{eq:adv-anon} bounds anonymity by the zero-knowledge error $\epsilon_{\mathrm{ZK}}$ of the produced proof. On the target hardware that error is not made small: the succinct receipt has no established zero-knowledge simulator, and the wrap that would supply one is not produced on the stack as shipped, blocked by the recursion-shape provisioning wall (Section~\ref{ssec:zk-gap}). The anonymity and unlinkability bounds are guarantees the construction inherits from BDEC under a zero-knowledge argument, and whether this substrate supplies that argument is settled negatively in Section~\ref{ssec:zk-gap}. These three bounds re-instantiate BDEC's Theorems~1--3~\cite{10.1007/978-981-96-0957-4_3} with PLUM as the signature scheme and the zkVM as the zkSNARK, expressed directly in the leaf errors below. The
 term $\epsilon_{\mathrm{AIR}}$ is the AIR's constraint-level soundness error: the
 probability, over the prover-chosen trace and the argument's verifier randomness,
 that the argument accepts a trace whose Griffin transition differs from the
@@ -237,8 +246,9 @@ theorems for a generic $(\text{signature},\text{zkSNARK})$
 pair~\cite{10.1007/978-981-96-0957-4_3}, substituting PLUM and the zkVM changes
 nothing beyond these leaf errors. These guarantees are inherited in principle;
 Section~\ref{ssec:zk-gap} shows that the produced receipt mode has no established
-zero-knowledge simulator, and that the ZK-wrapped mode is not produced within the
-resource and memory bound of the target hardware, so anonymity and unlinkability
+zero-knowledge simulator, and that the ZK-wrapped mode is not produced on the
+target hardware as the toolchain ships, blocked by the recursion-shape
+provisioning wall, so anonymity and unlinkability
 are not delivered there. The
 step-by-step reductions, with the explicit adversary constructions and hybrids,
 are given in Appendix~\ref{app:preservation}.
@@ -354,7 +364,7 @@ alone, namely the $14.89$-to-$32.5$-minute feasibility figure, the $13.0$-second
 single-permutation smoke proof, and the unforgeability bound of
 Theorem~\ref{thm:security-preserve}. The negative findings either do not
 exercise the chip at all or hold a fortiori under an unsound AIR: the
-zero-knowledge wrap's memory exhaustion and the SHA-3 control's faster
+zero-knowledge wrap's failure at the recursion-shape provisioning wall and the SHA-3 control's faster
 wall-clock could only widen against a corrected and at-least-as-costly chip.
 
 \subsection{The Zero-Knowledge Barrier as a Finding}\label{ssec:zk-gap}
@@ -370,7 +380,7 @@ wall-clock could only widen against a corrected and at-least-as-costly chip.
   \node[t, below left=15mm and 2mm of root] (bare) {keep the bare STARK receipt};
   \node[t, below right=15mm and 2mm of root] (wrap) {wrap for zero-knowledge (Groth16/PLONK, the only wraps available)};
   \node[t, below=11mm of bare] (noanon) {\includegraphics[height=8mm]{figs/assets/lock.png}\\ \textbf{not zero-knowledge} $\Rightarrow$ no anonymity};
-  \node[t, below left=12mm and -10mm of wrap] (oom) {\includegraphics[height=8mm]{figs/assets/memory.png}\\ \textbf{OOM} ${\approx}20$\,GB / $24$\,GB};
+  \node[t, below left=12mm and -10mm of wrap] (oom) {\includegraphics[height=8mm]{figs/assets/memory.png}\\ \textbf{structural}: the recursion-shape provisioning wall (OOM ${\approx}20$\,GB at default concurrency)};
   \node[t, below right=12mm and -10mm of wrap] (npq) {\includegraphics[height=8mm]{figs/assets/shield.png}\\ \textbf{not post-quantum} (pairing-based)};
   \draw[->] (root) -- (bare);
   \draw[->] (root) -- (wrap);
@@ -381,7 +391,7 @@ wall-clock could only widen against a corrected and at-least-as-costly chip.
 \caption{The dual obstruction. The proof feasible to generate (left, the bare STARK
 receipt) is not zero-knowledge, hence not anonymous; the proof that would be
 zero-knowledge (right, a Groth16/PLONK wrap) is blocked, at $\lambda=80$ on the $24$~GB target hardware, by two \emph{independent}
-prongs: resource (OOM at ${\approx}20$~GB) and primitive (pairing-based, not
+prongs: structural (the recursion-shape provisioning wall, with OOM at ${\approx}20$~GB the default-concurrency symptom) and primitive (pairing-based, not
 post-quantum, which more memory cannot fix).}
 \label{fig:dual-obstruction}
 \end{figure}
@@ -407,10 +417,19 @@ altogether~\cite{bruestle2023risczero}. The barrier splits into two independent 
 below. Both block anonymity for separate reasons, and naming each one precisely
 is the security-level result of this analysis.
 
-The first obstruction is one of resources. On the target hardware at
-$\lambda=80$ the PLONK wrap exhausts memory at ${\approx}20$~GB on the $24$~GB
-machine (killed under memory pressure; Section~\ref{sec:evaluation}), so the
-anonymity-providing proof is infeasible to generate even though the bare,
+The first obstruction is the recursion-shape provisioning wall, structural rather than a memory limit. At SP1's
+default prover concurrency the PLONK wrap is killed by system memory pressure
+(jetsam) at RSS ${\approx}20$~GB on the $24$~GB machine
+(\texttt{docs/measurements/zkwrap\_worker\_concurrency\_20260627}); but lowering the
+recursion-worker count runs the same wrap under ${\approx}17$~GB, well inside the
+budget (\texttt{docs/measurements/zkwrap\_default\_shard\_20260627}), where it fails
+earlier instead, at the recursive-compression step, because SP1's recursion
+shapes are provisioned for smaller relations than PLUM verification
+(Section~\ref{sec:evaluation}). Bringing the wrap within reach is a one-time
+regeneration of those static artifacts, roughly two days of compute on this
+hardware (${\approx}51$~h; the measured per-setup rate, envelope, and run record
+are reported in Section~\ref{sec:evaluation}), rather than more memory. No single stage of the wrap exceeds the $24$~GB budget: PLUM's core-and-recursion proving peaks at ${\approx}17$~GB and the program-independent gnark {PLONK} wrap stage at $15.4$~GB (Section~\ref{sec:evaluation}). The barrier is therefore the regeneration cost in compute time, which more memory does not remove, and the regenerated toolchain is not run end-to-end here. The anonymity-providing
+proof is thus not generated on the stack as shipped, even though the bare,
 non-anonymous receipt is. The second obstruction
 is one of primitives. Even with unlimited memory, wrapping a post-quantum STARK
 receipt in a pairing-based Groth16 or PLONK proof re-introduces a
@@ -423,8 +442,16 @@ Recovering post-quantum anonymity requires a post-quantum-sound zero-knowledge
 wrap, for instance a STARK-based or lattice-based recursive argument, which the
 deployed toolchains do not yet provide.
 
+The two obstructions differ in kind. The first is a one-time provisioning cost:
+each stage of the wrap fits within $24$~GB (Section~\ref{sec:evaluation}), and
+regenerating the static recursion artifacts, on the order of two days of compute,
+would in principle clear it. The second is a primitive limit within the
+post-quantum goal, since a pairing-based wrap is not post-quantum at any memory or
+time budget. A deployer can pay down the first; the second bounds what this stack
+can deliver.
+
 We therefore use the classically secure Groth16 or PLONK wrap to locate the
-resource cost. It is not a deployable post-quantum-anonymous configuration. The
+recursion-shape provisioning wall. It is not a deployable post-quantum-anonymous configuration. The
 two obstructions together leave no good option on the zkVM stack on commodity
 hardware: the proof that is feasible to generate is not anonymous, and the proof
 that would be anonymous is neither feasible to generate nor, with the available
@@ -433,7 +460,7 @@ machine proves the Loquat single-verification building block in about $22$ minut
 (\texttt{docs/measurements/audit5\_campaign\_20260612}). Within the scope of the
 literature we surveyed, we did not find this conjunction stated explicitly for
 post-quantum anonymous credentials, and surfacing it is a contribution of this thesis: we
-quantify the resource prong, the $24$~GB wrap frontier of
+quantify the structural prong, the recursion-shape provisioning wall of
 Section~\ref{sec:evaluation}, and identify the primitive prong as a toolchain
 gap.
 

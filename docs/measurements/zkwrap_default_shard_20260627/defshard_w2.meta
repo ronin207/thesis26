@@ -1,0 +1,5 @@
+TAG=defshard_w2 RW=2 CW=2 SHARD_SIZE=DEFAULT(1<<24) wrap=plonk arm=syscall lambda=80
+start_epoch=1782563485 start_utc=12:31:25
+end_epoch=1782565305 end_utc=13:01:45 rc=-6 wall_s=1819.6 wall_min=30.33
+getrusage_maxrss_bytes=17726914560 GiB=16.509
+sampler_peak_kb=16724672 GiB=15.950 sampler_peak_at_utc=12:44:00

@@ -116,7 +116,7 @@ precompile-free baseline and the precompile-enabled arm on the same hardware.
 zkVM / mechanism & $\lambda$ & Prove time & Verify time & Peak mem & Outcome \\
 \midrule
 SP1, rv32im Griffin (no precompile)          & 80 & n/a       & n/a    & 87.94\% & DNF (OOM $\approx$1m45s) \\ % 582ad1a Cell 1
-SP1, Griffin-$\mathbb{F}_p^{192}$ precompile & 80 & 32.53~min & 3.06~s & 81.31\% & receipt verified \\          % 582ad1a Cell 2
+SP1, Griffin-$\mathbb{F}_p^{192}$ precompile & 80 & 32.53~min\textsuperscript{\dag} & 3.06~s & 81.31\% & receipt verified \\          % 582ad1a Cell 2
 SP1, SHA-3 hasher (control)                  & 80 & 13.28~min & 2.80~s & 80.92\% & receipt verified \\ % 91941ed
 RISC~Zero, \texttt{sys\_bigint}, SHA-3 hasher & 80 & 6\,h\,19\,m & n/a\textsuperscript{\ddag} & n/a   & receipt verified \\          % uint256 doc
 \bottomrule
@@ -131,7 +131,11 @@ field-arithmetic precompile active), not a deployable PLUM variant. These are
 the May calibrated-reference runs; a $2026$-06-13 current-build re-measurement
 gives Cell~2 $17.81$~min and Cell~3 $16.15$~min ($n=2$ per arm, same session),
 confirming feasibility and the inversion sign, the difference attributed to
-build drift (\S\ref{ssec:headline}). $^\ddag$RISC~Zero receipt-verify wall-clock not separately logged; the
+build drift (\S\ref{ssec:headline}). $^\dag$A later clean-machine
+re-measurement on 2026-06-18 completed the same Cell~2 prove in $14.89$~min
+($18.67$~GB peak RSS, verify OK); the Cell~2 prove time is accordingly reported
+elsewhere in this thesis as the $14.89$--$32.5$-min range, with the $32.53$-min May run
+retained as the calibrated reference. $^\ddag$RISC~Zero receipt-verify wall-clock not separately logged; the
 receipt verified.}
 \label{tab:plum-verify}
 \end{table}
@@ -242,11 +246,14 @@ execution size}~\cite{succinct2025prooftypes}; the compact, on-chain-deployable
 proof is instead the constant-size {SNARK} \emph{wrap} of that receipt, about
 $260$~bytes for Groth16 over {BN254}, or $868$~bytes for
 {PLONK}~\cite{succinct2025prooftypes}. Producing that wrap is exactly the step
-that exhausts memory on the target hardware (the {PLONK} wrap was killed at
-${\approx}20$~GB, \S\ref{ssec:resource-frontier}). On a $24$~GB machine, then, the
-proof a deployer can actually generate is the large, shard-scaling core receipt;
-the $260$-byte {SNARK} is a documented size the consumer-hardware frontier
-prevents us from realising here. We therefore report the deployable figure as
+that does not complete on the target hardware as the toolchain ships. The
+failure is not a want of memory; it is that SP1's recursion shapes are
+provisioned for smaller relations than PLUM verification, the
+recursion-shape provisioning wall
+of \S\ref{ssec:resource-frontier}. On a
+$24$~GB machine, then, the proof a deployer can actually generate is the large,
+shard-scaling core receipt; the $260$-byte {SNARK} is a documented size the
+frontier of \S\ref{ssec:resource-frontier} prevents us from realising here. We therefore report the deployable figure as
 documented and do not serialise the workload-dependent core receipt, whose byte
 count is not the deployment-relevant number.
 
@@ -446,7 +453,7 @@ BDEC CreGen, RISC~Zero & execute & $9.40\times10^{9}$ cyc, $\approx$65~s & both 
 BDEC CreGen, RISC~Zero & prove (succinct) & $\geq$15.6~h, peak RSS 11.24~GB & internal-verifier rejection (anomaly; \S\ref{ssec:cregen-anomaly}) \\ % risc0_prove_failure doc
 BDEC CreGen, SP1 & prove (succinct) & $26.98$ and $31.11$~min ($n=2$) & receipt verified; not zero-knowledge \\ % S9 pub_hardening_20260611 + audit5
 BDEC ShowCre $k{=}1$, SP1 & prove (succinct) & $40.15$ and $44.24$~min ($n=2$) & receipt verified; not zero-knowledge \\
-BDEC ShowCre $k{=}2$, SP1 & prove (succinct) & $58.14$~min & receipt verified; not zero-knowledge \\
+BDEC ShowCre $k{=}2$, SP1 & prove (succinct) & $58.14$~min ($n{=}1$) & receipt verified; not zero-knowledge \\
 \bottomrule
 \end{tabular}
 \caption{BDEC credential relations, $\lambda=80$, M5~Pro 24~GB. On RISC~Zero,
@@ -468,10 +475,10 @@ The execute-mode result validates the honest path of the BDEC credential
 relation end-to-end inside the zkVM: both signature verifications accept, at
 $9.4\times10^{9}$ cycles; rejection behaviour was probed only at
 single-verification scope (Section~\ref{sec:system}). The prove-mode outcome requires care,
-because it is \emph{not} the resource frontier it might first appear to be, and
+because it is \emph{not} the deployability frontier it might first appear to be, and
 we separate the two readings explicitly.
 
-\subsubsection{An internal-verifier rejection rather than a resource frontier}\label{ssec:cregen-anomaly}
+\subsubsection{An internal-verifier rejection rather than a deployability frontier}\label{ssec:cregen-anomaly}
 The succinct-prove run (RISC~Zero $3.0.5$, the resolved version of the repository lockfile, verified against the compiled library; \texttt{ProverOpts::succinct()}, the
 succinct-STARK path; RISC~Zero's API default is the composite receipt)
 terminated after $15.6$~hours with
@@ -517,17 +524,48 @@ which separates (i) from (ii) by whether the rejection recurs and where.
 Pending it, the anomaly is recorded as exactly that (an anomaly under
 diagnosis), and the thesis's claims do not rest on it.
 
-\subsubsection{The genuine resource frontier}\label{ssec:resource-frontier}
-The deployability frontier of this thesis rests on \emph{resource} failures,
-which are unambiguous and independent of the anomaly above. Two are measured.
-First, the PLONK zero-knowledge wrap of the standalone PLUM
-single-signature-verification receipt (Cell~2 of Table~\ref{tab:plum-verify}, the
-$32.53$-min prove, not CreGen or ShowCre) was killed under memory
+\subsubsection{The genuine deployability frontier}\label{ssec:resource-frontier}
+Two failures bound the deployability frontier of this thesis, both unambiguous
+as to cause and independent of the anomaly above. The first is the PLONK
+zero-knowledge wrap of the standalone PLUM single-signature-verification receipt
+(Cell~2 of Table~\ref{tab:plum-verify}, the $32.53$-min prove, not CreGen or
+ShowCre). At SP1's default prover concurrency this wrap is killed under memory
 pressure at ${\approx}83\%$ of the $24$~GB budget (peak RSS $19.98$~GB per the
-process accounting at the kill; a periodic RSS sampler observed
-${\approx}17.8$~GB before the final spike); this is the cost
-specific to the anonymity-providing wrap, and it is the measured form of the
-anonymity--deployability tension of Section~\ref{sec:security}. Second, and
+process accounting at the kill; a periodic RSS sampler observed ${\approx}17.8$~GB
+before the final spike; run records
+\texttt{docs/measurements/bench\_suite\_20260529\_overnight} (sampler) and
+\texttt{docs/measurements/zkwrap\_worker\_concurrency\_20260627}). This kill is
+not, however, a memory limit of the workload: lowering the recursion-worker count
+runs the same wrap under ${\approx}17$~GB, comfortably inside the budget
+(\texttt{docs/measurements/zkwrap\_default\_shard\_20260627}), where it fails earlier
+instead, at the recursive-compression step, because SP1's static recursion
+shapes are provisioned for smaller relations than PLUM verification; we call this
+\textbf{the recursion-shape provisioning wall}. Bringing the
+wrap within reach is a one-time regeneration of those static artifacts (the
+recursion-shape and verifying-key tables), roughly $51$~hours of compute on this
+hardware ($48$--$54$~h, from a measured per-setup rate of ${\approx}1$~s in a
+single CPU process over the $185{,}862$-entry rebuild; the measured rate is in run
+record \texttt{docs/measurements/zkwrap\_vkmap\_slope\_20260628} and the extrapolation
+to $\approx 51$~h in \texttt{docs/measurements/zkwrap\_failure\_map\_20260628}), rather than more memory. We do not run the regenerated PLUM toolchain end-to-end, but the wrap's two memory-heaviest stages each fit the budget. PLUM's core-and-recursion proving peaks at ${\approx}17$~GB, and the program-independent gnark {PLONK} wrap stage at $15.4$~GB peak {RSS} (a trivial-guest probe of the fixed BN254 wrap circuit, $n{=}1$; \texttt{docs/measurements/gnark\_plonk\_wrap\_ram\_20260629}). No stage exceeds $24$~GB, so the binding barrier is the one-time ${\approx}51$~h regeneration, a compute cost that more memory does not remove. The
+provisioning wall specific to the anonymity-providing wrap is thus structural, not a memory
+ceiling, and it is the measured form of the anonymity--deployability tension of
+Section~\ref{sec:security}.
+
+\paragraph{The precompile is the source of the provisioning wall.}
+The provisioning wall attributes entirely to the
+Griffin-$\mathbb{F}_p^{192}$ precompile. Removing only the Griffin chip, with
+every other fork edit intact, reproduces the pre-Griffin compose shape
+byte-for-byte ($795{,}264$ provisioned ExtAlu events, md5 \texttt{f97a8b2f});
+with the chip the shape is $1{,}072{,}032$, a marginal $+276{,}768$ ExtAlu
+($+34.8\%$) and $+38{,}816$ PrefixSumChecks, while the fork's non-Griffin
+recursion edits move the shape by exactly zero. The required height
+($1{,}064{,}022$, an overflow of $268{,}758$ over the committed $795{,}264$
+budget) is what trips the arity-$4$ compose shape against that budget (run
+record \texttt{docs/measurements/zkwrap\_griffin\_shape\_attribution\_20260628}).
+The precompile that lowers the core-layer cost is therefore the same chip that
+enlarges the recursion shape the wrap must verify.
+
+Second, and
 separately, a \emph{non-zero-knowledge} baseline proof of a standardised-lattice
 signature verification (an ML-DSA proxy: the $17$ NTT-domain polynomial
 multiplications of $256$ coefficients modulo $q=8{,}380{,}417$ that dominate
@@ -553,7 +591,7 @@ Proof mode (substrate / configuration) & Produced? & Zero-know\-ledge? & Post-qu
 \midrule
 SP1, PLUM verify, Griffin precompile (\texttt{core}) & yes & no & yes & completes, $32.5$~min \\
 SP1, PLUM verify, SHA-3 control (\texttt{core}) & yes & no & yes & completes, $13.3$~min \\
-SP1, PLUM verify, Groth16/PLONK wrap & \textbf{no} & yes & \textbf{no} & OOM ${\approx}20$~GB \\
+SP1, PLUM verify, Groth16/PLONK wrap & \textbf{no} & yes & \textbf{no} & structural: recursion-shape provisioning wall (OOM ${\approx}20$~GB, default conc.) \\
 RISC~Zero, PLUM verify, \texttt{sys\_bigint}, SHA-3 hasher (succinct) & yes & blinded; ZK not formally established\textsuperscript{$\ddagger$} & yes & completes, $6$\,h\,$19$\,m \\
 RISC~Zero, BDEC CreGen (succinct) & \textbf{no} & n/a & n/a & $\geq15.6$~h, internal-verifier rejection \\
 SP1, BDEC CreGen (succinct) & yes & no & yes & completes, $27$--$31$~min \\
@@ -567,8 +605,8 @@ hardware by the zkVMs, none is dependably zero-knowledge: the SP1 rows are not
 zero-knowledge, the RISC~Zero
 receipt carries no formally established zero-knowledge guarantee, and the only
 zero-knowledge mode the zkVM toolchain exposes
-(row~3, a pairing wrap) is neither post-quantum nor produced within the memory
-bound, which is the dual obstruction. The zero-knowledge mode that is produced
+(row~3, a pairing wrap) is neither post-quantum nor produced as the toolchain
+ships, which is the dual obstruction. The zero-knowledge mode that is produced
 on this hardware is the static-circuit Aurora run (last row;
 \S\ref{ssec:aurora-ref}). \textsuperscript{$\dagger$}The zero-knowledge-enabled
 Aurora run is now measured (last row); the zk-disabled row is retained for
@@ -665,14 +703,15 @@ beyond the running examples ($k=1,2$) and the $k\le 4$ design target, projects
 $\approx 7.5\times10^{10}$ cycles at $k=14$. A direct $k=14$ execute run does not reach this
 projection: the $16$ accumulated verifications exhaust the guest's default
 non-reclaiming bump allocator before the cycle count completes, an in-guest memory
-limit distinct from the prover-side memory frontier and clearable only by the
+limit distinct from the prover-side provisioning wall and clearable only by the
 reclaiming allocator at additional cycle cost. The $k=1$ and $k=2$ executions are
 correct and their cost is measured; the zero-knowledge \emph{proof}, however,
-rests on the same anonymity-providing wrap whose memory exhaustion is the
-consumer-hardware frontier of \S\ref{ssec:resource-frontier}. A zero-knowledge
-proof of ShowCre at any $k\ge 1$ is therefore bounded by that wrap frontier
-rather than by the CreGen prove anomaly (\S\ref{ssec:cregen-anomaly}). More
-memory would clear the resource bound, but a post-quantum-anonymous proof
+rests on the same anonymity-providing wrap blocked by the recursion-shape
+provisioning wall of \S\ref{ssec:resource-frontier}. A zero-knowledge
+proof of ShowCre at any $k\ge 1$ is therefore bounded by the provisioning wall
+rather than by the CreGen prove anomaly (\S\ref{ssec:cregen-anomaly}). Clearing
+the provisioning wall is a structural fix, a one-time regeneration of SP1's
+recursion-shape artifacts rather than added memory, and a post-quantum-anonymous proof
 additionally requires a post-quantum-sound wrap (Section~\ref{sec:security}).
 
 \paragraph{Calibrating the trace-area constants.}
@@ -994,7 +1033,7 @@ this resource-failure evidence alone; the CreGen prove anomaly
   (\S\ref{ssec:cregen-anomaly}), not a resource limit; it is a single run with
   undetermined cause, no claim of this thesis rests on it, and a
   segment-diagnostic re-run is required before any statement about it. It is
-  explicitly \emph{not} part of the resource frontier
+  explicitly \emph{not} part of the deployability frontier
   (\S\ref{ssec:resource-frontier}).
   \item \textbf{Parameter-set seam.} Prove-mode wall-clock is at $\lambda=80$;
   cycle attribution is at $\lambda=128$. The two are never combined into one
@@ -1017,7 +1056,7 @@ this resource-failure evidence alone; the CreGen prove anomaly
   chapter do not carry this premise: an unsound AIR would mean the measured
   Griffin-arm cost understates that of a corrected and at-least-as-costly chip,
   so the non-terminating precompile-free baseline, the SHA-3 inversion, the
-  wrap memory exhaustion, and the Loquat substrate gap survive unchanged or
+  recursion-shape provisioning wall, and the Loquat substrate gap survive unchanged or
   strengthen, as argued in Section~\ref{sec:security}.
   \item \textbf{Control vs.\ deployable.} The SHA-3 arm is a diagnostic control;
   it is not a secure PLUM variant and its timing is not a deployment claim.
@@ -1029,7 +1068,7 @@ to feasible (Table~\ref{tab:plum-verify}), with the cost dominated by
 large-field/algebraic-hash arithmetic and reduced by $37.9$--$70.5\%$ at the cycle
 level (Table~\ref{tab:ablation}); the full BDEC credential relation's honest path
 is validated in execute mode, while its succinct prove ended in an internal-verifier
-rejection categorically distinct from the resource frontier (Table~\ref{tab:bdec},
+rejection categorically distinct from the deployability frontier (Table~\ref{tab:bdec},
 \S\ref{ssec:cregen-anomaly}), the binding consumer-hardware frontier being the
 zero-knowledge wrap (\S\ref{ssec:resource-frontier}); and the zkVM regime is free of
 circuit and parameter regeneration for every localised change that leaves the

@@ -1,0 +1,5 @@
+TAG=regen_w2 RW=2 CW=2 SHARD_SIZE=DEFAULT(1<<24) wrap=plonk arm=syscall lambda=80 SHAPE=REGENERATED(ExtAlu1072032/PrefixSum263424)
+start_epoch=1782578110 start_utc=16:35:10
+end_epoch=1782578252 end_utc=16:37:32 rc=101 wall_s=142.6 wall_min=2.38
+getrusage_maxrss_bytes=14104346624 GiB=13.136
+sampler_peak_kb=10653136 GiB=10.160 sampler_peak_at_utc=16:36:42

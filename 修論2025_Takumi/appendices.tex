@@ -63,8 +63,9 @@ proof $\Pi.\mathsf{Prove}(x,w)$. (Assumed for the analysis. In the measured depl
 not met: the produced receipt mode (the default \texttt{prove} path) has no
 established ZK simulator, and the ZK-wrapped modes (the \texttt{groth16()} and
 \texttt{plonk()} proof modes, which compress the STARK internally before
-wrapping) are not produced within the resource and memory bound; see
-Section~\ref{ssec:zk-gap}.)
+wrapping) are not produced on the target hardware as the toolchain ships, blocked
+by the recursion-shape provisioning wall;
+see Section~\ref{ssec:zk-gap}.)
 \end{definition}
 
 \begin{definition}[Existential unforgeability]\label{def:euf}
@@ -180,50 +181,35 @@ $\epsilon_{\mathrm{AIR}}$ does not enter.
 \end{proof}
 
 \begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unlinkability]
-The unlinkability game (BDEC Theorem~3) issues a single challenge credential under
-one of two pseudonym keys $\mathsf{psk}_0,\mathsf{psk}_1$ and the distinguisher
-$\mathcal A$, with advantage $\bigl|\Pr[b'=b]-\tfrac12\bigr|$, guesses which key
-issued it. The reduction is the anonymity reduction of the previous proof with the
-challenge bit selecting the pseudonym key rather than the credential. Game
-$\mathsf{G}_0$ is the real experiment. In $\mathsf{G}_1$ the challenge pseudonym
-signature under $\mathsf{psk}_b$ is produced by $\mathcal{S}_\sigma$ rather than with
-the secret key, so by Definition~\ref{def:szk}
-$\bigl|\Pr[\mathsf{G}_0{=}1]-\Pr[\mathsf{G}_1{=}1]\bigr|\le\epsilon_{\mathrm{sZK}}$;
-the simulation is applied once, to the single challenge credential. In
-$\mathsf{G}_2$ the proof is produced by $\mathcal{S}_\Pi$ rather than from the
-witness, so by Definition~\ref{def:zk}
+BDEC's unlinkability experiment (\cite[Appendix~A.3]{10.1007/978-981-96-0957-4_3},
+Theorem~3) forwards a single challenge credential $c^{(b)}$ issued under one of two
+pseudonym keys $\mathsf{ppk}^{(b)}$, with the verifier-facing pseudonym sampled
+freshly as in the anonymity step, and the distinguisher $\mathcal A$ guesses $b$
+with advantage $\bigl|\Pr[b'=b]-\tfrac12\bigr|$. The reduction mirrors the anonymity
+proof, with the challenge bit selecting the pseudonym key rather than the
+credential. Game $\mathsf{G}_0$ is the real experiment. In $\mathsf{G}_1$ the
+challenge pseudonym signature under $\mathsf{psk}^{(b)}$ is produced by
+$\mathcal{S}_\sigma$ in place of the secret key, so by Definition~\ref{def:szk}
+$\bigl|\Pr[\mathsf{G}_0{=}1]-\Pr[\mathsf{G}_1{=}1]\bigr|\le\epsilon_{\mathrm{sZK}}$,
+applied once to the single challenge transcript. In $\mathsf{G}_2$ the proof is
+produced by $\mathcal{S}_\Pi$ in place of the witness, so by
+Definition~\ref{def:zk}
 $\bigl|\Pr[\mathsf{G}_1{=}1]-\Pr[\mathsf{G}_2{=}1]\bigr|\le\epsilon_{\mathrm{ZK}}$.
 In $\mathsf{G}_2$ the only $b$-dependent component is the pseudonym signature, now
-simulated without $\mathsf{psk}_b$, and the verifier-facing pseudonym is sampled
-freshly and independently of $b$, so the challenge is distributed identically under
-$b=0$ and $b=1$ and $\Pr[b'=b]=\tfrac12$. Summing the two hops,
-$\mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
-\le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$, the same bound
-as~\eqref{eq:adv-anon}.
-\end{proof}
-
-\begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unlinkability]
-BDEC's unlinkability experiment
-(\cite[Appendix~A.3]{10.1007/978-981-96-0957-4_3}) forwards a single challenge
-credential $c^{(b)}$ issued under one of two pseudonym keys $\mathsf{ppk}^{(b)}$,
-with the verifier-facing pseudonym freshly sampled as in the anonymity step.
-BDEC's A.3 simulator simulates the pseudonym signature and the credential with
-$\mathcal{S}_\sigma$ and the proof with $\mathcal{S}_\Pi$. Applying the same two
-hops to the single transcript, $\mathcal{S}_\sigma$ for
-$(\mathsf{psk}^{(b)},c^{(b)})$ (cost $\epsilon_{\mathrm{sZK}}$) and
-$\mathcal{S}_\Pi$ for the proof (cost $\epsilon_{\mathrm{ZK}}$), makes it
-independent of $b$, so
+simulated without $\mathsf{psk}^{(b)}$, and the verifier-facing pseudonym is
+independent of $b$, so $\Pr[b'=b]=\tfrac12$. Summing the two hops,
 \[
   \mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
-  \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}.
+  \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}},
 \]
-The single-transcript game incurs each simulation once; there is no factor of two.
-One difference of presentation: BDEC's A.3 carries $c^{(b)}$ as a public statement
-component, so its $\mathcal{S}_\sigma$ hop is forced; in this thesis's relation
-$R^{\Sig}_{\mathsf{show}}$ the credential $c_{U,V}$ is a witness component
-(Section~\ref{sec:prelim}), so the $\mathcal{S}_\Pi$ hop already hides it and
-$\mathcal{S}_\sigma$ is needed only to produce $c^{(b)}$ without $\sk_U$ inside the
-reduction. Either way $\epsilon_{\mathrm{sZK}}$ enters once.
+the same bound as~\eqref{eq:adv-anon}; the single-transcript game incurs each
+simulation once, with no factor of two. One difference of presentation from BDEC's
+A.3: there $c^{(b)}$ is a public-statement component, so its $\mathcal{S}_\sigma$
+hop is forced, whereas in this thesis's relation $R^{\Sig}_{\mathsf{show}}$ the
+credential $c_{U,V}$ is a witness component (Section~\ref{sec:prelim}), so the
+$\mathcal{S}_\Pi$ hop already hides it and $\mathcal{S}_\sigma$ is needed only to
+produce $c^{(b)}$ without $\sk_U$ inside the reduction. Either way
+$\epsilon_{\mathrm{sZK}}$ enters once.
 \end{proof}
 
 \begin{corollary}[Preservation under closed assumptions]\label{cor:unconditional}

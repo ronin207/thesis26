@@ -1,0 +1,10 @@
+TAG=vkreject_w2 RW=2 CW=2 SHARD_SIZE=DEFAULT(1<<24) wrap=plonk arm=syscall lambda=80 SHAPE=REGENERATED(ExtAlu1072032/PrefixSum263424) vk_map=STALE(md5 931c0bba May17)
+start_epoch=1782631561 start_utc=07:26:01
+end_epoch=1782631710 end_utc=07:28:30 rc=101 wall_s=149.2 wall_min=2.49
+getrusage_maxrss_bytes=15635775488 GiB=14.562
+sampler_peak_kb=11264704 GiB=10.743 sampler_peak_at=85.8s/07:27:26
+first_seen_markers:
+  wrap: first@31.5s rss=4.15GiB
+  plonk: first@31.5s rss=4.15GiB
+  vk not allowed: first@146.1s rss=6.88GiB
+  core: first@146.1s rss=6.88GiB

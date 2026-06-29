@@ -4,10 +4,10 @@
 Post-quantum anonymous credentials let a holder prove possession of a valid
 credential without revealing identity, under assumptions that survive a
 quantum adversary. We target the setting in which the holder generates this
-proof on a \emph{personal device}---here a consumer laptop (18-core, 24\,GB),
+proof on a \emph{personal device}, here a consumer laptop (18-core, 24\,GB),
 as opposed to a cloud or server prover. A general-purpose zero-knowledge
-virtual machine (zkVM) is attractive in this setting not for raw speed but
-for \emph{flexibility}: it proves an arbitrary verification predicate without
+virtual machine (zkVM) is attractive in this setting for \emph{flexibility}
+rather than for raw speed: it proves an arbitrary verification predicate without
 a bespoke, per-scheme circuit. The obstacle is arithmetic. The schemes we
 care about (PLUM, Loquat) operate over a $192$-bit prime field, while
 production zkVMs (RISC~Zero, SP1) fix a small ($\approx 31$-bit) native

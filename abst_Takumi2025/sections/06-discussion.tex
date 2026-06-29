@@ -2,11 +2,11 @@
 Feasibility is not deployability. A succinct proof on this substrate is not
 zero-knowledge: SP1's default STARK proof is succinct but not ZK, and ZK is
 obtained only by wrapping it in a Groth16/PLONK SNARK over a pairing-friendly
-curve---which is \emph{not} post-quantum, so a future quantum adversary
+curve, which is \emph{not} post-quantum, so a future quantum adversary
 retroactively de-anonymizes every stored transcript. The post-quantum ZK
 route (a masked zk-STARK) yields only \emph{computational} post-quantum
 anonymity in the (Q)ROM, not everlasting (information-theoretic) anonymity,
 because the witness trace is committed under a computationally-hiding hash.
 No available zkVM path delivers post-quantum soundness and zero-knowledge
-jointly. This \emph{deployability wall}---not the prover's speed---is the
+jointly. This \emph{deployability wall}, rather than the prover's speed, is the
 binding obstacle for a personal-device, post-quantum anonymous credential.
