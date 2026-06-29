@@ -82,3 +82,22 @@ accepted=true cycles=110798116 elapsed_ms=1295 syscalls=69385 uint256_mul=69385 
 ```
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.51s
 ```
+
+## Follow-up — Cell 1 (emulated arm) reproduces baseline (2026-06-29)
+The decouple's guest change flows to the shared `not(plum-sha3-hasher)` arm,
+so Cell 1 (`PLUM_PROVE_ARM=emulated`, Griffin in rv32im) now also runs
+Griffin-hash + SHAKE256-FS — the faithful direction. Execute-mode check:
+
+```
+accepted=true cycles=7082611496 elapsed_ms=37677 syscalls=4870724 uint256_mul=4870724 griffin_fp192=0
+```
+
+- accepted = **true**
+- cycles = **7,082,611,496** vs thesis reference **7,082,608,888** → +2,608 cycles (0.00004%).
+- griffin_fp192 = 0 (correct: emulated arm runs Griffin in rv32im, no GRIFFIN_FP192_PERMUTE syscall).
+- The +2,608 delta is IDENTICAL to Cell 2's (125,506,731 vs 125,504,123),
+  i.e. a fixed FS-signature cost, not a per-arm artifact. Cell 1 confirmed.
+
+(No pre-fix emulated execute count was captured before the change; the pre-fix
+capture was the syscall arm only. The +2,608 consistency across both arms is
+the corroborating signal.)
