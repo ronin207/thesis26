@@ -116,7 +116,7 @@ precompile-free baseline and the precompile-enabled arm on the same hardware.
 zkVM / mechanism & $\lambda$ & Prove time & Verify time & Peak mem & Outcome \\
 \midrule
 SP1, rv32im Griffin (no precompile)          & 80 & n/a       & n/a    & 87.94\% & DNF (OOM $\approx$1m45s) \\ % 582ad1a Cell 1
-SP1, Griffin-$\mathbb{F}_p^{192}$ precompile & 80 & 32.53~min\textsuperscript{\dag} & 3.06~s & 81.31\% & receipt verified \\          % 582ad1a Cell 2
+\textbf{SP1, Griffin-$\mathbb{F}_p^{192}$ precompile (this work)} & \textbf{80} & \textbf{32.53~min}\textsuperscript{\dag} & \textbf{3.06~s} & \textbf{81.31\%} & \textbf{receipt verified} \\          % 582ad1a Cell 2 (this work, emphasized)
 SP1, SHA-3 hasher (control)                  & 80 & 13.28~min & 2.80~s & 80.92\% & receipt verified \\ % 91941ed
 RISC~Zero, \texttt{sys\_bigint}, SHA-3 hasher & 80 & 6\,h\,19\,m & n/a\textsuperscript{\ddag} & n/a   & receipt verified \\          % uint256 doc
 \bottomrule
