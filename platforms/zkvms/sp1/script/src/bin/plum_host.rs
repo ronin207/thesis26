@@ -28,7 +28,7 @@ use sp1_sdk::{
     blocking::{ProveRequest, Prover, ProverClient},
 };
 
-use vc_pqc::signatures::plum::hasher::{PlumGriffinHasher, PlumSha3Hasher};
+use vc_pqc::signatures::plum::hasher::{PlumGriffinShakeFsHasher, PlumSha3Hasher};
 use vc_pqc::signatures::plum::keygen::{PlumPublicKey, PlumSecretKey, plum_keygen};
 use vc_pqc::signatures::plum::setup::{PlumPublicParams, plum_setup};
 use vc_pqc::signatures::plum::sign::{PlumSignature, plum_sign};
@@ -112,12 +112,15 @@ fn main() {
 
     let message = b"sp1 phase3f: plum verify".to_vec();
     // Host signs with the hasher that matches the guest's compile-time
-    // `Hasher = PlumGriffinHasher | PlumSha3Hasher`. Mismatch ⇒ guest
-    // rejects every signature.
+    // `Hasher = PlumGriffinShakeFsHasher | PlumSha3Hasher`. Mismatch ⇒ guest
+    // rejects every signature. The Griffin arm uses Griffin-for-hashing +
+    // SHAKE256-for-FS (the faithful Cell 2 config), NOT the quadratic
+    // Griffin-FS path that `PlumGriffinHasher` (USE_GRIFFIN_FS=true) carries
+    // for the Stage-4c-4 circuit gate.
     let signature: PlumSignature = if use_sha3 {
         plum_sign::<PlumSha3Hasher, _>(&pp, &sk, &message, &mut rng)
     } else {
-        plum_sign::<PlumGriffinHasher, _>(&pp, &sk, &message, &mut rng)
+        plum_sign::<PlumGriffinShakeFsHasher, _>(&pp, &sk, &message, &mut rng)
     };
 
     let client = ProverClient::from_env();

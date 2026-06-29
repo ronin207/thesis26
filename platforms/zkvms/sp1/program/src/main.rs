@@ -26,8 +26,12 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "plum-sha3-hasher")]
 use vc_pqc::signatures::plum::hasher::PlumSha3Hasher as Hasher;
+// Griffin for hashing, SHAKE256 for Fiat–Shamir: the faithful Cell 2 runtime
+// configuration (1,052 Griffin perms). NOT `PlumGriffinHasher`, whose
+// `USE_GRIFFIN_FS = true` routes FS through the quadratic Griffin sponge
+// (~6,575 perms) — that flag is retained only for the Stage-4c-4 circuit gate.
 #[cfg(not(feature = "plum-sha3-hasher"))]
-use vc_pqc::signatures::plum::hasher::PlumGriffinHasher as Hasher;
+use vc_pqc::signatures::plum::hasher::PlumGriffinShakeFsHasher as Hasher;
 
 use vc_pqc::signatures::plum::keygen::PlumPublicKey;
 use vc_pqc::signatures::plum::setup::PlumPublicParams;

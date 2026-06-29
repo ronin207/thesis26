@@ -147,6 +147,48 @@ impl PlumHasher for PlumGriffinHasher {
 }
 
 // ---------------------------------------------------------------------------
+// Griffin-hash + SHAKE256-FS instantiation (zkVM measurement variant)
+// ---------------------------------------------------------------------------
+
+/// Same algebraic Griffin hashing as [`PlumGriffinHasher`] for every digest
+/// (new / update / finalize / `compress_pair` / `hash_bytes` / `hash_fields`
+/// all delegate to it), but Fiat–Shamir uses the SHAKE256 byte path
+/// (`USE_GRIFFIN_FS = false`) instead of the quadratic Griffin-sponge FS.
+///
+/// This is the faithful zkVM runtime measurement instantiation: Griffin is the
+/// in-circuit hash, while FS challenges are squeezed via SHAKE256 (a small,
+/// fixed fraction of the work) — matching the thesis's Cell 2 reference
+/// configuration measured in May (1,052 Griffin permutations). It exists so the
+/// guest can use SHAKE256-FS while [`PlumGriffinHasher`] keeps
+/// `USE_GRIFFIN_FS = true` for the Stage-4c-4 circuit gate, where the software
+/// reference must match the 4c-4-asm Griffin-FS gadget.
+pub struct PlumGriffinShakeFsHasher(PlumGriffinHasher);
+
+impl PlumHasher for PlumGriffinShakeFsHasher {
+    /// SHAKE256 byte path for Fiat–Shamir; Griffin is used only for hashing.
+    const USE_GRIFFIN_FS: bool = false;
+
+    fn new() -> Self {
+        Self(PlumGriffinHasher::new())
+    }
+
+    fn update(&mut self, data: &[u8]) {
+        self.0.update(data);
+    }
+
+    fn finalize_bytes(self) -> [u8; PLUM_DIGEST_BYTES] {
+        self.0.finalize_bytes()
+    }
+
+    fn compress_pair(
+        left: &[u8; PLUM_DIGEST_BYTES],
+        right: &[u8; PLUM_DIGEST_BYTES],
+    ) -> [u8; PLUM_DIGEST_BYTES] {
+        PlumGriffinHasher::compress_pair(left, right)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // SHA3-256 instantiation
 // ---------------------------------------------------------------------------
 
