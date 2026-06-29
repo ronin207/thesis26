@@ -12,7 +12,7 @@ a bespoke, per-scheme circuit. The obstacle is arithmetic. The schemes we
 care about (PLUM, Loquat) operate over a $192$-bit prime field, while
 production zkVMs (RISC~Zero, SP1) fix a small ($\approx 31$-bit) native
 field, so every operation is emulated by multi-limb arithmetic; an algebraic
-hash (Griffin) accounting for $\approx 91\%$ of the verification cost
-amplifies the penalty. This thesis asks whether such a verification can be
+hash (Griffin), which makes up $\approx 91\%$ of the verification's R1CS
+constraints at PLUM-128, amplifies the penalty. This thesis asks whether such a verification can be
 made to run on a personal device at all, what it costs, and whether the
 resulting proof can additionally be zero-knowledge.
