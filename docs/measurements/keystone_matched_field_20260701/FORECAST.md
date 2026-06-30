@@ -66,3 +66,25 @@ is an `M=0` (or loop-only) run subtracted to remove loop/IO overhead.
   field (e.g. Poseidon2 over KoalaBear vs over the 199-bit prime), isolating the
   field axis at the permutation level; it requires building a large-field Poseidon2
   arm and is deferred.
+
+## Apparatus note (recorded before the run, after inspecting the implementation)
+
+The software Fp192 multiplication path (`src/primitives/field/p192.rs`, the
+`#[cfg(not(all(target_os="zkvm", feature="sp1")))]` arm) uses `num_bigint::BigUint`
+(general-purpose bignum: heap allocation, non-limb-aligned), **not** the limb-aligned
+4×u64 schoolbook routine that `prop:fmt-lb`'s `ℓ²` bound assumes — the module's
+Phase-1.5 swap to explicit limb arithmetic is not yet done (doc-comment p192.rs:54-62).
+The KoalaBear baseline is a naive single-limb `u64` `(a·b) mod p`
+(`p = 2³¹−2²⁴+1 = 0x7f000001`), an upper bound on the true native-field cost.
+
+Consequence: `prop:fmt-lb` is a **lower** bound (`FMT ≥ ℓ`); `num_bigint ≥ schoolbook`,
+so the measured per-mult ratio should be **≥ ℓ=7** and likely **well above ℓ²=49**
+(BigUint overhead) — which is CONSISTENT with the lower bound, not a violation. The
+schoolbook-tight test (ratio near 49) needs the Phase-1.5 limb-aligned mul and is
+deferred. **What this run tests is the necessity direction of `prop:field-match`:**
+the field-mismatch benefit (= emulated cost a precompile removes) is large at ℓ=7 and
+collapses toward the native single-limb cost at ℓ=1.
+
+Revised falsification: ratio `≈ 1` (no scaling with field width) falsifies necessity;
+ratio `≥ 7` (any large value) confirms it. The absolute magnitude is an implementation
+datum (num_bigint), not the schoolbook bound.
