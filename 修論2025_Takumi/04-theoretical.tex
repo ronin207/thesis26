@@ -90,6 +90,76 @@ that is, when the core area removed outweighs, at the chips' per-cell rates, the
 Immediate from Equation~\eqref{eq:trace-area-model}: replacing the emulated occurrences of $\mathsf{op}$ by syscalls lowers $A_{\mathsf{core}}$ by $\bigl(\mathsf{cyc}_{\mathsf{em}}(\mathsf{op}) - \mathsf{cyc}_{\mathsf{syscall}}\bigr)\bar a_{\mathsf{core}}$ per occurrence while adding the chip area $A_P$; the net change in $T_{\mathsf{prove}}$ is negative exactly under the stated inequality.
 \end{proof} The two prove-mode outcomes of Section~\ref{sec:evaluation} are this inequality evaluated at two operating points. Against its own emulated baseline, the Griffin permutation removes millions of guest cycles per event at a per-event chip area on the order of $10^{4}$ cells, so the inequality holds by a wide margin and the precompile recovers feasibility. Against a control predicate whose hash runs as cheap native RISC-V software, the covered operation does not occur on the control side at all: the precompiled arm executes more guest cycles and carries the full chip area besides, so both terms of Equation~\eqref{eq:trace-area-model} are larger on that arm and the model places it behind the control for every non-negative choice of the $\kappa$'s, provided $\bar a_{\mathsf{core}}$ is common to the two arms. Section~\ref{sec:evaluation} instantiates the dimensions and calibrates the constants. The same accounting explains why vendor precompiles in production zkVMs report cycle-count collapses far larger than their prove wall-clock gains: the cycle ratio bounds the wall-clock ratio from above, and the bound is approached only when the precompile's per-event chip area is negligible against the remaining core area, which for permutation-sized chips it is not (SP1's own cost table prices its Keccak chip at $2{,}640$ columns (\texttt{rv64im\_costs.json}) with $24$ rows per permutation, a per-event area comparable to the bespoke Griffin chip's).
 
+\subsection{The Field-Matching Criterion}\label{ssec:criterion}
+Proposition~\ref{prop:precompile-pays} prices a single precompile decision; read
+across the field-mismatch width it becomes a \emph{criterion} predicting, from a
+primitive's specification, whether a precompile can help at all and when the help
+reaches prove-time.
+
+\paragraph{The benefit is a mismatched-field phenomenon.} By
+Proposition~\ref{prop:fmt-lb}, the emulated cost of an algebraic primitive scales
+with the mismatch width $\ell=\lceil\log p/\lfloor\log p_{\mathsf{vm}}\rfloor\rceil$:
+each $\mathbb{F}_p$ multiplication costs between $\ell$ and $\ell^2$ native
+multiplications, so $\mathsf{cyc}_{\mathsf{em}}=\Theta(\ell^2)$ under the
+schoolbook routine the evaluated zkVMs use, against
+$\mathsf{cyc}_{\mathsf{nat}}=\Theta(1)$.
+
+\begin{proposition}[Field-matching, necessary condition]\label{prop:field-match}
+For an algebraic primitive whose cost is dominated by $\mathbb{F}_p$ arithmetic,
+the field-mismatch benefit a precompile removes is zero at $\ell=1$ (the
+primitive's native field equals the prover's field) and positive, growing as
+$\Theta(\ell^2)$, for $\ell>1$. Hence a precompile can lower core-proving cost
+\emph{on the field-mismatch axis} only if the primitive is field-mismatched; a
+field-matched algebraic primitive admits no such benefit.
+\end{proposition}
+\begin{proof}
+Immediate from Proposition~\ref{prop:fmt-lb} and Definition~\ref{def:fmt}: at
+$\ell=1$ an $\mathbb{F}_p$ element occupies one limb and one multiplication is one
+native multiplication, so $\mathsf{cyc}_{\mathsf{em}}=\mathsf{cyc}_{\mathsf{nat}}$
+and the benefit term $(\mathsf{cyc}_{\mathsf{em}}-\mathsf{cyc}_{\mathsf{syscall}})$
+of Equation~\eqref{eq:precompile-pays} is non-positive while the chip area
+$A_P>0$, so the inequality fails; for $\ell>1$ the benefit term is
+$\Theta(\ell^2)$ by Proposition~\ref{prop:fmt-lb}.
+\end{proof}
+
+\paragraph{Mismatch is necessary but not sufficient.} The converse fails: a
+mismatched primitive need not pay, because the chip area $A_P$ of
+Equation~\eqref{eq:precompile-pays} also grows with $\ell$ and the realised
+prove-time outcome turns on the per-cell rates $\kappa_{\mathsf{core}},\kappa_P$,
+not on $\ell$ alone. Section~\ref{sec:evaluation} exhibits this: the Griffin
+precompile ($\ell=7$) pays against its own emulated baseline (recovering
+feasibility from an out-of-memory state) yet proves \emph{slower} than a control
+predicate built on a field-matched hash, which never incurs the mismatched-field
+work the chip is built to absorb. The sufficient condition is
+Equation~\eqref{eq:precompile-pays} itself, evaluated with the chips' calibrated
+$\kappa$'s; mismatch makes the benefit term nonzero, but whether it clears the
+chip area is a separate, quantitative question.
+
+\paragraph{Scope: the field-mismatch tax only.} Proposition~\ref{prop:field-match}
+concerns algebraic primitives, whose cost is $\mathbb{F}_p$ arithmetic. A
+primitive whose cost is \emph{bitwise} (SHA-2, Keccak) carries a different
+tax---the cost of emulating Boolean operations on a small arithmetic
+field---and can warrant a precompile even when field-matched, which is why
+production zkVMs ship Keccak precompiles over their native field. The
+field-matching criterion does not govern those; it predicts only the
+field-mismatch component, and its class boundary is the algebraic, large-prime
+family (Loquat, PLUM, and the power-residue/Legendre line) whose verification is
+dominated by large-prime arithmetic.
+
+\paragraph{Two-sided confirmation and a held-out prediction.} The criterion is
+two-sided: a field-matched algebraic primitive ($\ell=1$) should show \emph{no}
+field-mismatch benefit, and a strongly mismatched one ($\ell=7$, PLUM) a large
+one. The mismatched side is measured in Section~\ref{sec:evaluation} (the Griffin
+precompile recovers feasibility). The matched side is the keystone control---a
+primitive native to the prover field, precompiled against its own software
+baseline, which Proposition~\ref{prop:field-match} predicts will not pay. Stated
+as a held-out test, the trace-area constants calibrated on the mismatched arm
+forecast the sign of the matched arm \emph{before} it is run; a measured
+no-benefit at $\ell=1$ confirms the criterion as predictive, and a measured
+benefit would falsify it. Until that run the criterion is established
+analytically (Proposition~\ref{prop:field-match}) and postdictively (the
+mismatched arm); the matched-side confirmation is its open empirical step.
+
 \subsection{Update Churn}\label{ssec:update-churn}
 
 \begin{definition}[Localised verification-predicate change]\label{def:lpc}
