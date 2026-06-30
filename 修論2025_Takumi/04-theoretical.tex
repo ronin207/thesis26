@@ -1,7 +1,7 @@
 \section{Theoretical Foundations of the Arithmetic Mismatch}
 \label{sec:theoretical}
 
-This section sets up the formal cost framework against which the rest of the thesis is measured. We name the dimensions along which the static-circuit and zkVM regimes will be compared (Section~\ref{ssec:cost-dimensions}), formalise the \emph{field-mismatch tax} as the quantitative manifestation of the arithmetic mismatch (Section~\ref{ssec:field-mismatch-tax}), formalise \emph{update churn} as a deployment-lifecycle dimension (Section~\ref{ssec:update-churn}), and decompose the cost of the BDEC CreGen and ShowCre relations into the components that dominate either regime (Section~\ref{ssec:cost-decomposition}).
+This section sets up the formal cost framework against which the rest of the thesis is measured. We name the dimensions along which the static-circuit and zkVM regimes will be compared (Section~\ref{ssec:cost-dimensions}), formalise the \emph{field-mismatch tax} as the quantitative manifestation of the arithmetic mismatch (Section~\ref{ssec:field-mismatch-tax}), formalise \emph{update churn} as a deployment-lifecycle dimension (Section~\ref{ssec:update-churn}), and decompose the cost of the CreGen and ShowCre relations into the components that dominate either regime (Section~\ref{ssec:cost-decomposition}).
 
 \subsection{Cost Dimensions}\label{ssec:cost-dimensions}
 
@@ -124,12 +124,12 @@ For the zkVM regime, the same change always yields a non-trivial $N_{\mathsf{src
 
 The empirical evaluation of Section~\ref{sec:evaluation} tabulates the circuit and parameter components $N_{\mathsf{circ}}$ and $N_{\mathsf{param}}$ for both regimes and discusses the source-edit and audit components $N_{\mathsf{src}}$ and $N_{\mathsf{audit}}$ in prose, under a fixed set of localised changes that we exhibit as benchmarks: signature substitution (Loquat $\to$ PLUM), security-parameter retuning ($\lambda=80\to128$), and a presentation-structure change (raising the credential count $k$ from $1$ to $2$).
 
-\subsection{Cost Decomposition of BDEC Relations}\label{ssec:cost-decomposition}
+\subsection{Cost Decomposition of the Credential Relations}\label{ssec:cost-decomposition}
 
-We now apply the cost framework above to the two BDEC relations of interest. We treat each relation as a multiset of cost-bearing components and compute the cumulative cost under each regime.
+We now apply the cost framework above to the two credential relations of interest (BDEC's CreGen and ShowCre). We treat each relation as a multiset of cost-bearing components and compute the cumulative cost under each regime.
 
 \paragraph{CreGen.}
-The BDEC CreGen relation $R_{\mathsf{cre}}^{\Sig}$ defined in Section~\ref{sec:prelim} is the base two-verification relation: two signature-verification predicates $\Pred_{\Verify}^{\Sig,\ppSig}$ under a hidden user public key. The credential digest $\rho_{U,TA}=H(\cdot)$ is computed at issuance, and ledger membership is checked outside the proof, as in ShowCre; the full acceptance condition is therefore the conjunction of the in-proof signature-verification predicates with the verifier-side membership check performed by $\BDEC.\mathsf{CreVer}$/$\BDEC.\mathsf{ShowVer}$ (Section~\ref{sec:prelim}), so a proof for valid signatures whose digest is absent from the accepted ledger is rejected outside the proof.
+The CreGen relation $R_{\mathsf{cre}}^{\Sig}$ defined in Section~\ref{sec:prelim} is the base two-verification relation: two signature-verification predicates $\Pred_{\Verify}^{\Sig,\ppSig}$ under a hidden user public key. The credential digest $\rho_{U,TA}=H(\cdot)$ is computed at issuance, and ledger membership is checked outside the proof, as in ShowCre; the full acceptance condition is therefore the conjunction of the in-proof signature-verification predicates with the verifier-side membership check performed by $\BDEC.\mathsf{CreVer}$/$\BDEC.\mathsf{ShowVer}$ (Section~\ref{sec:prelim}), so a proof for valid signatures whose digest is absent from the accepted ledger is rejected outside the proof.
 Of these, the two $\Pred_{\Verify}^{\Sig,\ppSig}$ predicates dominate the cost. Inside PLUM verification (Section~\ref{sec:prelim}), the load-bearing components are (i) the $t$-th power-residue PRF symbol checks, (ii) the BCS Merkle-commitment recomputations, and (iii) the low-degree-test (LDT) sub-protocol invocations.
 The cost of (ii) and (iii) is dominated by the algebraic hash function $H_{\mathsf{Griffin}}$ over $\mathbb{F}_p$, which is precisely the primitive absorbed by the $\mathsf{Griffin}_{\mathbb{F}_p^{192}}$ precompile.
 

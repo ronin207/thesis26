@@ -3,7 +3,7 @@ This section reports what the precompile-enabled zkVM regime can and cannot do f
 
 \subsection{Measurement Methodology}\label{ssec:eq}
 
-The evaluation addresses four questions: whether PLUM verification, and the BDEC credential relation built on it, run inside the zkVM on the target hardware, with and without the precompile suite; where the zkVM cost falls and how much of it the precompile suite removes; for the configurations that do not complete, what the binding resource is and where the boundary lies; and how the two regimes compare on the deployment-lifecycle dimension of Definition~\ref{def:update-churn}.
+The evaluation addresses four questions: whether PLUM verification, and the credential relation built on it, run inside the zkVM on the target hardware, with and without the precompile suite; where the zkVM cost falls and how much of it the precompile suite removes; for the configurations that do not complete, what the binding resource is and where the boundary lies; and how the two regimes compare on the deployment-lifecycle dimension of Definition~\ref{def:update-churn}.
 
 \paragraph{Two measurement modes, and when each is reportable.}
 A zkVM runs in two modes relevant here. \emph{Execute mode} runs the guest and
@@ -282,7 +282,7 @@ three solo runs with the per-run range in parentheses (run records in
 \texttt{docs/measurements/pub\_hardening\_20260610}).
 This is the \emph{Loquat}-instantiated circuit over $\mathbb{F}_{p^2}$ ($127$-bit
 base)~\cite{10.1007/978-981-96-0957-4_3} at single-verification scope; the full
-BDEC relation is two such verifications ($\approx$twice this), not run statically.
+credential relation is two such verifications ($\approx$twice this), not run statically.
 Prover time includes Aurora parameter setup but is not a recompile-time
 measurement (\S\ref{ssec:churn-eval}). Achieved security $107.5$ bits, below the
 $128$ target. Verification \texttt{ACCEPT} in every run.}
@@ -428,13 +428,13 @@ transition of Table~\ref{tab:plum-verify}, and it is the figure that should be
 cited when a single number is wanted, in place of any prove-time ``speedup,''
 which is undefined when the baseline does not complete.
 
-\subsection{PLUM-in-BDEC and the Consumer-Hardware Frontier}\label{ssec:frontier}
+\subsection{The Credential Relations and the Consumer-Hardware Frontier}\label{ssec:frontier}
 
-Moving from a single signature to the BDEC credential-generation relation
+Moving from a single signature to the credential-generation relation
 $R_{\mathsf{cre}}^{\mathsf{PLUM}}$ (two signature verifications under a hidden
 user key; \S\ref{ssec:integration}), Table~\ref{tab:bdec} reports the
 application-level results at $\lambda=80$: RISC~Zero in execute mode and SP1 in
-succinct prove mode for both BDEC relations.
+succinct prove mode for both credential relations.
 
 \begin{table}[h]
 \centering
@@ -450,7 +450,7 @@ BDEC ShowCre $k{=}1$, SP1 & prove (succinct) & $40.15$ and $44.24$~min ($n=2$) &
 BDEC ShowCre $k{=}2$, SP1 & prove (succinct) & $58.14$~min ($n{=}1$) & receipt verified; not zero-knowledge \\
 \bottomrule
 \end{tabular}
-\caption{BDEC credential relations, $\lambda=80$, M5~Pro 24~GB. On RISC~Zero,
+\caption{Credential relations, $\lambda=80$, M5~Pro 24~GB. On RISC~Zero,
 execute mode validates the honest-input path of CreGen ($9.4\times10^{9}$
 cycles, ${\approx}4.69\times10^{9}$ per signature verification); its succinct
 prove yielded no receipt, from an internal-verifier rejection rather than a
@@ -619,18 +619,26 @@ The SHA-3 row is a control, not a deployable PLUM variant.}
 % (Griffin vs SHA-3) -- the ~33x gap between CreGen-Griffin (4.69e9/verify) and
 % PLUM-verify-SHA3 (~1.4e8) IS the field-mismatch tax, NOT a basis error.
 
-The measurements above are point observations; to answer ``what would this cost
-at a configuration we did not run, and when is the flexible substrate the
-rational choice,'' we fit a cost model to them and validate it against the points
-we have. This is the analysis that converts the measurements from a benchmark
-table into a basis for a deployment decision. The model is fitted and validated
+The criterion this thesis defends---\emph{when does a precompile pay?}---is
+decided on a single declared axis: the trace-area cost model of
+Section~\ref{sec:theoretical} (Equation~\eqref{eq:trace-area-model}), which
+prices a primitive by the chip cells a precompile commits against the core
+cycles it removes, as a function of the field-mismatch width. We make that model
+the comparison axis explicitly, rather than comparing raw prove times across
+primitives, so that the matched and mismatched cases are commensurable on one
+quantity. The measurements above are point observations on this axis; to answer
+``what would this cost at a configuration we did not run, and when is the
+flexible substrate the rational choice,'' we calibrate the model on them,
+validate it against the points we have, and state the prediction it makes for a
+point we have not yet run. This is the analysis that converts the measurements
+from a benchmark table into a basis for a deployment decision. The model is fitted and validated
 in \emph{execute-mode cycle} counts; carrying it to prove-mode wall-clock assumes
 the additive form survives recursion, memory pressure, segment aggregation, and
 the zero-knowledge wrap, any of which can introduce nonlinearity, so the
 prove-mode reading is an extrapolation, not a measured fit.
 
-\subsubsection{An additive cost model for the BDEC relations}
-Both BDEC relations are, at the cycle level, dominated by repeated
+\subsubsection{An additive cost model for the credential relations}
+Both credential relations are, at the cycle level, dominated by repeated
 signature verifications (Section~\ref{ssec:cost-decomposition}): CreGen contains
 two, and ShowCre contains $k+2$ for $k$ shown credentials. Writing
 $C_{\mathsf{ver}}(\lambda,h)$ for the execute-mode cycle cost of one PLUM
@@ -731,6 +739,26 @@ DNF, and against that baseline the precompile still pays by orders of magnitude,
 removing about $6.6\times10^{6}$ cycles per permutation against
 $5.3\times10^{4}$ cells added.
 
+\paragraph{A held-out forecast: the matched-field point.}
+The calibration above is in-fit: two measured arms (the Griffin precompile and
+the SHA-3 control) fix two constants, both on the \emph{mismatched} side of the
+axis, where the primitive's native field ($199$ bits) is far wider than the
+prover's ($31$ bits). The model's out-of-fit content is the prediction it makes
+for a \emph{matched-field} operating point, at which a primitive native to the
+prover field needs essentially one limb, so a precompile commits chip area
+without removing a comparable multi-limb emulation from the core. On that point
+the precompile-pays inequality (Proposition~\ref{prop:precompile-pays},
+Equation~\eqref{eq:precompile-pays}) predicts the precompile does \emph{not} pay:
+the removed core area shrinks toward zero while the added chip area does not, so
+the sign that the mismatched measurements postdict should \emph{reverse}. This is
+a falsifiable forecast, stated here before the measurement; a single matched-field
+run is its keystone test. A measured no-pay (or parity) at a matched field would
+establish the criterion as predictive rather than postdictive and would locate
+the field-match boundary the criterion claims; a measured benefit at a matched
+field would falsify it. We mark this matched-field measurement as the keystone
+experiment the criterion still requires, and report the criterion as postdictive
+until it is run.
+
 \subsubsection{The substrate crossover}\label{sssec:crossover}
 The decision a deployer faces (Section~\ref{sec:discussion}) is not about which
 substrate is faster per proof, since the static circuit wins that in any case. It
@@ -829,7 +857,7 @@ or signature change is absorbed as a source edit
 ($N_{\mathsf{circ}}=N_{\mathsf{param}}=0$) with no recompilation. \emph{Both}
 components of the static side are now measured, and the result overturns the
 earlier conjecture that recompilation is expensive. R1CS
-\emph{construction} from the BDEC relation is sub-second (${\approx}0.2$~s of
+\emph{construction} from the credential relation is sub-second (${\approx}0.2$~s of
 CPU time per emission at Loquat-$\lambda{=}80$ and $\lambda{=}128$, single timed
 runs; cached wall-clock $0.48$~s). The Aurora
 \emph{parameter setup} that a relation change forces to recompute is, measured
@@ -996,7 +1024,7 @@ this resource-failure evidence alone; the CreGen prove anomaly
   and Cell~3 prove-mode wall-clock figures (Table~\ref{tab:plum-verify}) are now
   means of three fixed-config runs each
   (\texttt{docs/measurements/tier2\_replication\_20260629}); the remaining
-  prove-mode figures (the BDEC CreGen and ShowCre relations) are single runs. The Loquat
+  prove-mode figures (the CreGen and ShowCre relations) are single runs. The Loquat
   substrate legs are three runs each
   (\texttt{docs/measurements/pub\_hardening\_20260610}), and they characterise
   the variance directly: the Aurora leg is tight ($223.2$--$226.6$~s,
@@ -1062,7 +1090,7 @@ this resource-failure evidence alone; the CreGen prove anomaly
 On consumer hardware, the precompile suite moves PLUM verification from infeasible
 to feasible (Table~\ref{tab:plum-verify}), with the cost dominated by
 large-field/algebraic-hash arithmetic and reduced by $37.9$--$70.5\%$ at the cycle
-level (Table~\ref{tab:ablation}); the full BDEC credential relation's honest path
+level (Table~\ref{tab:ablation}); the full credential relation's honest path
 is validated in execute mode, while its succinct prove ended in an internal-verifier
 rejection categorically distinct from the deployability frontier (Table~\ref{tab:bdec},
 \S\ref{ssec:cregen-anomaly}), the binding consumer-hardware frontier being the

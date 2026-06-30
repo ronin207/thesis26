@@ -475,60 +475,23 @@ BDEC is a blockchain-based anonymous credential system for educational credentia
 The blockchain stores credential-record digests, authorized teaching-authority keys, and revocation state. We assume that $H$ and $H_{\mathsf{rev}}$ are collision-resistant and domain-separated hash functions. In the privacy-preserving case, the blockchain stores record digests $\rho$ rather than raw credential attributes.
 
 \begin{construction}
-The BDEC construction uses $\Sig$ through $\Sig.\Setup$, $\Sig.\KeyGen$, $\Sig.\Sign$, and $\Sig.\Verify$. It uses $\Pi$ to prove relations containing signature-verification predicates; the ledger-membership, authorized-TA, and revocation checks are performed by the verifier outside the proof, against the published roots (see $\BDEC.\mathsf{ShowVer}$ below). The BDEC algorithms instantiate the minimal anonymous-credential syntax introduced above as follows: $\BDEC.\Setup\leftrightarrow\AC.\Setup$; $\BDEC.\mathsf{PriGen}\leftrightarrow\AC.\UserKeyGen$; $\BDEC.\mathsf{TAKeyGen}\leftrightarrow\AC.\IssuerKeyGen$; issuance $\BDEC.\mathsf{IssueCre}$ with credential-proof generation $\BDEC.\mathsf{CreGen}$ together realising $\AC.\Issue$; $\BDEC.\mathsf{ShowCre}\leftrightarrow\AC.\Show$; and $\BDEC.\mathsf{ShowVer}\leftrightarrow\AC.\Verify$. The pseudonym-key, credential-verification, and revocation steps ($\BDEC.\mathsf{NymKey}$, $\BDEC.\mathsf{CreVer}$, $\BDEC.\mathsf{RevCre}$) are BDEC-specific refinements with no counterpart in the minimal syntax.
+BDEC instantiates the minimal anonymous-credential syntax introduced above with the signature scheme $\Sig$ and the zkSNARK $\Pi$: $\Pi$ proves relations containing signature-verification predicates, while the ledger-membership, authorized-TA, and revocation checks are performed by the verifier \emph{outside} the proof against the published roots (see $\BDEC.\mathsf{ShowVer}$ below). We give the two proof relations this thesis measures ($R_{\mathsf{cre}}^{\Sig}$ and $R_{\mathsf{show}}^{\Sig}$) and the verifier-side checks in full; the key-generation, issuance, and verification algorithms follow base BDEC~\cite{10.1007/978-981-96-0957-4_3} and are summarised next.
 
-\paragraph{$\BDEC.\Setup$.}
-On input $1^\lambda$, compute
-\[
-  \ppSig\leftarrow\Sig.\Setup(1^\lambda),
-  \qquad
-  \crs\leftarrow\Pi.\Setup(1^\lambda).
-\]
-Output the static parameters $\parms=(\ppSig,\crs)$. At epoch $e$ (the blockchain epoch index, distinct from the power-residue PRF modulus $t=256$), the public blockchain state is
-\[
-  \st_e=(\mathsf{rt}_{\mathsf{cred},e},\mathsf{rt}_{TA,e},\mathsf{rt}_{\RL,e}),
-\]
-where $\mathsf{rt}_{\mathsf{cred},e}$ is the accepted credential-record root, $\mathsf{rt}_{TA,e}$ is the authorized teaching-authority registry root, and $\mathsf{rt}_{\RL,e}$ is the revocation-state root.
-
-\paragraph{$\BDEC.\mathsf{PriGen}$.}
-On input $\parms$, compute the user's key pair
-\[
-  (\sk_U,\pk_U)\leftarrow\Sig.\KeyGen(\ppSig)
-\]
-and output $(\sk_U,\pk_U)$.
-
-\paragraph{$\BDEC.\mathsf{TAKeyGen}$.}
-On input $\parms$, a teaching authority computes
-\[
-  (\sk_{TA},\pk_{TA})\leftarrow\Sig.\KeyGen(\ppSig)
-\]
-and publishes $\pk_{TA}$. The public key is accepted only if it is authenticated externally or included in the authorized-TA registry represented by $\mathsf{rt}_{TA,e}$.
-
-\paragraph{$\BDEC.\mathsf{NymKey}$.}
-On input $(\parms,\sk_U)$, sample a pseudonym $\mathsf{ppk}_{U,TA}\leftarrow\{0,1\}^{\lambda}$ and compute
-\[
-  m_{\mathsf{nym},U,TA}=\EncodeSig(\mathsf{ppk}_{U,TA})\in\MSig,
-  \qquad
-  \mathsf{psk}_{U,TA}\leftarrow\Sig.\Sign(\ppSig,\sk_U,m_{\mathsf{nym},U,TA}).
-\]
-Output $(\mathsf{ppk}_{U,TA},\mathsf{psk}_{U,TA})$. This user-side signature binds the pseudonym to the user's key; it does not certify educational attributes.
-
-\paragraph{$\BDEC.\mathsf{IssueCre}$.}
-On input $(\parms,\sk_{TA},\pk_U,\mathsf{ppk}_{U,TA},A,\mathsf{aux})$, the teaching authority first checks externally that the user is entitled to the attributes $A$. If the check accepts, define
-\[
-  m_{\mathsf{cred},U,TA}=\EncodeSig(\pk_U,\mathsf{ppk}_{U,TA},A,\mathsf{aux})\in\MSig
-\]
-and compute
-\[
-  \sigma_{\mathsf{cred},U,TA}
-  \leftarrow
-  \Sig.\Sign(\ppSig,\sk_{TA},m_{\mathsf{cred},U,TA}).
-\]
-The corresponding blockchain record digest is
-\[
-  \rho_{U,TA}=H(\pk_{TA},\mathsf{ppk}_{U,TA},A,\mathsf{aux},\sigma_{\mathsf{cred},U,TA}).
-\]
-The blockchain stores $\rho_{U,TA}$ in the accepted credential-record ledger. It need not store $A$, $\mathsf{aux}$, or $\sigma_{\mathsf{cred},U,TA}$ in the clear.
+\paragraph{Setup, keys, pseudonyms, and issuance.}
+$\BDEC.\Setup$ runs $\Sig.\Setup$ and $\Pi.\Setup$ to fix
+$\parms=(\ppSig,\crs)$, and at epoch $e$ publishes the authenticated roots
+$\st_e=(\mathsf{rt}_{\mathsf{cred},e},\mathsf{rt}_{TA,e},\mathsf{rt}_{\RL,e})$
+(the accepted credential-record, authorized-TA, and revocation roots). User and
+teaching-authority keys are sampled with $\Sig.\KeyGen$; a pseudonym
+$\mathsf{ppk}_{U,TA}$ is bound to the user's key by a user-side signature
+$\mathsf{psk}_{U,TA}\leftarrow\Sig.\Sign(\ppSig,\sk_U,\EncodeSig(\mathsf{ppk}_{U,TA}))$.
+On issuance the teaching authority signs the attributes,
+$\sigma_{\mathsf{cred},U,TA}\leftarrow\Sig.\Sign(\ppSig,\sk_{TA},\EncodeSig(\pk_U,\mathsf{ppk}_{U,TA},A,\mathsf{aux}))$,
+and the ledger stores only the record digest
+$\rho_{U,TA}=H(\pk_{TA},\mathsf{ppk}_{U,TA},A,\mathsf{aux},\sigma_{\mathsf{cred},U,TA})$,
+not the attributes in the clear. These steps follow base
+BDEC~\cite{10.1007/978-981-96-0957-4_3}; the two relations this thesis measures
+are given next.
 
 \paragraph{$\BDEC.\mathsf{CreGen}$.}
 On input $(\parms,\sk_U,\pk_U,\mathsf{ppk}_{U,TA},\mathsf{psk}_{U,TA},A,\mathsf{aux})$,
@@ -683,30 +646,14 @@ On input $(\parms,\st_e,x_{\mathsf{show}},\varepsilon_{c_{U,V}})$, output
 \]
 The verifier first checks the zkSNARK proof against the public statement, which attests the $k+2$ signature-verification predicates of $R_{\mathsf{show}}^{\Sig}$. The relying party then performs the ledger-membership, authorised-TA, non-revocation, and selective-disclosure checks \emph{outside} the proof, against the published roots, the revocation tree, and the disclosed subset $A^\downarrow$, consistent with the relation above.
 
-\paragraph{$\BDEC.\mathsf{RevCre}$.}
-On input $(\parms,\pk_U)$, compute
-\[
-  r_U=H_{\mathsf{rev}}(\pk_U)
-\]
-and update the revocation state so that $r_U$ is included in the revocation list represented by $\mathsf{rt}_{\RL,e}$. Future showings are accepted only if the prover supplies a valid non-membership witness for $r_U$ with respect to the current revocation root.
-
-\paragraph{Conditional linkability.}
-Conditional linkability allows controlled linking only when the user intentionally discloses linking information. Let $\tau$ be an optional public linking tag contained in the statement. There is a deterministic algorithm $\mathsf{Link}$ such that
-\[
-  \mathsf{Link}(\mathsf{stmt}_0,\mathsf{stmt}_1)=1
-  \quad\Longleftrightarrow\quad
-  \tau_0=\tau_1\neq\bot.
-\]
-If no tag is disclosed, then linkability reduces to the unlinkability requirement above. The tag $\tau$ is chosen by the \emph{user} at showing time, not by the verifier; we assume an honest user does not reuse a tag across contexts they wish to keep unlinkable, and we treat verifier-induced linkability (a verifier that refuses service unless the user supplies a fixed $\tau$) as an out-of-scope deployment risk rather than a property of the scheme.
-
-\paragraph{Revocability.}
-Let $\RL$ be a revocation state represented by the sparse-Merkle revocation root $\mathsf{rt}_{\RL,e}$ (Definition~\ref{def:merkle}). A showing is revocation-valid only if
-\[
-  r_U=H_{\mathsf{rev}}(\pk_U)
-  \quad\land\quad
-  \NonMemberVerify(\mathsf{rt}_{\RL,e},r_U,\mathsf{path}_{\RL})=1.
-\]
-If $r_U$ is added to $\RL$, then any future showing transcript linked to $r_U$ is rejected except with negligible probability. For honest, unrevoked users, correctness continues to hold.
+\paragraph{Revocation, conditional linkability, and revocability.}
+Base BDEC additionally provides revocation (a tag $r_U=H_{\mathsf{rev}}(\pk_U)$
+checked for non-membership against the revocation root $\mathsf{rt}_{\RL,e}$),
+conditional linkability (an optional user-chosen public tag $\tau$ that links two
+showings iff $\tau_0=\tau_1\neq\bot$, and otherwise reduces to unlinkability),
+and the corresponding revocability guarantee~\cite{10.1007/978-981-96-0957-4_3}.
+These are verifier-side or deployment-level features that the measurements of
+this thesis do not exercise, and are out of scope here.
 
 \end{construction}
 
@@ -755,7 +702,7 @@ SP1~\cite{succinct2024sp1} is a second zkVM instantiation whose ISA is RV64IM (t
 \subsubsection{Static-circuit and zkVM proof systems as comparators}
 We will instantiate BDEC in two regimes that this thesis compares directly:
 \begin{enumerate}
-  \item A \emph{static-circuit} regime, in which the BDEC CreGen and ShowCre relations are encoded into a fixed R1CS and proved via Aurora (Section~\ref{sec:prelim} above). Each change to the relation requires recompilation of the R1CS.
+  \item A \emph{static-circuit} regime, in which the CreGen and ShowCre relations are encoded into a fixed R1CS and proved via Aurora (Section~\ref{sec:prelim} above). Each change to the relation requires recompilation of the R1CS.
   \item A \emph{zkVM} regime, in which the same relations are expressed as guest programs on RISC Zero (and SP1, where indicated). Changes to the relation become guest-program edits; the universal relation $R_{\mathsf{vm}}$ is unchanged.
 \end{enumerate}
 The runtime cost, memory footprint, and update-churn properties of these two regimes are the empirical subject of Section~\ref{sec:evaluation}.

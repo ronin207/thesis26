@@ -10,8 +10,8 @@ lemma; the step-by-step reductions; a corollary for the case in which the open
 premises are closed; and a remark relating the result to BDEC. Throughout,
 $\mathcal A$ denotes a classical probabilistic polynomial-time adversary and all
 probabilities are in the random-oracle model. The advantages
-$\mathsf{Adv}^{\bullet}_{\mathsf{zkVM\text{-}BDEC}}$ are those of
-Definition~\ref{def:zkvm-bdec-adv}.
+$\mathsf{Adv}^{\bullet}_{\mathsf{zkVM\text{-}Cred}}$ are those of
+Definition~\ref{def:zkvm-cred-adv}.
 
 \subsection{Building-block properties}\label{app:prsv-defs}
 
@@ -113,7 +113,7 @@ PLUM as the signature scheme $\Sig$ and the zkVM as the zkSNARK $\Pi$; by
 Lemma~\ref{lem:relation-preserve} the two provers accept the same relation.
 
 \begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unforgeability]
-Let $\mathcal A$ win the zkVM-BDEC unforgeability experiment. We build a PLUM
+Let $\mathcal A$ win the zkVM credential unforgeability experiment. We build a PLUM
 EU-CMA forger $\mathcal B$. $\mathcal B$ runs $\mathcal A$, answering its issuance
 and showing queries with its own signing oracle and the zkVM prover, so
 $\mathcal A$'s view matches the real experiment. When $\mathcal A$ outputs an
@@ -130,7 +130,7 @@ $\mathsf{psk}^\star$ is a forgery against the unmodified scheme, which $\mathcal
 outputs.
 Writing $\epsilon_{\mathrm{EUF}}$ for PLUM's EU-CMA advantage bound (Definition~\ref{def:euf}),
 \[
-  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
+  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)
   \le \epsilon_{\mathrm{EUF}}+\epsilon_{\mathrm{KS}}+\epsilon_{\mathrm{AIR}},
 \]
 which is~\eqref{eq:adv-unf}.
@@ -172,7 +172,7 @@ challenge is distributed identically under $b=0$ and $b=1$, so
 $\Pr[b'=b]=\tfrac12$.
 Summing the two hops,
 \[
-  \mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
+  \mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)
   \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}},
 \]
 which is~\eqref{eq:adv-anon}. No witness is extracted, so $\epsilon_{\mathrm{KS}}$
@@ -199,7 +199,7 @@ In $\mathsf{G}_2$ the only $b$-dependent component is the pseudonym signature, n
 simulated without $\mathsf{psk}^{(b)}$, and the verifier-facing pseudonym is
 independent of $b$, so $\Pr[b'=b]=\tfrac12$. Summing the two hops,
 \[
-  \mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)
+  \mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)
   \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}},
 \]
 the same bound as~\eqref{eq:adv-anon}; the single-transcript game incurs each
@@ -216,7 +216,7 @@ $\epsilon_{\mathrm{sZK}}$ enters once.
 Suppose Assumptions~\ref{asm:air} and~\ref{asm:szk} hold, so that $\epsilon_{\mathrm{AIR}}$ and
 $\epsilon_{\mathrm{sZK}}$ are negligible; the zkVM is knowledge-sound and
 zero-knowledge with negligible $\epsilon_{\mathrm{KS}},\epsilon_{\mathrm{ZK}}$; and
-PLUM is EU-CMA secure. Then zkVM-BDEC is unforgeable, anonymous, and unlinkable.
+PLUM is EU-CMA secure. Then the zkVM credential scheme is unforgeable, anonymous, and unlinkable.
 Against quantum adversaries the same conclusion holds once the
 quantum-random-oracle lifts of PLUM's EU-CMA reduction and of the nested
 Fiat--Shamir compilation are established.

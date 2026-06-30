@@ -11,7 +11,7 @@
 
 Section~\ref{sec:system} described an instrument: a precompile suite that moves
 PLUM's dominant field operations out of emulated guest code, together with a
-RISC~Zero realisation of the BDEC credential-generation relation (on SP1, PLUM
+RISC~Zero realisation of the credential-generation relation (on SP1, PLUM
 verification runs in isolation). A
 performance instrument is meaningful for a credential system only if it does not
 silently weaken the security the system provides. This section makes that
@@ -23,7 +23,12 @@ experiments, and then isolate in Section~\ref{ssec:zk-gap} the one property the
 analysis does not deliver on consumer hardware, namely zero-knowledge, and hence
 anonymity, of the proof actually produced. This last point follows from how the
 toolchain produces proofs and not from any weakness in the construction itself,
-so we treat it as a finding about the substrate.
+so we treat it as a finding about the substrate. Read against the cost criterion
+of Section~\ref{sec:evaluation}, this analysis answers the second half of a
+deployer's question: the criterion fixes \emph{when} the precompile makes the
+zkVM substrate affordable, and this section fixes \emph{which} security
+properties survive the move when it does---knowledge soundness in full,
+deployable zero-knowledge not on this stack.
 
 \subsection{Security Model and Threat Model}\label{ssec:threat-model}
 
@@ -38,9 +43,9 @@ pseudonym keys issued a single challenge credential (unlinkability). We write
 $\mathsf{Adv}^{\mathsf{unf}}_{\AC}$, $\mathsf{Adv}^{\mathsf{anon}}_{\AC}$, and
 $\mathsf{Adv}^{\mathsf{unlink}}_{\AC}$ for the respective advantages, all defined
 in Section~\ref{sec:prelim}.
-\begin{definition}[zkVM-BDEC advantage]\label{def:zkvm-bdec-adv}
+\begin{definition}[zkVM credential advantage]\label{def:zkvm-cred-adv}
 For $\bullet\in\{\mathsf{unf},\mathsf{anon},\mathsf{unlink}\}$, write
-$\mathsf{Adv}^{\bullet}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal A)$ for the advantage
+$\mathsf{Adv}^{\bullet}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)$ for the advantage
 $\mathsf{Adv}^{\bullet}_{\AC}(\mathcal A)$ of Section~\ref{sec:prelim} evaluated on
 the BDEC scheme instantiated with PLUM as the signature scheme $\Sig$ and the zkVM
 as the zkSNARK $\Pi$.
@@ -143,7 +148,7 @@ random-oracle model.
 \subsection{Security Preservation}\label{ssec:preservation}
 
 The analysis rests on one structural observation. The zkVM regime changes how
-the BDEC relation $R_{\mathsf{show}}^{\Sig}$ (and the structurally analogous
+the credential relation $R_{\mathsf{show}}^{\Sig}$ (and the structurally analogous
 credential-generation relation $R_{\mathsf{cre}}^{\Sig}$) is proved; the relation
 itself, what it states, is unchanged. The relation
 is fixed in Section~\ref{sec:prelim}, and both the static-circuit and the zkVM
@@ -158,7 +163,7 @@ lookup argument binds the precompile tables to the main execution trace, the
 zkVM is a knowledge-sound argument of knowledge for RISC-V execution, and the
 Griffin-$\mathbb{F}_p^{192}$ AIR admits only the reference permutation. Then the
 zkVM guest program with the precompile suite active accepts a pair $(x,w)$ if and
-only if $R^{\Sig}(x;w)=1$, where $R^{\Sig}$ denotes either of the BDEC relations $R^{\Sig}_{\mathsf{cre}},R^{\Sig}_{\mathsf{show}}$ of
+only if $R^{\Sig}(x;w)=1$, where $R^{\Sig}$ denotes either of the credential relations $R^{\Sig}_{\mathsf{cre}},R^{\Sig}_{\mathsf{show}}$ of
 Section~\ref{sec:prelim}. The lemma is stated at the level of the intended guest
 \emph{specification}; the code-level claim additionally requires that the zkVM
 journal be bound to the public statement $x$, which the current RISC~Zero
@@ -168,7 +173,7 @@ the code-level reading of the lemma is conditional on the journal fix.
 \end{lemma}
 
 \begin{proof}[Proof sketch]
-A guest evaluation of the BDEC relations invokes only large-field multiplications
+A guest evaluation of the credential relations invokes only large-field multiplications
 and Griffin permutations, which the precompiles return identically under the
 lookup binding, together with native control flow covered by the zkVM's
 knowledge-soundness; composing these per-operation equalities along the finite,
@@ -204,10 +209,10 @@ Griffin-AIR constraint-level soundness error), $\epsilon_{\mathrm{ZK}}$ (the pro
 proof's zero-knowledge error), and $\epsilon_{\mathrm{sZK}}$ (PLUM's
 signature-transcript-simulation error):
 \begin{align}
-  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal{A})
+  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal{A})
   &\le \epsilon_{\mathrm{EUF}} + \epsilon_{\mathrm{KS}} + \epsilon_{\mathrm{AIR}},
   \label{eq:adv-unf}\\
-  \mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}BDEC}}(\mathcal{A})
+  \mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal{A})
   &\le \epsilon_{\mathrm{ZK}} + \epsilon_{\mathrm{sZK}},
   \label{eq:adv-anon}
 \end{align}
