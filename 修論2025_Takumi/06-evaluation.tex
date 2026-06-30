@@ -810,6 +810,25 @@ flexibility result as \emph{qualitative} (the regeneration footprint of
 Table~\ref{tab:churn}) together with this measured wall-clock caveat, rather than
 as a numeric crossover that favours the zkVM.
 
+\subsubsection{Matched-field control (execute mode)}
+The necessity claim of the criterion (Proposition~\ref{prop:field-match})---that the
+field-mismatch benefit scales with the width $\ell$ and vanishes at $\ell=1$---admits
+a direct execute-mode test, forecast before the run
+(\texttt{docs/measurements/keystone\_matched\_field\_20260701}). We measure the
+per-multiplication emulated cost of a field-matched primitive (a KoalaBear
+single-limb multiplication, $\ell=1$, native to the prover field) against the
+mismatched Fp192 software multiplication ($\ell=7$): $19$ guest cycles per matched
+multiplication against $3{,}121$ for the mismatched one, a $164\times$ field-mismatch
+tax. The emulated cost a precompile removes is therefore large at $\ell=7$ and
+essentially nothing at $\ell=1$, confirming the necessity direction. The ratio
+exceeds the schoolbook $\ell^2=49$ because the Fp192 software path is a general
+bignum (\texttt{num\_bigint}) rather than a limb-aligned routine---an implementation
+datum consistent with the $\ell$ lower bound of Proposition~\ref{prop:fmt-lb}, not a
+violation; the naive KoalaBear reduction makes $164\times$ a conservative estimate.
+This establishes the necessity direction in execute mode; the prove-mode corollary
+(that the precompile does not pay at $\ell=1$, Proposition~\ref{prop:precompile-pays})
+and the schoolbook-tight $\ell^2$ test remain open.
+
 \subsection{Update Churn}\label{ssec:churn-eval}
 
 Table~\ref{tab:churn} enumerates the regeneration footprint of
