@@ -129,10 +129,7 @@ in $14.25$~min. The SHA-3 arm is a \emph{control} (PLUM with a standard hash
 computed in software, no hash precompile, only the shared \texttt{UINT256\_MUL}
 field-arithmetic precompile active), not a deployable PLUM variant. The Cell~2 and
 Cell~3 prove times are means of three fixed-config runs on a clean machine
-(2026-06-30, \S\ref{ssec:headline}); a 2026-06-13 same-session pair gave Cell~2
-$17.81$~min and Cell~3 $16.15$~min ($n=2$), and a single 2026-05 run measured
-Cell~2 $32.53$~min, the high figure attributed to machine-state contamination and
-not reproduced under replication. $^\dag$Cell~2 prove time is the mean of three
+(2026-06-30, \S\ref{ssec:headline}). $^\dag$Cell~2 prove time is the mean of three
 runs, $14.25$~min (range $14.05$--$14.61$, ${\approx}14.2$~GB peak RSS).
 $^\ddag$RISC~Zero receipt-verify wall-clock not separately logged; the receipt
 verified.}
@@ -152,29 +149,31 @@ complete within five hours on this hardware.
 \begin{tikzpicture}
 \begin{axis}[
   ybar,
-  width=0.85\textwidth, height=6.2cm,
-  ymode=log, ymin=1, ymax=1000,
-  ylabel={Prove time (min, log scale)},
-  symbolic x coords={SHA-3 control, Griffin precompile, RISC Zero bigint (SHA-3)},
+  width=0.7\textwidth, height=6.2cm,
+  ymin=0, ymax=16,
+  ylabel={Prove time (min)},
+  symbolic x coords={SHA-3 control, Griffin precompile},
   xtick=data,
   x tick label style={font=\footnotesize},
   nodes near coords, point meta=explicit symbolic,
   every node near coord/.append style={font=\footnotesize},
-  bar width=30pt, enlarge x limits=0.3,
+  bar width=46pt, enlarge x limits=0.6,
 ]
 \addplot+[draw=black, fill=gray!35] coordinates {
-  (SHA-3 control, 13.05) [13.05 min]
-  (Griffin precompile, 14.25) [14.25 min]
-  (RISC Zero bigint (SHA-3), 379) [6\,h\,19\,m]
+  (SHA-3 control, 13.05) [13.05]
+  (Griffin precompile, 14.25) [14.25]
 };
+\draw[<->, thick] (axis cs:Griffin precompile,13.05) -- (axis cs:Griffin precompile,14.25)
+  node[midway, right=2pt, font=\footnotesize] {$1.09\times$ ($+1.2$~min)};
 \end{axis}
 \end{tikzpicture}
-\caption{Prove time on the configurations that complete ($\lambda=80$, M5~Pro
-24~GB, log scale). The bespoke Griffin precompile ($14.25$~min) is slower than the
-SHA-3 control ($13.05$~min) at matched security, and RISC~Zero's \texttt{sys\_bigint}
-route (also SHA-3-hashed) is slower again ($6$\,h\,$19$\,m); these are different hash and substrate
-mechanisms, so the bars are not one artefact. The precompile-free baseline does not
-complete (DNF, OOM at ${\approx}1$m$45$s) and so has no bar.}
+\caption{Prove time of the two SP1 arms that share the same PLUM verification at
+matched $\lambda=80$ (M5~Pro 24~GB, linear scale, $n=3$ means). The bespoke Griffin
+precompile ($14.25$~min) is slower than the SHA-3 control ($13.05$~min): a
+$1.09\times$ wall-clock inversion ($1.13\times$ in cycles), the falsified speedup.
+The precompile-free baseline does not complete (DNF, OOM at ${\approx}1$m$45$s);
+RISC~Zero's \texttt{sys\_bigint} route completes in $6$\,h\,$19$\,m
+(Table~\ref{tab:plum-verify}).}
 \label{fig:prove-time}
 \end{figure}
 
@@ -206,9 +205,7 @@ three Cell~2 runs and three Cell~3 runs (2026-06-30) give means of $14.25$~min
 (range $14.05$--$14.61$) and $13.05$~min (range $12.93$--$13.16$), a magnitude of
 ${\approx}1.09\times$ in wall-clock and $1.13\times$ in cycles, with each arm's
 prove-time spread under $5\%$ (run records
-\texttt{docs/measurements/tier2\_replication\_20260629}). A same-session
-$2026$-06-13 pair corroborates the sign and the magnitude at $17.81$ versus
-$16.15$~min ($1.10\times$). An earlier single $2026$-05 run measured $32.53$
+\texttt{docs/measurements/tier2\_replication\_20260629}). An earlier single $2026$-05 run measured $32.53$
 versus $13.28$~min; its high Cell~2 figure was not reproduced under fixed-config
 replication and is attributed to machine-state contamination rather than an
 intrinsic build difference, so it is retired in favour of the replicated
@@ -1014,11 +1011,9 @@ this resource-failure evidence alone; the CreGen prove anomaly
   movement of this size. The Cell~2 versus Cell~3 inversion is now confirmed by
   $n=3$ fixed-config runs per arm: the sign is robust (Griffin slower in
   every run), and the replicated magnitude is ${\approx}1.09\times$ in wall-clock,
-  with each arm's prove-time spread under $5\%$. An earlier single run measured a
-  $2.45\times$ cross-build figure; it was not reproduced under fixed-config
-  replication, is attributed to machine-state contamination, and is retired
-  (\S\ref{ssec:headline}). The sign is model-postdicted; the magnitude we do not
-  over-read.
+  with each arm's prove-time spread under $5\%$ (the earlier $2.45\times$ single
+  run is retired, \S\ref{ssec:headline}). The sign is model-postdicted; the
+  magnitude we do not over-read.
   \item \textbf{Thermal throttling.} Runs are on a laptop-class M5~Pro; sustained
   multi-minute proving may throttle, which would inflate wall-clock relative to a
   thermally-unconstrained host.
