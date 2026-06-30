@@ -20,7 +20,7 @@ Both RISC~Zero~\cite{bruestle2023risczero} and SP1~\cite{succinct2024sp1} permit
 \emph{When can a precompile make a low-constraint post-quantum signature's verification affordable to prove inside a general-purpose zkVM on consumer hardware, and which security properties survive the move?}
 \end{quote}
 
-We answer on the criterion's own axis: a trace-area cost model (Section~\ref{sec:theoretical}) that prices a primitive by the chip cells a precompile commits against the core cycles it removes, as a function of the field-mismatch width. The BDEC anonymous-credential construction~\cite{10.1007/978-981-96-0957-4_3} instantiated with PLUM is the concrete workload through which the criterion is calibrated and measured on RISC~Zero and SP1. The decision the criterion serves belongs to the operator of a real deployment---a university consortium choosing a proving substrate for digital diplomas today---who needs to know both what the precompile delivers and where it stops.
+We answer on the criterion's own axis: a trace-area cost model (Section~\ref{sec:theoretical}) that prices a primitive by the chip cells a precompile commits against the core cycles it removes, as a function of the field-mismatch width. This cost is the single comparison axis; the security half---which properties survive the move---is settled separately, as the preservation theorem and the wall of Section~\ref{sec:security}, not as a second axis. The credential construction (BDEC~\cite{10.1007/978-981-96-0957-4_3}) instantiated with PLUM is the concrete workload through which the criterion is calibrated and measured on RISC~Zero and SP1. The decision the criterion serves belongs to the operator of a real deployment---a university consortium choosing a proving substrate for digital diplomas today---who needs to know both what the precompile delivers and where it stops.
 
 \begin{figure}[t]
 \centering
@@ -44,7 +44,7 @@ We answer on the criterion's own axis: a trace-area cost model (Section~\ref{sec
 \caption{One relation, two outer provers. The same credential verification relation is
 proved \emph{either} by a static Aurora circuit (the BDEC baseline) \emph{or} by a
 general-purpose zkVM (this thesis), and the two are alternatives: the zkVM does not
-re-prove an Aurora proof. The figure locates the deployability wall: the static
+re-prove an Aurora proof. It also locates the deployability wall (contribution two): the static
 Aurora circuit is transparent and zero-knowledge-capable, and the
 zero-knowledge-enabled reference run is now measured, an accepted post-quantum
 zero-knowledge proof of the Loquat single-verification building block in about $22$ minutes (mean of three runs, $21.4$--$22.9$)
