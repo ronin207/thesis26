@@ -443,11 +443,11 @@ succinct prove mode for both credential relations.
 \toprule
 Workload & Mode & Cost & Outcome \\
 \midrule
-BDEC CreGen, RISC~Zero & execute & $9.40\times10^{9}$ cyc, $\approx$65~s & both verifications accept \\ % plum_in_bdec doc
-BDEC CreGen, RISC~Zero & prove (succinct) & $\geq$15.6~h, peak RSS 11.24~GB & internal-verifier rejection (anomaly; \S\ref{ssec:cregen-anomaly}) \\ % risc0_prove_failure doc
-BDEC CreGen, SP1 & prove (succinct) & $26.98$ and $31.11$~min ($n=2$) & receipt verified; not zero-knowledge \\ % S9 pub_hardening_20260611 + audit5
-BDEC ShowCre $k{=}1$, SP1 & prove (succinct) & $40.15$ and $44.24$~min ($n=2$) & receipt verified; not zero-knowledge \\
-BDEC ShowCre $k{=}2$, SP1 & prove (succinct) & $58.14$~min ($n{=}1$) & receipt verified; not zero-knowledge \\
+CreGen, RISC~Zero & execute & $9.40\times10^{9}$ cyc, $\approx$65~s & both verifications accept \\ % plum_in_bdec doc
+CreGen, RISC~Zero & prove (succinct) & $\geq$15.6~h, peak RSS 11.24~GB & internal-verifier rejection (anomaly; \S\ref{ssec:cregen-anomaly}) \\ % risc0_prove_failure doc
+CreGen, SP1 & prove (succinct) & $26.98$ and $31.11$~min ($n=2$) & receipt verified; not zero-knowledge \\ % S9 pub_hardening_20260611 + audit5
+ShowCre $k{=}1$, SP1 & prove (succinct) & $40.15$ and $44.24$~min ($n=2$) & receipt verified; not zero-knowledge \\
+ShowCre $k{=}2$, SP1 & prove (succinct) & $58.14$~min ($n{=}1$) & receipt verified; not zero-knowledge \\
 \bottomrule
 \end{tabular}
 \caption{Credential relations, $\lambda=80$, M5~Pro 24~GB. On RISC~Zero,
@@ -587,9 +587,9 @@ SP1, PLUM verify, Griffin precompile (\texttt{core}) & yes & no & yes & complete
 SP1, PLUM verify, SHA-3 control (\texttt{core}) & yes & no & yes & completes, $13.05$~min \\
 SP1, PLUM verify, Groth16/PLONK wrap & \textbf{no} & yes & \textbf{no} & structural: recursion-shape provisioning wall (OOM ${\approx}20$~GB, default conc.) \\
 RISC~Zero, PLUM verify, \texttt{sys\_bigint}, SHA-3 hasher (succinct) & yes & blinded; ZK not formally established\textsuperscript{$\ddagger$} & yes & completes, $6$\,h\,$19$\,m \\
-RISC~Zero, BDEC CreGen (succinct) & \textbf{no} & n/a & n/a & $\geq15.6$~h, internal-verifier rejection \\
-SP1, BDEC CreGen (succinct) & yes & no & yes & completes, $27$--$31$~min \\
-SP1, BDEC ShowCre $k{=}1,2$ (succinct) & yes & no & yes & completes, $40$--$58$~min \\
+RISC~Zero, CreGen (succinct) & \textbf{no} & n/a & n/a & $\geq15.6$~h, internal-verifier rejection \\
+SP1, CreGen (succinct) & yes & no & yes & completes, $27$--$31$~min \\
+SP1, ShowCre $k{=}1,2$ (succinct) & yes & no & yes & completes, $40$--$58$~min \\
 Aurora, Loquat single-verify & yes & no\textsuperscript{$\dagger$} & yes & completes, $3.76$~min \\
 Aurora, Loquat single-verify, ZK enabled & yes & yes & yes & completes, ${\approx}22$~min ($n{=}3$) \\
 \bottomrule

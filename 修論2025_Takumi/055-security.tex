@@ -116,8 +116,8 @@ zkVM regime is the RISC-V execution circuit, the precompile chips, and the
 lookup argument that binds them to the main execution trace.
 
 The preservation theorem of Section~\ref{ssec:preservation} and the
-precompile-soundness theorem of Section~\ref{sec:system} rest on two open
-assumptions, Assumptions~\ref{asm:air} and~\ref{asm:szk}, together with two
+precompile-soundness theorem of Section~\ref{sec:system} rest on two of the three named open
+assumptions, Assumptions~\ref{asm:air} and~\ref{asm:szk} (the third, the quantum-random-oracle lift of Assumption~\ref{asm:qrom}, is upstream of the preservation theorem), together with two
 further hypotheses carried inline: the cross-table lookup-argument binding
 (cited~\cite{haback2022logup}) and the black-box-transfer property (established by PLUM's reduction structure, below).
 The lookup-binding hypothesis, that the
@@ -345,7 +345,7 @@ Assumption~\ref{asm:szk}: a reduced-round CICO solution is precisely the non-ran
 that replacing Griffin by a random oracle assumes absent, so the algebraic-attack
 question and Assumption~\ref{asm:szk} are two readings of one open problem.
 
-The BDEC credential-generation prove anomaly reported in
+The credential-generation prove anomaly reported in
 Section~\ref{sec:evaluation} does not bear on Assumption~\ref{asm:air}: that run executed on
 RISC~Zero 3.0.5 with field arithmetic carried by \texttt{sys\_bigint}, a path on
 which the bespoke Griffin-$\mathbb{F}_p^{192}$ AIR is not invoked
