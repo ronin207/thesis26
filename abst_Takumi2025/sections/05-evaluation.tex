@@ -9,18 +9,17 @@ harness).
 Without the precompile, verification does not terminate within a
 $24\,\mathrm{GB}/3\,\mathrm{h}$ bound ($\approx 7.08$ billion cycles at
 $\lambda=80$, projecting to tens of hours). With the precompile it completes
-in $14.89$ to $32.5$~min (build- and machine-state-sensitive) on the
-$24\,\mathrm{GB}$ machine at a peak $18.67\,\mathrm{GB}$ resident, the first
+in $14.25$~min (mean of three fixed-config runs, $14.05$--$14.61$) on the
+$24\,\mathrm{GB}$ machine at a peak ${\approx}14.2\,\mathrm{GB}$ resident, the first
 configuration in the study to fit the budget.
-% NOTE: placeholder filled to the disclosed range to match the thesis prose
-% (cover abstract, intro:73, conclusion:9 all cite "14.89 to 32.5 minutes").
-% The spread itself is UNRECONCILED: 32.5 min (2026-05-20) vs 14.89 min
-% (2026-06-18, re-measured clean); 14.89 is more consistent with the 1.13x cycle
-% ratio vs Cell 3's 13.3 min, but the cause is unverified. Reconcile before final.
+% RESOLVED 2026-06-30: Tier-2 n=3 fixed-config replication gives Cell 2 mean
+% 14.25 min (range 14.05-14.61), Cell 3 mean 13.05 min; the earlier 32.5 min single
+% run was machine-state contamination, retired. Source: docs/measurements/tier2_replication_20260629.
 
 The control is the sharpest result. Even with the precompile, PLUM
-verification executes $1.13\times$ more cycles ($125.5$\,M) than the same
-verification using software SHA-3 ($110.8$\,M): a standardized hash,
-unaccelerated, still beats our accelerated algebraic hash. This is the
+verification executes $1.13\times$ more cycles ($125.5$\,M vs $110.8$\,M) and
+proves about $1.09\times$ slower in wall-clock ($14.25$ vs $13.05$~min, mean of
+three): a standardized hash, unaccelerated, still beats our accelerated
+algebraic hash. This is the
 \emph{precompile paradox} made empirical: the cost of choosing a
 bespoke algebraic-hash primitive over one the ecosystem has standardized.

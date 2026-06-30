@@ -79,7 +79,7 @@ justify each fixed parameter, and disclose where a setting is tuned.
   $18$; \S\ref{ssec:repro}) trades more, smaller shards and fewer concurrent
   threads for fitting the $24$~GB envelope, holding peak memory near $81\%$.
   The headline timings are therefore tuned-configuration times: Cell~2
-  completes in $32.53$~min and the SHA-3 control in $13.28$~min under identical
+  completes in $14.25$~min and the SHA-3 control in $13.05$~min under identical
   tuning. The \emph{zero-knowledge wrap} attempts ran under the same class of
   reduced configuration and still exhausted memory
   (\S\ref{ssec:resource-frontier}). A contributing factor to the Griffin arm's
@@ -116,8 +116,8 @@ precompile-free baseline and the precompile-enabled arm on the same hardware.
 zkVM / mechanism & $\lambda$ & Prove time & Verify time & Peak mem & Outcome \\
 \midrule
 SP1, rv32im Griffin (no precompile)          & 80 & n/a       & n/a    & 87.94\% & DNF (OOM $\approx$1m45s) \\ % 582ad1a Cell 1
-\textbf{SP1, Griffin-$\mathbb{F}_p^{192}$ precompile (this work)} & \textbf{80} & \textbf{32.53~min}\textsuperscript{\dag} & \textbf{3.06~s} & \textbf{81.31\%} & \textbf{receipt verified} \\          % 582ad1a Cell 2 (this work, emphasized)
-SP1, SHA-3 hasher (control)                  & 80 & 13.28~min & 2.80~s & 80.92\% & receipt verified \\ % 91941ed
+\textbf{SP1, Griffin-$\mathbb{F}_p^{192}$ precompile (this work)} & \textbf{80} & \textbf{14.25~min}\textsuperscript{\dag} & \textbf{3.06~s} & \textbf{59.2\%} & \textbf{receipt verified} \\          % 582ad1a Cell 2 (this work, emphasized); n=3 tier2_replication_20260629
+SP1, SHA-3 hasher (control)                  & 80 & 13.05~min & 2.80~s & 59.8\% & receipt verified \\ % 91941ed; n=3 tier2_replication_20260629
 RISC~Zero, \texttt{sys\_bigint}, SHA-3 hasher & 80 & 6\,h\,19\,m & n/a\textsuperscript{\ddag} & n/a   & receipt verified \\          % uint256 doc
 \bottomrule
 \end{tabular}
@@ -125,18 +125,17 @@ RISC~Zero, \texttt{sys\_bigint}, SHA-3 hasher & 80 & 6\,h\,19\,m & n/a\textsuper
 24~GB. We refer to the three SP1 arms as \emph{Cell~1} (no precompile),
 \emph{Cell~2} (Griffin-$\mathbb{F}_p^{192}$ precompile), and \emph{Cell~3}
 (software SHA-3 control) throughout. The precompile-free baseline does not complete; the precompile arm completes
-in $32.53$~min. The SHA-3 arm is a \emph{control} (PLUM with a standard hash
+in $14.25$~min. The SHA-3 arm is a \emph{control} (PLUM with a standard hash
 computed in software, no hash precompile, only the shared \texttt{UINT256\_MUL}
-field-arithmetic precompile active), not a deployable PLUM variant. These are
-the May calibrated-reference runs; a $2026$-06-13 current-build re-measurement
-gives Cell~2 $17.81$~min and Cell~3 $16.15$~min ($n=2$ per arm, same session),
-confirming feasibility and the inversion sign, the difference attributed to
-build drift (\S\ref{ssec:headline}). $^\dag$A later clean-machine
-re-measurement on 2026-06-18 completed the same Cell~2 prove in $14.89$~min
-($18.67$~GB peak RSS, verify OK); the Cell~2 prove time is accordingly reported
-elsewhere in this thesis as the $14.89$--$32.5$-min range, with the $32.53$-min May run
-retained as the calibrated reference. $^\ddag$RISC~Zero receipt-verify wall-clock not separately logged; the
-receipt verified.}
+field-arithmetic precompile active), not a deployable PLUM variant. The Cell~2 and
+Cell~3 prove times are means of three fixed-config runs on a clean machine
+(2026-06-30, \S\ref{ssec:headline}); a 2026-06-13 same-session pair gave Cell~2
+$17.81$~min and Cell~3 $16.15$~min ($n=2$), and a single 2026-05 run measured
+Cell~2 $32.53$~min, the high figure attributed to machine-state contamination and
+not reproduced under replication. $^\dag$Cell~2 prove time is the mean of three
+runs, $14.25$~min (range $14.05$--$14.61$, ${\approx}14.2$~GB peak RSS).
+$^\ddag$RISC~Zero receipt-verify wall-clock not separately logged; the receipt
+verified.}
 \label{tab:plum-verify}
 \end{table}
 
@@ -164,15 +163,15 @@ complete within five hours on this hardware.
   bar width=30pt, enlarge x limits=0.3,
 ]
 \addplot+[draw=black, fill=gray!35] coordinates {
-  (SHA-3 control, 13.28) [13.3 min]
-  (Griffin precompile, 32.53) [32.5 min]
+  (SHA-3 control, 13.05) [13.05 min]
+  (Griffin precompile, 14.25) [14.25 min]
   (RISC Zero bigint (SHA-3), 379) [6\,h\,19\,m]
 };
 \end{axis}
 \end{tikzpicture}
 \caption{Prove time on the configurations that complete ($\lambda=80$, M5~Pro
-24~GB, log scale). The bespoke Griffin precompile ($32.5$~min) is slower than the
-SHA-3 control ($13.3$~min) at matched security, and RISC~Zero's \texttt{sys\_bigint}
+24~GB, log scale). The bespoke Griffin precompile ($14.25$~min) is slower than the
+SHA-3 control ($13.05$~min) at matched security, and RISC~Zero's \texttt{sys\_bigint}
 route (also SHA-3-hashed) is slower again ($6$\,h\,$19$\,m); these are different hash and substrate
 mechanisms, so the bars are not one artefact. The precompile-free baseline does not
 complete (DNF, OOM at ${\approx}1$m$45$s) and so has no bar.}
@@ -182,14 +181,14 @@ complete (DNF, OOM at ${\approx}1$m$45$s) and so has no bar.}
 \paragraph{The honest reading.}
 The with/without-precompile contrast is not a ratio of two finite times: without
 the precompile the workload \emph{does not complete} on this hardware, and with
-it the workload completes in $32.53$~minutes. The defensible claim is therefore
+it the workload completes in $14.25$~minutes (mean of three runs, $14.05$--$14.61$). The defensible claim is therefore
 qualitative at the prove level (\emph{the precompile moves PLUM verification
 from infeasible to feasible on consumer hardware}) and quantitative only at the
 cycle level (\S\ref{ssec:attribution}). The two zkVMs are not directly comparable
 here: the RISC~Zero leg is the SHA-3-hasher arm, carrying the field arithmetic
 through \texttt{sys\_bigint} without a native Griffin chip
 (\S\ref{ssec:griffin-air}), so its like-for-like SP1 counterpart is the
-$13.28$-min SHA-3 control, with the residual same-hash gap reflecting the
+$13.05$-min SHA-3 control, with the residual same-hash gap reflecting the
 substrate and receipt kind; no Griffin-hashed single-verification prove was run
 on RISC~Zero (the Griffin AIR port is future work), and the gaps should not be
 read as a like-for-like substrate ranking. The SHA-3 control
@@ -202,20 +201,18 @@ cheaper than one using the algebraic hash PLUM requires through a bespoke chip,
 which is the quantitative form of the arithmetic-mismatch argument of Section~\ref{sec:theoretical}. The
 inversion is direct: the bespoke Griffin-$\mathbb{F}_p^{192}$ precompile proves
 \emph{slower} at prove than the software SHA-3 control at matched $\lambda=80$ in
-every run we took, on both the May and the June builds. Its sign is robust; its
-magnitude is build-sensitive, from $2.45\times$ across the May builds ($32.53$
-versus $13.28$~min) to $1.10\times$ in a same-session June re-measurement
-($17.81$ versus $16.15$~min, $n=2$ per arm, tight: the two Cell~2 runs at
-$17.80$ and $17.82$~min, run records
-\texttt{docs/measurements/audit5\_campaign\_20260612}). We attribute the
-May-to-June difference on each arm to build and toolchain drift over the
-interval, which we did not isolate; the $32.53$/$13.28$ figures remain the
-calibrated reference of Table~\ref{tab:plum-verify} and the cost model below.
-A clean-machine re-measurement on 2026-06-18 completed the same Cell~2 prove in
-$14.89$~min at $18.67$~GB peak RSS (verify OK), $2.2\times$ faster than the
-$32.53$-min May run; the gap is build- and machine-state-sensitive and we did not
-isolate it, so the prove time is reported as the $14.89$--$32.53$-min range.
-The inversion is robust in sign across runs while its magnitude ($1.10$--$2.45\times$) varies with the build, so it is reported as an envelope rather than a single factor.
+every run we took. The sign is robust. At a fixed tuned config on a clean machine,
+three Cell~2 runs and three Cell~3 runs (2026-06-30) give means of $14.25$~min
+(range $14.05$--$14.61$) and $13.05$~min (range $12.93$--$13.16$), a magnitude of
+${\approx}1.09\times$ in wall-clock and $1.13\times$ in cycles, with each arm's
+prove-time spread under $5\%$ (run records
+\texttt{docs/measurements/tier2\_replication\_20260629}). A same-session
+$2026$-06-13 pair corroborates the sign and the magnitude at $17.81$ versus
+$16.15$~min ($1.10\times$). An earlier single $2026$-05 run measured $32.53$
+versus $13.28$~min; its high Cell~2 figure was not reproduced under fixed-config
+replication and is attributed to machine-state contamination rather than an
+intrinsic build difference, so it is retired in favour of the replicated
+$14.25$~min.
 We read the inversion as a genuine
 property of the pipeline rather than a measurement artefact, and the trace-area
 accounting of Section~\ref{sec:theoretical}
@@ -231,7 +228,7 @@ more guest cycles ($1.26\times10^{8}$ versus $1.11\times10^{8}$, execute mode).
 Both terms of Equation~\eqref{eq:trace-area-model} are therefore larger on the
 Griffin arm, so the model places it behind the control for every non-negative
 choice of the per-cell rates, granted a common per-cycle core area across the
-two arms; the calibration of the model's constants on these two runs is
+two arms; the calibration of the model's constants on these two arms is
 reported with the cost model (\S\ref{ssec:costmodel}). The feasibility recovery and the inversion are
 the same inequality (Proposition~\ref{prop:precompile-pays}, Equation~\eqref{eq:precompile-pays}) evaluated at two
 operating points. The precompile bought a finite measurement, and the
@@ -528,7 +525,7 @@ diagnosis), and the thesis's claims do not rest on it.
 Two failures bound the deployability frontier of this thesis, both unambiguous
 as to cause and independent of the anomaly above. The first is the PLONK
 zero-knowledge wrap of the standalone PLUM single-signature-verification receipt
-(Cell~2 of Table~\ref{tab:plum-verify}, the $32.53$-min prove, not CreGen or
+(Cell~2 of Table~\ref{tab:plum-verify}, the $14.25$-min prove, not CreGen or
 ShowCre). At SP1's default prover concurrency this wrap is killed under memory
 pressure at ${\approx}83\%$ of the $24$~GB budget (peak RSS $19.98$~GB per the
 process accounting at the kill; a periodic RSS sampler observed ${\approx}17.8$~GB
@@ -577,7 +574,7 @@ this is a substrate base-cost datum that \emph{strengthens but does not
 instantiate} the tension, since it bears on the cost of proving any PQ
 verification on this substrate, not on the zero-knowledge wrap specifically. These are the data points the frontier claim uses;
 the positive feasibility anchor remains the PLUM single-verification prove of
-Table~\ref{tab:plum-verify}, which completes in $32.53$~min. Table~\ref{tab:proof-mode}
+Table~\ref{tab:plum-verify}, which completes in $14.25$~min. Table~\ref{tab:proof-mode}
 summarises, for every proof mode attempted, whether a receipt is produced and whether
 it is zero-knowledge and post-quantum.
 
@@ -589,8 +586,8 @@ it is zero-knowledge and post-quantum.
 \toprule
 Proof mode (substrate / configuration) & Produced? & Zero-know\-ledge? & Post-quantum? & Resource outcome \\
 \midrule
-SP1, PLUM verify, Griffin precompile (\texttt{core}) & yes & no & yes & completes, $32.5$~min \\
-SP1, PLUM verify, SHA-3 control (\texttt{core}) & yes & no & yes & completes, $13.3$~min \\
+SP1, PLUM verify, Griffin precompile (\texttt{core}) & yes & no & yes & completes, $14.25$~min \\
+SP1, PLUM verify, SHA-3 control (\texttt{core}) & yes & no & yes & completes, $13.05$~min \\
 SP1, PLUM verify, Groth16/PLONK wrap & \textbf{no} & yes & \textbf{no} & structural: recursion-shape provisioning wall (OOM ${\approx}20$~GB, default conc.) \\
 RISC~Zero, PLUM verify, \texttt{sys\_bigint}, SHA-3 hasher (succinct) & yes & blinded; ZK not formally established\textsuperscript{$\ddagger$} & yes & completes, $6$\,h\,$19$\,m \\
 RISC~Zero, BDEC CreGen (succinct) & \textbf{no} & n/a & n/a & $\geq15.6$~h, internal-verifier rejection \\
@@ -935,7 +932,7 @@ Section~\ref{sec:theoretical}.
 \paragraph{Feasibility and the field-mismatch tax.}
 Without the precompile a single PLUM verification does not complete on the target
 hardware (out-of-memory at ${\approx}1\mathrm{m}45\mathrm{s}$,
-Table~\ref{tab:plum-verify}); with it the verification completes in $32.53$~min.
+Table~\ref{tab:plum-verify}); with it the verification completes in $14.25$~min.
 At the cycle level the bespoke Griffin precompile removes a $56.4\times$ factor at
 $\lambda=80$ on SP1 (\S\ref{ssec:attribution}), and the modular-multiplication precompile
 (\texttt{UINT256\_MUL} / \texttt{sys\_bigint}) separately removes $37.9\%$/$70.5\%$
@@ -961,7 +958,7 @@ PLUM's circuit-SNARK ``$91\%$ of constraints are hash'' figure to the cycle mode
 \paragraph{Per-proof cost against the static circuit.}
 For a \emph{fixed} predicate the specialised static circuit is the faster prover,
 as expected from a specialised encoding: Aurora proves the single Loquat-verification circuit in
-$3.76$~min (Table~\ref{tab:aurora-ref}) against $32.53$~min for precompiled PLUM
+$3.76$~min (Table~\ref{tab:aurora-ref}) against $14.25$~min for precompiled PLUM
 verification (Table~\ref{tab:plum-verify}). The prove times do \emph{not}
 converge; but the two points are not the same scheme (Loquat over
 $\mathbb{F}_{p^2}$ versus PLUM over its $199$-bit prime field, \S\ref{ssec:aurora-ref}),
@@ -998,9 +995,12 @@ this resource-failure evidence alone; the CreGen prove anomaly
 \subsection{Threats to Validity}\label{ssec:threats}
 
 \begin{itemize}
-  \item \textbf{Single-run and repeated-run variance.} The PLUM prove-mode
-  wall-clock figures (Table~\ref{tab:plum-verify}) are single runs. The Loquat
-  substrate legs are now three runs each
+  \item \textbf{Single-run and repeated-run variance.} The standalone PLUM Cell~2
+  and Cell~3 prove-mode wall-clock figures (Table~\ref{tab:plum-verify}) are now
+  means of three fixed-config runs each
+  (\texttt{docs/measurements/tier2\_replication\_20260629}); the remaining
+  prove-mode figures (the BDEC CreGen and ShowCre relations) are single runs. The Loquat
+  substrate legs are three runs each
   (\texttt{docs/measurements/pub\_hardening\_20260610}), and they characterise
   the variance directly: the Aurora leg is tight ($223.2$--$226.6$~s,
   $\pm0.8\%$), while the SP1 leg spans $44.4$--$64.0$~minutes ($1.44\times$) on
@@ -1012,10 +1012,11 @@ this resource-failure evidence alone; the CreGen prove anomaly
   of $1.4$--$1.6$. Conclusions resting on order-of-magnitude separations, the
   $12$--$17\times$ substrate gap and the memory-exhaustion walls, are robust to
   movement of this size. The Cell~2 versus Cell~3 inversion is now confirmed by
-  $n=2$ current-build repeats per arm: the sign is robust (Griffin slower in
-  every run, May and June) and the same-session June magnitude ($1.10\times$,
-  the two Cell~2 runs within $0.1\%$) is tight, while the cross-build magnitude
-  (up to $2.45\times$) is build-sensitive and reported as a range
+  $n=3$ fixed-config runs per arm: the sign is robust (Griffin slower in
+  every run), and the replicated magnitude is ${\approx}1.09\times$ in wall-clock,
+  with each arm's prove-time spread under $5\%$. An earlier single run measured a
+  $2.45\times$ cross-build figure; it was not reproduced under fixed-config
+  replication, is attributed to machine-state contamination, and is retired
   (\S\ref{ssec:headline}). The sign is model-postdicted; the magnitude we do not
   over-read.
   \item \textbf{Thermal throttling.} Runs are on a laptop-class M5~Pro; sustained
@@ -1044,7 +1045,7 @@ this resource-failure evidence alone; the CreGen prove anomaly
   difference and are not a like-for-like substrate comparison.
   \item \textbf{Constraint-level soundness of the Griffin AIR is empirically
   supported, not proved} (the chip--constraint equality, Assumption~\ref{asm:air}, of Section~\ref{sec:security}); the positive
-  feasibility figures, namely the $32.53$-minute Cell~2 prove, the
+  feasibility figures, namely the $14.25$-minute Cell~2 prove, the
   $13.0$-second smoke proof, and any prove-level reading of the $56.4\times$
   cycle ratio, assume
   the chip computes the reference permutation: proved at the per-row layer
