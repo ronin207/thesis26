@@ -4,9 +4,13 @@ zero-knowledge: SP1's default STARK proof is succinct but not ZK, and ZK is
 obtained only by wrapping it in a Groth16/PLONK SNARK over a pairing-friendly
 curve, which is \emph{not} post-quantum, so a future quantum adversary
 retroactively de-anonymizes every stored transcript. The post-quantum ZK
-route (a masked zk-STARK) yields only \emph{computational} post-quantum
+route (a masked zk-STARK~\cite{cryptoeprint:2024/1037,cryptoeprint:2026/683}) yields only \emph{computational} post-quantum
 anonymity in the (Q)ROM, not everlasting (information-theoretic) anonymity,
 because the witness trace is committed under a computationally-hiding hash.
 No available zkVM path delivers post-quantum soundness and zero-knowledge
 jointly. This \emph{deployability wall}, rather than the prover's speed, is the
-binding obstacle for a personal-device, post-quantum anonymous credential.
+binding obstacle for a personal-device, post-quantum anonymous credential. The
+positive results are themselves conditional: the unforgeability the precompile
+preserves rests on the constraint-level soundness of the Griffin AIR, the
+anonymity on a PLUM signature-transcript simulator, and both on modelling Griffin
+as a (quantum) random oracle, each an open assumption.

@@ -9,10 +9,10 @@ as opposed to a cloud or server prover. A general-purpose zero-knowledge
 virtual machine (zkVM) is attractive in this setting for \emph{flexibility}
 rather than for raw speed: it proves an arbitrary verification predicate without
 a bespoke, per-scheme circuit. The obstacle is arithmetic. The schemes we
-care about (PLUM, Loquat) operate over a $192$-bit prime field, while
-production zkVMs (RISC~Zero, SP1) fix a small ($\approx 31$-bit) native
+care about (PLUM~\cite{10.1007/978-981-95-2961-2_6}, Loquat~\cite{cryptoeprint:2024/868}) operate over a $192$-bit prime field, while
+production zkVMs (RISC~Zero~\cite{bruestle2023risczero}, SP1~\cite{succinct2024sp1}) fix a small ($\approx 31$-bit) native
 field, so every operation is emulated by multi-limb arithmetic; an algebraic
-hash (Griffin), which makes up $\approx 91\%$ of the verification's R1CS
-constraints at PLUM-128, amplifies the penalty. This thesis asks whether such a verification can be
+hash (Griffin~\cite{cryptoeprint:2022/403}), which makes up $\approx 91\%$ of the verification's R1CS
+constraints at PLUM-128~\cite[\S4.2]{10.1007/978-981-95-2961-2_6}, amplifies the penalty. This thesis asks whether such a verification can be
 made to run on a personal device at all, what it costs, and whether the
 resulting proof can additionally be zero-knowledge.
