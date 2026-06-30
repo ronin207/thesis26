@@ -145,6 +145,20 @@ quantum-random-oracle lift of PLUM's EU-CMA reduction and of the nested
 Fiat--Shamir transform is open, the analysis being in the classical
 random-oracle model.
 
+\paragraph{What a deployment must deliver.}
+The three experiments fix \emph{what must be guaranteed}; before asking what the
+substrate preserves, we name the target as a single predicate.
+
+\begin{definition}[Deployable post-quantum anonymity]\label{def:deployable}
+A deployment delivers \emph{deployable post-quantum anonymity} for the credential
+system if the holder's machine can produce, within its resource budget, a proof
+of the credential relation that is simultaneously (i) knowledge-sound,
+(ii) zero-knowledge, and (iii) post-quantum-sound---soundness and the
+zero-knowledge simulator resting on no assumption a quantum adversary breaks.
+Section~\ref{ssec:preservation} establishes which of these conditions transfer to
+the zkVM substrate; Section~\ref{ssec:zk-gap} establishes which does not.
+\end{definition}
+
 \subsection{Security Preservation}\label{ssec:preservation}
 
 The analysis rests on one structural observation. The zkVM regime changes how
@@ -373,6 +387,33 @@ zero-knowledge wrap's failure at the recursion-shape provisioning wall and the S
 wall-clock could only widen against a corrected and at-least-as-costly chip.
 
 \subsection{The Zero-Knowledge Barrier as a Finding}\label{ssec:zk-gap}
+
+The preservation theorem leaves exactly one condition of
+Definition~\ref{def:deployable} unmet on the studied stack. We state it as the
+chapter's negative result and justify each horn below.
+
+\begin{proposition}[The deployability wall]\label{prop:wall}
+On the studied stack (RISC~Zero and SP1 on the $24$~GB target, $\lambda=80$), no
+proof of the credential relation that the stack can produce satisfies all three
+conditions of Definition~\ref{def:deployable} at once. Every such proof falls on
+one of two independent horns:
+\begin{description}
+  \item[Horn 1 (the feasible proof is not zero-knowledge).] The bare succinct
+  STARK receipt is generated within budget but has no established zero-knowledge
+  simulator, so the error $\epsilon_{\mathrm{ZK}}$ of
+  Equation~\eqref{eq:adv-anon} is not negligible; the wrap that would supply one
+  is not produced on the stack as shipped, blocked by the recursion-shape
+  provisioning wall---a one-time toolchain regeneration, not a memory bound.
+  \item[Horn 2 (the zero-knowledge proof is not post-quantum).] The only
+  zero-knowledge wraps the toolchains expose are pairing-based, hence classically
+  secure only, violating condition (iii).
+\end{description}
+Consequently, through Equation~\eqref{eq:adv-anon}, the anonymity guarantee of
+Theorem~\ref{thm:security-preserve} is sound but not made effective on this
+stack: no proof the stack produces drives its $\epsilon_{\mathrm{ZK}}$ term
+negligible. Horn~1 is a provisioning cost a deployer can in principle pay down;
+Horn~2 is a primitive limit no memory or time budget removes.
+\end{proposition}
 
 \begin{figure}[t]
 \centering
