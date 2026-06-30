@@ -94,6 +94,21 @@ fn main() {
         canonical(smoke_dir, "griffin_smoke").display(),
     );
 
+    // ─── Keystone matched-field control guest (FMT execute measure) ─
+    let fmt_keystone_dir = "../program_fmt_keystone/elf-out";
+    build_program_with_args(
+        "../program_fmt_keystone",
+        BuildArgs {
+            elf_name: Some("fmt_keystone".into()),
+            output_directory: Some(fmt_keystone_dir.into()),
+            ..Default::default()
+        },
+    );
+    println!(
+        "cargo:rustc-env=FMT_KEYSTONE_ELF_PATH={}",
+        canonical(fmt_keystone_dir, "fmt_keystone").display(),
+    );
+
     // ─── Phase B6 PQ-bench guests (classical + 3 PQ schemes) ────────
     //
     // Each guest verifies one signature; the bench_pqc host generates

@@ -5,6 +5,7 @@ members = [
   "program_bdec_cregen",
   "program_bdec_showcre",
   "program_griffin_smoke",
+  "program_fmt_keystone",
   "program_ecdsa",
   "program_sphincs",
   "program_dilithium",

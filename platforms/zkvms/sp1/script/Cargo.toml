@@ -12,6 +12,10 @@ name = "griffin_smoke_host"
 path = "src/bin/griffin_smoke_host.rs"
 
 [[bin]]
+name = "fmt_keystone_host"
+path = "src/bin/fmt_keystone_host.rs"
+
+[[bin]]
 name = "bench_pqc"
 path = "src/bin/bench_pqc.rs"
 

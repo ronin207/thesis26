@@ -1,0 +1,23 @@
+[package]
+name = "fmt_keystone_program"
+version = "0.1.0"
+edition = "2021"
+
+# Keystone matched-field control guest. Two modes:
+#   0 = chain x = x*c over Fp192 (199-bit, software multi-limb num_bigint
+#       path — the "sp1" feature is intentionally OFF so the UINT256_MUL
+#       precompile route is NOT taken and the un-mitigated emulation cost
+#       is what executes).
+#   1 = chain x = (x*c) % p over KoalaBear (single-limb u64, native width).
+# The per-multiplication cycle delta between the two isolates the
+# field-mismatch tax (ℓ=7 vs ℓ=1). See
+# docs/measurements/keystone_matched_field_20260701/FORECAST.md.
+
+[[bin]]
+name = "fmt_keystone"
+path = "src/main.rs"
+
+[dependencies]
+sp1-zkvm = "6.0.1"
+# NO "sp1" feature: forces the software (num_bigint) Fp192::mul path.
+vc-pqc = { path = "../../../..", default-features = false, features = ["guest", "std"] }

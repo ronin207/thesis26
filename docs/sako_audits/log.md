@@ -597,3 +597,24 @@ NEW (genuinely surfaced this pass, actionable, NOT framing):
 RECURRING (standing, deferred-to-Operator framing per Audit 16/17 — engagement real, NOT non-engagement escalation):
 R1. 🔴 gaiyousho tells the agility-tax-led / one-prong-wall story: "agility tax" (03,07) vs thesis "field-mismatch tax"; missing the F2 D3 recursion-shape lead; "deployability wall" (06-discussion:11) = ZK/primitive only vs thesis dual obstruction. This = Audit-16 SIXTH / Audit-17 "abstract STORY still diverges (agility-tax-led vs wall-led)". The author's framing call; her first strike but his to resolve.
 Verdict: NOT yet. The CORRECTNESS item (Ω(k²)→Ω(k), #1) and gate-3 motivation (#2) should be fixed regardless of framing; the dominant blocker R1 is the standing wall-vs-tax narrative call the Operator owns. Honbun itself holds (this session's work). Gaiyousho framing = his voice; surfaced not fixed.
+
+## Audit 4 — 2026-07-01, 修論2025_Takumi/ @ worktree-thesis-restructure-criterion (criterion-spine restructure, abstract+intro+§4+§6)
+Mode: formative.
+1. 🔴 REGRESSED main.tex:98/115 + 01-intro — "SNARK-friendly" reintroduced (rejected 2026-05-25; Audit-2 #7), now in the TITLE. Fix: precise descriptor ("low-constraint") or drop ("...Proving Post-Quantum Signature Verification...").
+2. 🟡 NEW 01-intro RQ box — two axes bundled (cost + security); Gate 1 single-axis. Name cost criterion as axis; security = second deliverable / deployability = cost ∧ security.
+3. 🟡 RECURRING 01-intro fig:two-provers caption — wall-spine emphasis ("locates the deployability wall"/"BDEC baseline"); lead with substrate comparison.
+4. 🟡 NEW 01-intro contribution #4 "A secondary dimension" old register vs crisp #1-3.
+5. 🟡 NEW 01-intro #3 "first empirical characterisation" — scope/defend "first".
+6. 🟢 NEW 04-theoretical — #1/§4 first-names "Griffin" without bridge from "algebraic-hash".
+Verdict: not yet — title's rejected term is the gate-stopper; fix it + the two-axis RQ; criterion spine otherwise passes Gates 1-5 (precompile=instrument, BDEC=instance, settings disclosed). Stronger than the wall-spine draft.
+
+## Audit 5 — 2026-07-01, 修論2025_Takumi/ @ 06abc99 (post Audit-4 fix pass + consistency auditor)
+Mode: formative (re-review).
+RESOLVED: #1 SNARK-friendly (swept title/abstract/RQ/related -> "low-constraint"; 03:148 stance kept; build clean), #4 contribution-#4 register, #5 "first" scoped ("...inside a general-purpose zkVM"), #6 #1 bridges "algebraic-hash (Griffin)"; consistency-auditor 🔴 conclusion-ranking (cost criterion = central reusable result; dual obstruction = central deployability finding), 🟡 assumption-count (security "two of three, QROM upstream"; conclusion folds QROM double-count), 🟡 eval table rows "BDEC CreGen/ShowCre" -> "CreGen/ShowCre".
+OPEN (operator framing — not auto-fixed): #2 RQ box bundles two axes (reconcilable via def:deployable = cost ∧ security; needs his wording call); #3 fig:two-provers caption wall-emphasis; + title-term override (defaulted to "low-constraint"); BDEC Applications-section structural decision.
+Verdict: passes Gates 2-5 (precompile=instrument, BDEC=instance, settings disclosed, ontology clean). Gate 1 single-axis pends the RQ framing decision (his). Loop paused for operator input — mine-items closed, only framing decisions remain.
+
+## Audit 6 — 2026-07-01, 修論2025_Takumi/ @ 2ece349 (post Gate-1 closures)
+Mode: formative (re-review). Gate-1 closed: intro answer-paragraph declares the trace-area cost as the SINGLE comparison axis; the security half (which properties survive) is settled separately as the preservation theorem + the wall, not a second axis; fig:two-provers caption subordinates the wall ("It also locates ... (contribution two)").
+ALL FIVE GATES PASS: G1 (goal = when-does-a-precompile-pay, no tool word; single axis declared) · G2 (precompile=instrument, BDEC=instance, criterion/wall=findings) · G3 (named consortium operator) · G4 (goal/approach/deliverable survive) · G5 (inversion 14.25 vs 13.05, 1.09x, n=3, lambda=80 at point of claim; held-out forecast honest about num_bigint apparatus).
+Verdict: PASSES THE MODEL on all five gates (first clean pass; Audit 5 had G1 open). Only OPEN item = OPTIONAL BDEC Applications-section structural decision (operator's call, not a gate failure). Loop's productive review-fix work complete; a confirming identical pass would satisfy the two-in-a-row rule.
