@@ -58,10 +58,7 @@ An adversarial probe exercises an honest control plus six single-field tamper ca
   \draw[->] (op) -- (e1); \draw[->] (e1) -- (e2); \draw[->] (e2) -- (e3);
   \draw[->] (op) -- (s1); \draw[->] (s1) -- (s2); \draw[->] (s2) -- (s3);
 \end{tikzpicture}
-\caption{Where the field-mismatch tax is incurred and what a precompile absorbs.
-Un-precompiled, a large-field operation does not complete; a syscall routes it to a
-native chip, whose cost is charged host-side---so a guest-cycle saving need not be
-a wall-clock one.}
+\caption{Where the field-mismatch tax is incurred and what a precompile absorbs.}
 \label{fig:fmt-precompile}
 \end{figure}
 No existing SP1 chip computes a Griffin permutation over a $199$-bit prime field; the closest upstream pattern is SP1's Poseidon2 chip~\cite{succinct2024sp1}, implementing the Poseidon2 permutation~\cite{grassi2023poseidon2}, which has the same shape (a permutation precompile with single-pointer state I/O, per-round columns, and memory binding) but operates over SP1's $31$-bit base field (KoalaBear, $2^{31}-2^{24}+1$, in the evaluated fork). We therefore implement a custom AIR for one Griffin-$\pi$ permutation over $\mathbb{F}_p^{4}$, exposed to the guest as a single syscall on a $16$-word ($4$-lane) state.
@@ -108,18 +105,30 @@ untrusted user path.
 the $14.25$-min figure of Section~\ref{sec:evaluation} is produced by the Griffin
 chip together with the host \texttt{UINT256\_MUL} for field multiplication, not by
 the \texttt{FP192\_MUL} or \texttt{FP192\_POW\_RES} chips. Those two are built to
-demonstrate that the interface \emph{generalises} across primitive
-classes---a permutation, a field multiplication, and a composed modular
-exponentiation---and, by Proposition~\ref{prop:field-match}, they also make the
-criterion concrete in the negative direction: both re-implement arithmetic the
-host \texttt{UINT256\_MUL} precompile \emph{already} serves (\texttt{FP192\_MUL} is
-essentially that host chip retargeted to the $199$-bit modulus, and
-\texttt{FP192\_POW\_RES} composes it), so the criterion predicts neither pays; for
-\texttt{FP192\_POW\_RES} the trace-area accounting of
-Section~\ref{sec:evaluation} confirms this directly. Griffin, by contrast, is
-field-mismatched \emph{and} unserved by any existing precompile, which is why it
-is the instance that pays. The interface is what makes three chips evidence for
-one method rather than three unrelated artefacts.
+demonstrate that the interface \emph{generalises} across primitive classes---a
+permutation, a field multiplication, and a composed modular exponentiation---and
+they also locate where the criterion's \emph{positive} question lives.
+\texttt{FP192\_MUL} re-implements arithmetic the host \texttt{UINT256\_MUL}
+precompile already serves---it is essentially that host chip retargeted---so the
+criterion predicts it does not pay. \texttt{FP192\_POW\_RES} is the interesting
+case: the power-residue symbol $a^{(p-1)/t}\bmod p$ is the one verifier component
+that is \emph{irreducibly large-prime}, since its PRF security is $O(\sqrt p)$ key
+recovery~\cite{khovratovich2019legendre,may2022legendre} and the prime cannot
+shrink to a matched field the way the hash can (the SHA-3 control of
+Section~\ref{sec:evaluation} shows the hash can), which makes it the natural target
+for a bespoke chip. Whether that chip \emph{pays} is open. As a naive
+square-and-multiply chip \texttt{FP192\_POW\_RES} commits more
+field-multiplication area than the guest loop it replaces
+(Section~\ref{sec:evaluation}), so on the arithmetic axis alone it does not; but
+that comparison omits the guest loop's per-symbol control overhead---one syscall
+dispatch, memory access, and lookup for each of the ${\approx}261$
+multiplications, against one for a fused chip---which a fused fixed-exponent chip
+would pay once. The break-even turns on that control-overhead saving, which our
+measurement did not isolate, and the deciding experiment is specified in
+Section~\ref{sec:evaluation}. Griffin, by contrast, is field-mismatched \emph{and}
+unserved, which is why it is the one instance we already report as paying. The
+interface is what makes three chips evidence for one method rather than three
+unrelated artefacts.
 
 \paragraph{What is established.}
 The field-substrate half rests on the reduction of \S\ref{ssec:bigint}. The suite is platform-specific: on SP1 it includes the bespoke Griffin AIR, to which Assumption~\ref{asm:air} applies; on RISC~Zero the Griffin arithmetic is carried by \texttt{sys\_bigint} emulation, so Assumption~\ref{asm:air} is not invoked there and is replaced by the analogous input--output equality of the emulated permutation. For the Griffin AIR, the per-family analysis (Appendix~\ref{app:proofs}) exhibits, family by family, the constraint \emph{intended} to catch any deviation from reference Griffin, the forgery that deviation would enable, and the implementation status of each; memory binding, output canonicality, parameter immutability, and row scheduling are implemented and constrained. What that analysis does \emph{not} establish, and says so explicitly, is that the implemented constraint system is satisfied \emph{only} by reference-equal witnesses: this is Assumption~\ref{asm:air}, the \emph{chip--constraint equality}. It is empirically supported by the $256$-vector cross-codebase agreement and the partial fault-injection coverage discussed below (per-vector false-pass probability $\approx 2^{-199}$ for the vector suite), but the vector agreement pins the \emph{executor} against the reference, a weaker \emph{chip--executor} equality, not the \emph{constraints}; Assumption~\ref{asm:air} is not verified at the constraint level.

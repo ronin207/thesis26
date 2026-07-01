@@ -159,81 +159,6 @@ Section~\ref{ssec:preservation} establishes which of these conditions transfer t
 the zkVM substrate; Section~\ref{ssec:zk-gap} establishes which does not.
 \end{definition}
 
-\subsection{Proof Sketches for the Three Open Assumptions}\label{ssec:sketches}
-The three assumptions above are stated, not discharged. This subsection gives the
-\emph{shape} of the argument each would need---enough to see what is established
-and what is open---while the full proofs are left to the sources cited and, for
-the AIR, to Appendix~\ref{app:proofs}.
-
-\paragraph{Assumption~\ref{asm:air} (Griffin-AIR soundness): a per-family argument.}
-The obligation is that the AIR is satisfied only by a witnessed transition equal
-to reference Griffin-$\pi$. The sketch is a per-constraint-family argument, one
-family at a time exhibiting the constraint intended to catch a deviation and the
-forgery a deviation would enable. The five per-round families (the two S-boxes,
-the quadratic and linear layers, and the round constants) are discharged at the
-constraint level: Appendix~\ref{app:proofs} bridges the limb identities the chip
-enforces over its $31$-bit base field to congruences modulo $p$ and composes them
-into the reference round, conditional only on the byte-range lookups. What remains
-open is the \emph{lookup-borne} families---round count, memory binding, and the
-cross-row scheduling---corroborated so far only in the rejection direction
-(single-cell fault injection) and by the $256$-vector cross-codebase suite, which
-pins the executor against the reference (chip--executor equality), strictly weaker
-than the chip--constraint equality the assumption asserts. Closing the gap means
-deriving the AIR witness from the reference code and checking constraint
-satisfaction directly, ideally by machine. The composed power-residue-PRF chip of
-Section~\ref{sec:system} was closed in exactly this way: its cross-row chain
-binding was verified by an adversarial constraint review that constructed and
-refuted each splice, skip, and repeat attack. That is the template the Griffin
-lookup-borne families still require.
-
-\paragraph{Assumption~\ref{asm:szk} (signature-transcript simulatability): ingredient present, theorem absent.}
-PLUM's signer already masks its inner interactive-oracle proof, adjoining a random
-zero-knowledge polynomial and committing the masked witness (PLUM Algorithm~4),
-so the masked IOP is statistically honest-verifier zero-knowledge by
-randomisation, independently of the hash~\cite{cryptoeprint:2024/1037}. A
-signature-transcript simulator $S_\sigma$ then follows the textbook route: given
-the public-coin challenges, an IOP simulator reproduces the oracle messages and
-query answers from the masking without the secret key, and programming the
-Fiat--Shamir random oracle to return the chosen challenges compiles this into a
-simulator for the whole transcript, with error $\epsilon_{\mathrm{sZK}}$ the sum
-of the masking's statistical distance (over the $199$-bit field, so per-coordinate
-${\approx}2^{-199}$) and the random-oracle programming terms. BDEC's anonymity and
-unlinkability reductions invoke $S_\sigma$ once, yielding
-$\mathsf{Adv}^{\mathrm{anon}}\le\epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$
-(Section~\ref{ssec:preservation}). Three things keep this a sketch: PLUM's
-published analysis establishes EU-CMA, not a compiled simulator, so
-simulatability is asserted rather than proven; the random-oracle programming step
-is \emph{classical}, its quantum lift open (Assumption~\ref{asm:qrom}); and the
-reduction is single-show. The masking's presence is the strongest positive
-available; a negligible-error simulator with a quantum-sound programming step is
-the open target. This term is disjoint from the everlasting-anonymity gap of
-Section~\ref{ssec:zk-gap}: even a perfect $S_\sigma$ leaves that gap, which lives
-in the outer proof's computationally-hiding trace commitment, not in the signature
-transcript.
-
-\paragraph{Assumption~\ref{asm:qrom} (Griffin (Q)ROM instantiation): a chain whose last links are open.}
-Modelling the Griffin-based hash as a (quantum) random oracle in PLUM's
-Fiat--Shamir reduction reduces, honestly, to a chain: (L1)~the hash is
-programmable as a random oracle in the reduction, established for PLUM only in the
-classical ROM via the black-box-transfer structure inherited from Loquat;
-(L2)~the mode around the permutation---a sponge at rate~$2$ for hashing and a
-fixed-length compression for the Merkle nodes---is indifferentiable from a random
-oracle \emph{given} an ideal permutation, backed by standard sponge
-indifferentiability results (with quantum analogues); and (L3)~Griffin-$\pi$
-itself behaves as an ideal permutation. Link~L2 is a statement about the mode;
-link~L3 is a heuristic, not a theorem, and is exactly what arithmetisation-oriented
-cryptanalysis probes. Two lifts stay open on top of this: L3 at our specific
-$(d{=}3,\,t{=}4,\,199\text{-bit},\,14\text{-round})$ instance is unverified against
-the FreeLunch/Resultant/CheapLunch frontier (the round-count disclosure below),
-and the whole chain is classical---its quantum lift (L4), covering the composition
-of the quantum sponge bound with the ideal-permutation heuristic (L3) and PLUM's
-Fiat--Shamir step, is not established.
-Pegasus~\cite{cryptoeprint:2025/1841} proves (Q)ROM security for a
-power-residue-PRF signature, which removes the presumption that the PRF family is
-the obstacle, but it is a $\Sigma$-protocol construction and says nothing about
-Griffin-as-oracle or PLUM's design. The defensible claim is the chain above with
-L3 and L4 marked open.
-
 \subsection{Security Preservation}\label{ssec:preservation}
 
 The analysis rests on one structural observation. The zkVM regime changes how
@@ -420,7 +345,7 @@ Assumption~\ref{asm:szk}: a reduced-round CICO solution is precisely the non-ran
 that replacing Griffin by a random oracle assumes absent, so the algebraic-attack
 question and Assumption~\ref{asm:szk} are two readings of one open problem.
 
-The credential-generation prove anomaly reported in
+The BDEC credential-generation prove anomaly reported in
 Section~\ref{sec:evaluation} does not bear on Assumption~\ref{asm:air}: that run executed on
 RISC~Zero 3.0.5 with field arithmetic carried by \texttt{sys\_bigint}, a path on
 which the bespoke Griffin-$\mathbb{F}_p^{192}$ AIR is not invoked
@@ -509,11 +434,10 @@ Horn~2 is a primitive limit no memory or time budget removes.
   \draw[->] (wrap) -- (oom);
   \draw[->] (wrap) -- (npq);
 \end{tikzpicture}
-\caption{The dual obstruction ($\lambda=80$, $24$~GB target). The feasible proof
-(left, the bare STARK receipt) is not zero-knowledge, hence not anonymous; the
-zero-knowledge proof (right, a Groth16/PLONK wrap) is blocked by two
-\emph{independent} prongs---structural (the recursion-shape provisioning wall) and
-primitive (pairing-based, not post-quantum, which more memory cannot fix).}
+\caption{The dual obstruction. The feasible proof (left, bare STARK) is not
+zero-knowledge; the zero-knowledge proof (right, a pairing wrap) is blocked by two
+independent prongs---structural (the recursion-shape wall) and primitive
+(pairing-based, not post-quantum).}
 \label{fig:dual-obstruction}
 \end{figure}
 

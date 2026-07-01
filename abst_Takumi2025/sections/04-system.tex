@@ -10,6 +10,7 @@ smoke proof (execute, prove, verify), each with a written soundness argument
 tying its constraints to the reference specification, so the precompile layer
 preserves the scheme's unforgeability under the assumption that the zkVM's
 cross-table lookup argument is sound. Only the Griffin chip is on the measured
-path; the other two demonstrate that the interface generalizes and, by the
-criterion, do not pay, because the host's $256$-bit modular-multiplication
-precompile already serves their arithmetic.
+path; the field-multiplication chip does not pay (the host's $256$-bit
+modular-multiplication precompile already serves it), while whether the
+power-residue chip---the one irreducibly-large-prime primitive---pays is an open
+question the criterion poses precisely.

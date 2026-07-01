@@ -804,31 +804,37 @@ tracks the criterion's width-dependence. A general bignum library
 division overhead masking the scaling at these limb counts, so we use it only for
 the conservative endpoint magnitudes above.
 
-\subsubsection{The already-served case (trace area)}\label{sssec:already-served}
+\subsubsection{The already-served case, and an open break-even}\label{sssec:already-served}
 The matched-field control probes one reason a precompile does not pay: $\ell=1$,
-where there is no multi-limb emulation to remove. The precompile-pays inequality
-(Proposition~\ref{prop:precompile-pays}) admits a second, distinct no-pay reason at
-full mismatch ($\ell=7$): a primitive whose multi-limb arithmetic is \emph{already}
-served by an existing precompile. The \texttt{FP192\_POW\_RES} chip
-(\S\ref{ssec:soundness}) makes this case concrete. It composes the power-residue-PRF
-symbol check $a^{(p-1)/t}\bmod p$ as a $191$-step square-and-multiply, every step of
-which is a $199$-bit modular multiplication the host \texttt{UINT256\_MUL} precompile
-already carries inside the guest loop. The inequality predicts, before measurement
-(\texttt{docs/measurements/prf\_chip\_20260701}), that a dedicated chip does not pay:
-it re-internalises essentially the same modular-multiplication trace area while
-removing only the guest loop's orchestration. The measurement confirms the sign---the
-chip commits $382$ \texttt{FieldOpCols} per symbol against the guest loop's $261$, so
-it \emph{adds} trace area rather than removing it. This point also sharpens why the
-criterion is priced on trace area and not guest cycles: in execute mode the chip
-costs $365$ cycles against the guest loop's $6{,}549$ (a $17.9\times$ apparent saving),
-the opposite of the prove-cost verdict, so a criterion read off execute cycles would
-predict a win exactly where the prover pays more. Together with the Griffin arm
-(which pays---$56.4\times$ fewer cycles---because it is mismatched \emph{and}
-unserved), this already-served case is the criterion's one measured
-prove-relevant no-pay; it complements the matched-field control, whose
-$164\times$ execute-mode tax confirms the necessity direction while the prove-mode
-$\ell=1$ no-pay corollary itself remains open. All three arms follow from the
-single inequality.
+where there is no multi-limb emulation to remove. A second, distinct case arises at
+full mismatch ($\ell=7$) when a primitive's multi-limb arithmetic is \emph{already}
+served by an existing precompile---and it is where the criterion's positive question
+lives. The \texttt{FP192\_POW\_RES} chip (\S\ref{ssec:soundness}) makes it concrete:
+it composes the power-residue-PRF symbol $a^{(p-1)/t}\bmod p$ as a $191$-step
+square-and-multiply, every step a $199$-bit modular multiplication the host
+\texttt{UINT256\_MUL} already carries inside the guest loop. On the arithmetic axis a
+dedicated chip does not pay: as a naive square-and-multiply chip it commits $382$
+\texttt{FieldOpCols} per symbol against the guest loop's $261$
+(\texttt{docs/measurements/prf\_chip\_20260701}), \emph{adding} field-multiplication
+area rather than removing it. But that comparison is incomplete---it counts
+field-op columns only, and omits the guest loop's per-symbol \emph{control}
+overhead: one syscall dispatch, memory access, and cross-table lookup for each of
+the ${\approx}261$ multiplications, against one for a fused chip. A fused
+fixed-exponent chip (a preprocessed addition chain, not naive square-and-multiply)
+would pay that control width once. The break-even therefore turns on a quantity the
+field-op measurement did not isolate---the ${\approx}261{:}1$ control-overhead
+ratio---so whether a chip for this primitive pays is \emph{open}, and the deciding
+measurement is the fused chip against the guest loop on \emph{total} committed area
+(field-op plus control), at $\ell=7$, on the honest baseline where
+\texttt{UINT256\_MUL} is available. The already-served case does still sharpen why
+the criterion is priced on trace area, not guest cycles: in execute mode the chip
+costs $365$ cycles against the guest loop's $6{,}549$ (a $17.9\times$ apparent
+saving), the opposite of any trace-area verdict, so a criterion read off execute
+cycles would mislead. In sum: Griffin is the one instance the criterion already
+reports as paying ($56.4\times$ fewer cycles), because it is mismatched \emph{and}
+unserved; the matched-field control confirms the necessity direction ($164\times$);
+and the power-residue chip is the criterion's identified irreducibly-large-prime
+target, an open case whose deciding experiment is now specified.
 
 \subsection{Update Churn}\label{ssec:churn-eval}
 
