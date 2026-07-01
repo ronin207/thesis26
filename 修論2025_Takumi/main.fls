@@ -1,4 +1,4 @@
-PWD /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi
+PWD /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.claude/worktrees/thesis-restructure-criterion/修論2025_Takumi
 INPUT /usr/local/texlive/2026/texmf.cnf
 INPUT /usr/local/texlive/2026/texmf-dist/web2c/texmf.cnf
 INPUT /usr/local/texlive/2026/texmf.cnf
@@ -487,6 +487,20 @@ INPUT ./055-security.tex
 INPUT ./055-security.tex
 INPUT 055-security.tex
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmri8t.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlminr-v.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlminr-h.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmr8t.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmr10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmsy10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmex10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmss10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/latex-fonts/lasy10.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlgothr-v.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlgothr-h.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmb8t.tfm
 INPUT ./figs/assets/certificate.png
 INPUT ./figs/assets/certificate.png
 INPUT ./figs/assets/certificate.png
@@ -508,20 +522,6 @@ INPUT ./06-evaluation.tex
 INPUT ./06-evaluation.tex
 INPUT ./06-evaluation.tex
 INPUT 06-evaluation.tex
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlminr-v.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlminr-h.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmr8t.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmr10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmsy10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmex10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmss10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/latex-fonts/lasy10.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlgothr-v.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlgothr-h.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmb8t.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmr8c.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/courier/pcrr8t.tfm
 INPUT ./07-discussion.tex
