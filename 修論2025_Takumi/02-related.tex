@@ -46,6 +46,26 @@ SP1's standard library ships SHA-256 and ECDSA precompiles by default~\cite{succ
 
 These results share a structural pattern. A fixed primitive whose software emulation over the prover's native field would dominate the trace is replaced by a native AIR, and the per-call cost from the guest's perspective collapses to a single syscall. The Griffin-$\mathbb{F}_p^{192}$ precompile proposed in this thesis sits within this pattern, with the additional consideration that the primitive in question is parameterised over a non-trivial $199$-bit prime field (labelled $\mathbb{F}_p^{192}$ in the syscall name; Section~\ref{sec:system}), whose multiplications are carried by the zkVMs' existing $256$-bit modular-multiplication precompiles via zero-padding, so no field-width-specific bigint circuit is required on the measured path (Section~\ref{sec:system} builds a dedicated \texttt{FP192\_MUL} chip only to demonstrate that the precompile interface generalises, and by the cost criterion it does not pay).
 
+Two 2025 lines automate the accelerate-or-not decision. powdr's
+\emph{autoprecompiles}~\cite{powdr2025autoprecompiles} rank a guest program's
+basic blocks by the trace cells they induce and synthesise a merged circuit for
+the costly ones, and the vApps analysis~\cite{vapps2025} finds several EVM
+precompiles---notably modular exponentiation---dramatically mispriced relative to
+their zero-knowledge proving cost. Both are close in spirit to the cost model of
+Section~\ref{sec:theoretical}, and the distinction is worth stating. They are
+heuristics and measurements over profiling data gathered \emph{after} the
+accelerator or execution exists: an autoprecompile merges and de-duplicates the
+emulated instruction stream, and the pricing analysis reprices it, but neither
+decides, from the specification and before any build, whether replacing the
+emulation with a \emph{native} large-field AIR will lower total trace area, and
+neither carries the soundness side-condition a hand-written AIR must discharge.
+The distinction is mechanical as well as methodological: a block-merging
+autoprecompile optimises \emph{within} the field-mismatch tax---the merged block
+still emulates the large-prime operation in multi-limb form---whereas the
+criterion of Section~\ref{sec:theoretical} prices whether a native chip removes
+that tax, and returns, for the Griffin arm, the first reported
+\emph{do-not-build} verdict.
+
 \subsection{Evaluation Methodology and the Gap This Work Addresses}
 
 The recent literature on PQ-anonymous-credential systems reports evaluation along the conventional dimensions: prover wall-clock time, verifier wall-clock time, proof size, and, less commonly, peak memory~\cite{10.1007/978-981-96-0957-4_3,10.1007/978-981-95-2961-2_6}. The same is true of the zkVM literature, which adds cycle counts and segment counts to the standard list.

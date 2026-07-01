@@ -1,7 +1,7 @@
 \section{The Field-Mismatch Tax and When a Precompile Pays}
 \label{sec:theoretical}
 
-This section sets up the formal cost framework against which the rest of the thesis is measured. We name the dimensions along which the static-circuit and zkVM regimes will be compared (Section~\ref{ssec:cost-dimensions}), formalise the \emph{field-mismatch tax} as the quantitative manifestation of the arithmetic mismatch (Section~\ref{ssec:field-mismatch-tax}), formalise \emph{update churn} as a deployment-lifecycle dimension (Section~\ref{ssec:update-churn}), and decompose the cost of the verification predicate into the components that dominate either regime (Section~\ref{ssec:cost-decomposition}).
+This section sets up the formal cost framework against which the rest of the thesis is measured. We name the dimensions along which the static-circuit and zkVM regimes will be compared (Section~\ref{ssec:cost-dimensions}), formalise the \emph{field-mismatch tax} as the quantitative manifestation of the arithmetic mismatch (Section~\ref{ssec:field-mismatch-tax}), formalise \emph{update churn} as a deployment-lifecycle dimension (Section~\ref{ssec:update-churn}), and decompose the cost of the verification predicate into the components that dominate either regime (Section~\ref{ssec:cost-decomposition}). Automated precompile synthesis and pricing---powdr's autoprecompiles~\cite{powdr2025autoprecompiles} and the vApps analysis~\cite{vapps2025}---rank or reprice accelerators from profiling data after the fact; the criterion developed here instead decides, from the specification and before any build, whether a native precompile lowers total trace area, and names the soundness obligation such a precompile must meet.
 
 \subsection{Cost Dimensions}\label{ssec:cost-dimensions}
 
