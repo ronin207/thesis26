@@ -112,10 +112,13 @@ they also locate where the criterion's \emph{positive} question lives.
 precompile already serves---it is essentially that host chip retargeted---so the
 criterion predicts it does not pay. \texttt{FP192\_POW\_RES} is the interesting
 case: the power-residue symbol $a^{(p-1)/t}\bmod p$ is the one verifier component
-that is \emph{irreducibly large-prime}, since its PRF security is $O(\sqrt p)$ key
-recovery~\cite{khovratovich2019legendre,may2022legendre} and the prime cannot
-shrink to a matched field the way the hash can (the SHA-3 control of
-Section~\ref{sec:evaluation} shows the hash can), which makes it the natural target
+that is \emph{irreducibly large-prime} for two independent reasons. Its PRF
+security is $O(\sqrt p)$ key recovery---established for the Legendre ($t{=}2$)
+case~\cite{khovratovich2019legendre,may2022legendre}, on whose hardness the
+general $t$-th residue rests---so the prime cannot shrink to a matched field the
+way the hash can (the SHA-3 control of Section~\ref{sec:evaluation} shows the hash
+can); and the STIR low-degree test needs a smooth multiplicative subgroup of the
+same $\mathbb{F}_p$~\cite{cryptoeprint:2024/390}. Either bind makes it the natural target
 for a bespoke chip. Whether that chip \emph{pays} is open. As a naive
 square-and-multiply chip \texttt{FP192\_POW\_RES} commits more
 field-multiplication area than the guest loop it replaces
