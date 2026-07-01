@@ -1,12 +1,15 @@
 \section{System Design}
-We construct a custom \emph{precompile suite} that bypasses field emulation
-for the primitives that dominate the cost, mirroring how zkVMs already ship
-precompiles for standardized primitives (e.g.\ SHA-2, secp256k1). Three AIR
-modules are specified, in expected cycle-share order: (i) the Griffin
-permutation~\cite{cryptoeprint:2022/403} over PLUM's $192$-bit prime field, the load-bearing $91\%$
-target; (ii) multi-limb $192$-bit modular arithmetic over $p = 2^{64}p_0+1$;
-and (iii) the $t$-th power-residue PRF symbol check ($t=256$ fixed), a
-constant-exponent routine for $a^{(p-1)/t} \bmod p$. Each module ships with a
-written soundness argument tying its AIR constraints to the reference
-specification, so the precompile layer preserves the scheme's unforgeability
-under the assumption that the zkVM's cross-table lookup argument is sound.
+We construct a custom precompile around one reusable interface and instantiate
+it as a small \emph{family} of three chips over PLUM's $199$-bit prime field:
+(i) a bespoke Griffin permutation~\cite{cryptoeprint:2022/403} AIR, the
+load-bearing $91\%$ target; (ii) a dedicated \texttt{FP192\_MUL}
+field-multiplication chip; and (iii) a \texttt{FP192\_POW\_RES} chip composing
+that multiplication into the $t$-th power-residue PRF symbol check
+$a^{(p-1)/t}\bmod p$ ($t=256$ fixed). All three build and pass a core-STARK
+smoke proof (execute, prove, verify), each with a written soundness argument
+tying its constraints to the reference specification, so the precompile layer
+preserves the scheme's unforgeability under the assumption that the zkVM's
+cross-table lookup argument is sound. Only the Griffin chip is on the measured
+path; the other two demonstrate that the interface generalizes and, by the
+criterion, do not pay, because the host's $256$-bit modular-multiplication
+precompile already serves their arithmetic.
