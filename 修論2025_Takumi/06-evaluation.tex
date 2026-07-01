@@ -829,6 +829,30 @@ This establishes the necessity direction in execute mode; the prove-mode corolla
 (that the precompile does not pay at $\ell=1$, Proposition~\ref{prop:precompile-pays})
 and the schoolbook-tight $\ell^2$ test remain open.
 
+\subsubsection{The already-served case (trace area)}\label{sssec:already-served}
+The matched-field control probes one reason a precompile does not pay: $\ell=1$,
+where there is no multi-limb emulation to remove. The precompile-pays inequality
+(Proposition~\ref{prop:precompile-pays}) admits a second, distinct no-pay reason at
+full mismatch ($\ell=7$): a primitive whose multi-limb arithmetic is \emph{already}
+served by an existing precompile. The \texttt{FP192\_POW\_RES} chip
+(\S\ref{ssec:soundness}) makes this case concrete. It composes the power-residue-PRF
+symbol check $a^{(p-1)/t}\bmod p$ as a $191$-step square-and-multiply, every step of
+which is a $199$-bit modular multiplication the host \texttt{UINT256\_MUL} precompile
+already carries inside the guest loop. The inequality predicts, before measurement
+(\texttt{docs/measurements/prf\_chip\_20260701}), that a dedicated chip does not pay:
+it re-internalises essentially the same modular-multiplication trace area while
+removing only the guest loop's orchestration. The measurement confirms the sign---the
+chip commits $382$ \texttt{FieldOpCols} per symbol against the guest loop's $261$, so
+it \emph{adds} trace area rather than removing it. This point also sharpens why the
+criterion is priced on trace area and not guest cycles: in execute mode the chip
+costs $365$ cycles against the guest loop's $6{,}549$ (a $17.9\times$ apparent saving),
+the opposite of the prove-cost verdict, so a criterion read off execute cycles would
+predict a win exactly where the prover pays more. Together with the Griffin arm
+(which pays---$56.4\times$ fewer cycles---because it is mismatched \emph{and} unserved)
+and the matched-field control (which does not, because it is unmismatched), the family
+gives the criterion two measured no-pay reasons and one pay case, all from the single
+inequality.
+
 \subsection{Update Churn}\label{ssec:churn-eval}
 
 Table~\ref{tab:churn} enumerates the regeneration footprint of

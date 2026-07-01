@@ -1,6 +1,6 @@
 \section{Construction: The Precompile Suite and the Credential Workload}\label{sec:system}
 
-The theoretical analysis of Section~\ref{sec:theoretical} identified the algebraic-hash and large-prime-field operations of PLUM verification as the operations that carry the field-mismatch tax inside a small-field zkVM. This section presents the instrument we built to absorb that tax so that the remaining proving cost can be measured: a precompile suite, developed in two stages, and its integration into the credential-generation relation. The suite serves the measurement reported in Section~\ref{sec:evaluation}. Its purpose is to move the dominant cost out of emulated guest code so that what remains can be measured, attributed, and bounded. Throughout, we grade the evidence supporting each component, distinguishing what is proved from what is empirically tested and what is trusted from upstream, since the suite is not uniformly sound. Two soundness questions are left explicitly open (\S\ref{ssec:soundness}); a measurement whose correctness rested on unstated assumptions would be worth little, so stating the open questions is part of the work. The same Griffin chip that lowers the core-layer cost enlarges the recursion verifier's core machine, and that enlargement, quantified in Section~\ref{sec:evaluation}, is what the zero-knowledge wrap obstruction inherits. By the field-matching criterion (Proposition~\ref{prop:field-match}), a precompile is warranted here only because PLUM verification is field-mismatched ($\ell=7$): a primitive native to the prover field would need none, so the suite below is that criterion's mismatched case made concrete, not a general claim that precompiling always helps.
+The theoretical analysis of Section~\ref{sec:theoretical} identified the algebraic-hash and large-prime-field operations of PLUM verification as the operations that carry the field-mismatch tax inside a small-field zkVM. This section presents the instrument we built to absorb that tax so that the remaining proving cost can be measured: a precompile suite built around one reusable interface, which we instantiate three times as a small family (with a single instance, the Griffin permutation, on the measured path), and its integration into the credential-generation relation. The suite serves the measurement reported in Section~\ref{sec:evaluation}. Its purpose is to move the dominant cost out of emulated guest code so that what remains can be measured, attributed, and bounded. Throughout, we grade the evidence supporting each component, distinguishing what is proved from what is empirically tested and what is trusted from upstream, since the suite is not uniformly sound. Two soundness questions are left explicitly open (\S\ref{ssec:soundness}); a measurement whose correctness rested on unstated assumptions would be worth little, so stating the open questions is part of the work. The same Griffin chip that lowers the core-layer cost enlarges the recursion verifier's core machine, and that enlargement, quantified in Section~\ref{sec:evaluation}, is what the zero-knowledge wrap obstruction inherits. By the field-matching criterion (Proposition~\ref{prop:field-match}), a precompile is warranted here only because PLUM verification is field-mismatched ($\ell=7$): a primitive native to the prover field would need none, so the suite below is that criterion's mismatched case made concrete, not a general claim that precompiling always helps.
 
 \subsection{Scope of the Implementation}\label{ssec:impl-scope}
 We state plainly what is and is not built, since the honesty of every measurement in Section~\ref{sec:evaluation} depends on this scope being explicit.
@@ -9,6 +9,8 @@ We state plainly what is and is not built, since the honesty of every measuremen
   \item \textbf{Fp192 modular multiplication via the host precompile}
   (\S\ref{ssec:bigint}), routed through SP1's \texttt{UINT256\_MUL} and RISC~Zero's \texttt{sys\_bigint}, implemented for both targets. \emph{Built; reduction argued; empirically tested (14/14 adversarial cases).}
   \item \textbf{A bespoke Griffin-$\mathbb{F}_p^{192}$ permutation AIR for SP1} (\S\ref{ssec:griffin-air}), the load-bearing precompile, since PLUM's constraint budget is dominated by Griffin. All ten constraint families implemented ($\approx 3{,}900$ lines of Rust across the chip and executor-compute modules, over $24$ commits); a single-permutation smoke proof completes (execute$+$prove$+$verify) in $13.0$~s on the target hardware. \emph{Built; constraint-level chip-equivalence not yet verified (\S\ref{ssec:soundness}).}
+  \item \textbf{A dedicated \texttt{FP192\_MUL} field-multiplication chip for SP1} (\S\ref{ssec:soundness}), a second instance of the precompile interface, built to test the construction's generality; its field arithmetic is inherited from the audited \texttt{FieldOpCols} gadget. \emph{Built; core smoke proof passes (execute$+$prove$+$verify); not on the measured path.}
+  \item \textbf{A \texttt{FP192\_POW\_RES} power-residue-PRF chip for SP1} (\S\ref{ssec:soundness}), a third instance, composing the field multiplication into $a^{(p-1)/t}\bmod p$ under a fixed square-and-multiply schedule bound row-to-row by a cross-table lookup. \emph{Built; core smoke proof passes; chain-binding soundness adversarially verified; user/\texttt{mprotect} path disabled (no page-protection columns); not on the measured path.}
   \item \textbf{PLUM signature verification on SP1}, suite active. \emph{Built; proves end-to-end} ($14.25$~min at $\lambda=80$, mean of three fixed-config runs, tuned memory configuration; Section~\ref{sec:evaluation}).
   \item \textbf{PLUM signature verification on RISC~Zero} (standalone guest, Griffin hasher emulated in guest code, field arithmetic via \texttt{sys\_bigint}). \emph{Built; proves end-to-end} ($6$\,h\,$19$\,m at $\lambda=80$; Section~\ref{sec:evaluation}).
   \item \textbf{PLUM-in-BDEC credential generation (CreGen) on RISC~Zero}, with field arithmetic via \texttt{sys\_bigint}. \emph{Built; validated in execute mode} ($9.4\times10^{9}$ guest cycles, both signature verifications accepting); its succinct proof on RISC~Zero did not yield a receipt, ending in an internal-verifier rejection under diagnosis rather than a resource limit; on SP1 the same relation completes a succinct prove ($26.98$ and $31.11$~min, $n=2$; receipt verified, not zero-knowledge) (Section~\ref{sec:evaluation}).
@@ -82,7 +84,7 @@ This subsection states the soundness claim and the two questions it leaves open.
 This is a functional (input--output) equivalence statement, and, conditional on the black-box-transfer hypothesis, a transfer of PLUM's EU-CMA reduction; it is not a standalone cryptographic-security claim. Assume the host zkVM's cross-table lookup argument is sound; Assumption~\ref{asm:air} (the Griffin AIR's constraints are satisfied only by a witnessed transition equal to the reference Griffin-$\pi$ permutation); and that PLUM's EU-CMA reduction treats Griffin and field multiplication as black-box input--output maps, inspecting no intermediate representation (such as a limb of a field product); together with the upstream modular-multiplication guarantee of \S\ref{ssec:bigint}. Then substituting the precompile suite for the emulated operations preserves the input--output value of every PLUM and BDEC verification predicate. Consequently, under the black-box-transfer hypothesis, PLUM's EU-CMA reduction transfers unchanged: that reduction is in the random-oracle model and depends only on the input--output behaviour of the hash function instantiating the oracle, which, granting Assumption~\ref{asm:air}, the precompile reproduces \emph{exactly}: under that assumption it computes the same function the emulated code did, so no random-oracle programming step in the reduction is affected. (The reduction's reliance on (Q)ROM-replaceability of this Griffin instantiation is a separate, upstream assumption, recorded as an open upstream assumption in Section~\ref{sec:security} and not discharged here.)
 \end{theorem}
 
-\paragraph{The precompile interface.}
+\paragraph{The precompile interface, and the family that instantiates it.}
 Although stated for Griffin, the theorem's hypotheses are the \emph{interface} any
 precompile for an algebraic primitive in this family must meet: (i) input--output
 equivalence to the reference primitive over $\mathbb{F}_p$, so the chip computes
@@ -90,14 +92,36 @@ the same function the emulated code did; (ii) isolation, so the outer proof sees
 only the syscall's committed inputs and outputs, never an intermediate limb (the
 black-box-transfer hypothesis together with lookup binding); and (iii) a constant,
 preprocessing-bound modulus, so a malicious prover cannot choose the field per
-row. A second primitive in the family---a different algebraic hash, or the
-power-residue-PRF symbol check realised as its own chip rather than a guest loop
-over the field precompile---is an \emph{instantiation} of this interface, not a
-fresh construction; building one is future work, and by
-Proposition~\ref{prop:field-match} it is warranted only for a field-mismatched
-target. This thesis ships and measures the single instantiation the criterion's
-mismatched case requires, the Griffin-$\mathbb{F}_p^{192}$ chip; the interface is
-what makes that one chip evidence for the family rather than a one-off.
+row. To show that this interface is a reusable construction rather than a one-off,
+we build \emph{three} instances of it over the same $199$-bit field, each meeting
+(i)--(iii) with a soundness argument of the same shape: the Griffin permutation
+AIR (\S\ref{ssec:griffin-air}); a dedicated \texttt{FP192\_MUL}
+field-multiplication chip; and a \texttt{FP192\_POW\_RES} chip that composes the
+field multiplication into the power-residue-PRF symbol check $a^{(p-1)/t}\bmod p$
+under a fixed square-and-multiply schedule, the steps bound row-to-row by a
+cross-table lookup. All three build and pass a core-STARK smoke proof (execute,
+prove, verify); for \texttt{FP192\_POW\_RES} the row-to-row chain binding was
+additionally checked against an adversarial soundness review, and its
+user/\texttt{mprotect} path is disabled (it carries no page-protection columns),
+so it is validated at the same core-prove level as Griffin but not for an
+untrusted user path.
+
+\emph{Measured versus demonstrated.} Only the Griffin AIR is on the measured path:
+the $14.25$-min figure of Section~\ref{sec:evaluation} is produced by the Griffin
+chip together with the host \texttt{UINT256\_MUL} for field multiplication, not by
+the \texttt{FP192\_MUL} or \texttt{FP192\_POW\_RES} chips. Those two are built to
+demonstrate that the interface \emph{generalises} across primitive
+classes---a permutation, a field multiplication, and a composed modular
+exponentiation---and, by Proposition~\ref{prop:field-match}, they also make the
+criterion concrete in the negative direction: both re-implement arithmetic the
+host \texttt{UINT256\_MUL} precompile \emph{already} serves (\texttt{FP192\_MUL} is
+essentially that host chip retargeted to the $199$-bit modulus, and
+\texttt{FP192\_POW\_RES} composes it), so the criterion predicts neither pays; for
+\texttt{FP192\_POW\_RES} the trace-area accounting of
+Section~\ref{sec:evaluation} confirms this directly. Griffin, by contrast, is
+field-mismatched \emph{and} unserved by any existing precompile, which is why it
+is the instance that pays. The interface is what makes three chips evidence for
+one method rather than three unrelated artefacts.
 
 \paragraph{What is established.}
 The field-substrate half rests on the reduction of \S\ref{ssec:bigint}. The suite is platform-specific: on SP1 it includes the bespoke Griffin AIR, to which Assumption~\ref{asm:air} applies; on RISC~Zero the Griffin arithmetic is carried by \texttt{sys\_bigint} emulation, so Assumption~\ref{asm:air} is not invoked there and is replaced by the analogous input--output equality of the emulated permutation. For the Griffin AIR, the per-family analysis (Appendix~\ref{app:proofs}) exhibits, family by family, the constraint \emph{intended} to catch any deviation from reference Griffin, the forgery that deviation would enable, and the implementation status of each; memory binding, output canonicality, parameter immutability, and row scheduling are implemented and constrained. What that analysis does \emph{not} establish, and says so explicitly, is that the implemented constraint system is satisfied \emph{only} by reference-equal witnesses: this is Assumption~\ref{asm:air}, the \emph{chip--constraint equality}. It is empirically supported by the $256$-vector cross-codebase agreement and the partial fault-injection coverage discussed below (per-vector false-pass probability $\approx 2^{-199}$ for the vector suite), but the vector agreement pins the \emph{executor} against the reference, a weaker \emph{chip--executor} equality, not the \emph{constraints}; Assumption~\ref{asm:air} is not verified at the constraint level.
