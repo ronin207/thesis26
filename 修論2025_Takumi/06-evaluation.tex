@@ -828,7 +828,17 @@ datum consistent with the $\ell$ lower bound of Proposition~\ref{prop:fmt-lb}, n
 violation; the naive KoalaBear reduction makes $164\times$ a conservative estimate.
 This establishes the necessity direction in execute mode; the prove-mode corollary
 (that the precompile does not pay at $\ell=1$, Proposition~\ref{prop:precompile-pays})
-and the schoolbook-tight $\ell^2$ test remain open.
+remains open.
+
+\paragraph{A field-width sweep.} Across four widths ($\ell=2,4,7,8$;
+\texttt{docs/measurements/gap2\_sweep\_20260701}) the per-multiplication cost of a
+limb-aligned schoolbook multiply---the operation a precompile removes---grows
+monotonically as $\ell^{1.30}$, inside the $[\ell,\ell^2]$ band of
+Proposition~\ref{prop:fmt-lb}, extending the two-point control to a curve that
+tracks the criterion's width-dependence. A general bignum library
+(\texttt{num\_bigint}) is unsuited to this shape measurement, its allocation and
+division overhead masking the scaling at these limb counts, so we use it only for
+the conservative endpoint magnitudes above.
 
 \subsubsection{The already-served case (trace area)}\label{sssec:already-served}
 The matched-field control probes one reason a precompile does not pay: $\ell=1$,
