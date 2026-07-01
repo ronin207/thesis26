@@ -509,11 +509,11 @@ Horn~2 is a primitive limit no memory or time budget removes.
   \draw[->] (wrap) -- (oom);
   \draw[->] (wrap) -- (npq);
 \end{tikzpicture}
-\caption{The dual obstruction. The proof feasible to generate (left, the bare STARK
-receipt) is not zero-knowledge, hence not anonymous; the proof that would be
-zero-knowledge (right, a Groth16/PLONK wrap) is blocked, at $\lambda=80$ on the $24$~GB target hardware, by two \emph{independent}
-prongs: structural (the recursion-shape provisioning wall, with OOM at ${\approx}20$~GB the default-concurrency symptom) and primitive (pairing-based, not
-post-quantum, which more memory cannot fix).}
+\caption{The dual obstruction ($\lambda=80$, $24$~GB target). The feasible proof
+(left, the bare STARK receipt) is not zero-knowledge, hence not anonymous; the
+zero-knowledge proof (right, a Groth16/PLONK wrap) is blocked by two
+\emph{independent} prongs---structural (the recursion-shape provisioning wall) and
+primitive (pairing-based, not post-quantum, which more memory cannot fix).}
 \label{fig:dual-obstruction}
 \end{figure}
 
