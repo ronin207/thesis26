@@ -99,7 +99,7 @@ adaptively, and act as a malicious prover attempting to produce an accepting
 showing it should not be able to prove. Following PLUM, the unforgeability we
 inherit is established against classical adversaries in the classical
 random-oracle model. Its post-quantum reading rests on the underlying
-power-residue PRF and collision-resistance assumptions being quantum-hard,
+power-residue PRF~\cite{frixons2021quantum} and collision-resistance assumptions being quantum-hard,
 whereas the lift of the EU-CMA reduction itself to the quantum random-oracle
 model is a separate question that PLUM does not settle and that we do not
 re-establish here. That such a lift is \emph{attainable} for this PRF family is
@@ -335,7 +335,7 @@ FreeLunch; the line continues in~\cite{cheaplunch2025}, which does not by itself
 threaten a full-round instance). The instances broken in practice use an $\alpha=3$ S-box, the same degree as
 our instantiation, and were solved at $7$--$8$ of their $10$ rounds on reduced or
 smaller-field parameters. Our $14$-round, width-$4$, $199$-bit instance is not
-among them, separated from the broken ones---which use a wider state ($t{=}12$)---by its state width, round count, and field rather
+among them (Table~\ref{tab:round-margin}), separated from the broken ones---which use a wider state ($t{=}12$)---by its state width, round count, and field rather
 than by its S-box degree. We therefore do not claim the $14$-round count
 establishes a $128$-bit floor against the current attack frontier. Establishing such a floor would require instantiating the
 FreeLunch/resultant complexity estimator at our parameters
@@ -344,6 +344,25 @@ that model, which we record as required future work. This is not independent of
 Assumption~\ref{asm:szk}: a reduced-round CICO solution is precisely the non-random structure
 that replacing Griffin by a random oracle assumes absent, so the algebraic-attack
 question and Assumption~\ref{asm:szk} are two readings of one open problem.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lccccl}
+\toprule
+Instance & $d$ & $t$ & field (bits) & rounds & best practical CICO \\
+\midrule
+Griffin, FreeLunch~\cite{freelunch2024}  & $3$ & $12$ & ${\approx}55$ & $10$ & $7/10$ rounds \\
+Griffin, Resultant~\cite{resultant2025}  & $3$ & $12$ & ${\approx}55$ & $10$ & $8/10$ rounds \\
+\textbf{This work}                       & $3$ & $4$  & $199$         & $14$ & none reported \\
+\bottomrule
+\end{tabular}
+\caption{Round-margin disclosure. The Griffin instances broken in practice by
+algebraic (CICO) attacks share our S-box degree but differ in state width, field,
+and round count. We do not claim $14$ rounds establishes a $128$-bit floor---the
+estimator at our parameters is future work.}
+\label{tab:round-margin}
+\end{table}
 
 The BDEC credential-generation prove anomaly reported in
 Section~\ref{sec:evaluation} does not bear on Assumption~\ref{asm:air}: that run executed on
