@@ -43,15 +43,13 @@ We answer on the criterion's own axis: a trace-area cost model (Section~\ref{sec
 \end{tikzpicture}
 \caption{One relation, two outer provers. The same credential verification relation is
 proved \emph{either} by a static Aurora circuit (the BDEC baseline) \emph{or} by a
-general-purpose zkVM (this thesis), and the two are alternatives: the zkVM does not
-re-prove an Aurora proof. It also locates the deployability wall (contribution two): the static
-Aurora circuit is transparent and zero-knowledge-capable, and the
-zero-knowledge-enabled reference run is now measured, an accepted post-quantum
-zero-knowledge proof of the Loquat single-verification building block in about $22$ minutes (mean of three runs, $21.4$--$22.9$)
-on the target machine, whereas the zkVM does not reach that proof on
-consumer hardware. The agility difference between the two
-is a footprint distinction that this thesis measures and finds does not translate
-into a per-proof wall-clock advantage.}
+general-purpose zkVM (this thesis); the two are alternatives, not composed---the
+zkVM does not re-prove an Aurora proof. The figure also locates the deployability
+wall (contribution two): Aurora reaches an accepted post-quantum zero-knowledge
+proof of the Loquat single-verification building block (about $22$~min, mean of
+three, $21.4$--$22.9$), whereas the zkVM does not reach that proof on consumer
+hardware. The agility difference between them is a re-audit footprint, not a
+per-proof wall-clock advantage.}
 \label{fig:two-provers}
 \end{figure}
 
