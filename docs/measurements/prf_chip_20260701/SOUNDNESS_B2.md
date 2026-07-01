@@ -1,15 +1,45 @@
 # Soundness note — Precompile #3 "B2": composed power-residue PRF `FP192_POW_RES`
 
-**Status: DRAFT, honest. NOT rubber-stamped.** B2 is the first
-instantiation of the thesis's precompile interface that *composes* an
-existing sound gadget rather than subtracting from one. Its field
-arithmetic is inherited unchanged from the audited `FieldOpCols`
-(exactly as B1); its **new, load-bearing, and only partially-discharged
-proof obligation is the fixed-exponent square-and-multiply
-schedule ↔ selector equality** (family F7 below). This note states
-plainly what is proven at the constraint level vs. what remains an
-assumption. **The schedule-soundness is the contribution and needs
-review — do not treat it as established.**
+**Status: CONSTRAINT-LEVEL SOUNDNESS CLOSED (2026-07-01).** Updated after
+Path-A wiring + an adversarial `proof-checker` re-verify (agent `a51c1ada`,
+2026-07-01). B2 is the first instantiation of the thesis's precompile
+interface that *composes* an existing sound gadget rather than subtracting
+from one. Its field arithmetic is inherited unchanged from the audited
+`FieldOpCols` (exactly as B1); the new, load-bearing obligation was the
+fixed-exponent square-and-multiply schedule↔selector equality (F7) plus the
+square-and-multiply chain balance (F8).
+
+**Closure verdict (proof-checker, adversarial break-attempts constructed and
+refuted per property):**
+- **Chain binding CLOSED** — LogUp multiset balance over the (clk,ptr,a)
+  fingerprint (kind=23, emitted by exactly the two fp192_powres chips) forces
+  `acc_0=1`, `base≡a` on every row, `acc_out_k=acc_in_{k+1}`, and
+  `symbol=acc_L`. Skip / repeat / cross-syscall-splice / self-contained
+  phantom-chain / `symbol≠acc_L` all break balance (directions strictly
+  increase, so no phantom chain self-balances without the controller anchor).
+- **Off-by-one CLOSED** — `assert_zero(is_step_r[exp_bit_len()..MAX_STEPS])`
+  + one-hot + `Σr·is_step_r=step_idx` pin `step_idx∈{0..190}`; phantom
+  step-191 / direction-192 unreachable.
+- **Byte injectivity CLOSED** — `slice_range_check_u8` on `acc_in`/`base`
+  makes the u16 payload composition injective; non-byte packing dead.
+- **Payload sufficiency CLOSED** — the 38-value fingerprint binds every
+  output-determining field (clk, ptr, direction, acc, base).
+- **No new false-accept hole.** Two *hardening* notes (missing step-chip
+  not-mprotect guard — safe via the flow argument but recommend an explicit
+  guard for defense-in-depth; redundant `is_first/last_step` flags — belt-
+  and-suspenders, soundness-irrelevant).
+
+Rests on three inherited (non-B2-specific) assumptions: LogUp/permutation
+soundness, the `FieldOpCols` 32-limb operand budget, and unique authentic
+(clk,ptr). `L=191` is runtime-computed but non-load-bearing (constraints are
+symbolic in `exp_bit_len()`).
+
+**Completeness is UNVERIFIED and NOT claimed.** The chip has no trace
+generators / RiscvAir wiring and has never smoke-proven, so soundness (no
+false accept — the property that earns "a family") is established, but honest
+realizability (that a valid trace exists and verifies end-to-end) is not yet
+demonstrated. "Sound" ≠ "an honest proof will verify." Smoke-prove is the
+remaining engineering (~400 lines of MachineAir + trace generators).
 
 Build artifacts (isolated SP1 fork-worktree, branch `prf-precompiles`):
 
