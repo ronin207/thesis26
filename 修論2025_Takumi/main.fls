@@ -361,6 +361,7 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlminr-h
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmr8t.tfm
 OUTPUT main.dvi
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmb8t.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmri8t.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlminr-v.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/japanese-otf/nmlminr-h.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmr8t.tfm
@@ -378,7 +379,6 @@ OUTPUT main.toc
 INPUT ./main.lof
 INPUT ./main.lof
 INPUT main.lof
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmri8t.tfm
 OUTPUT main.lof
 INPUT ./main.lot
 INPUT ./main.lot
@@ -430,7 +430,6 @@ INPUT ./figs/assets/server.png
 INPUT ./figs/assets/server.png
 INPUT ./figs/assets/server.png
 INPUT figs/assets/server.xbb
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmbi8t.tfm
 INPUT ./02-related.tex
 INPUT ./02-related.tex
 INPUT ./02-related.tex
@@ -467,6 +466,8 @@ INPUT ./05-system.tex
 INPUT ./05-system.tex
 INPUT ./05-system.tex
 INPUT 05-system.tex
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/courier/pcrb8t.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/courier/pcrro8t.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/courier/pcrb8t.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/times/ptmri8t.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/cm/cmr12.tfm
