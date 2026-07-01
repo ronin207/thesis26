@@ -1,8 +1,10 @@
 # Soundness note — Precompile #3 "B2": composed power-residue PRF `FP192_POW_RES`
 
-**Status: CONSTRAINT-LEVEL SOUNDNESS CLOSED (2026-07-01).** Updated after
-Path-A wiring + an adversarial `proof-checker` re-verify (agent `a51c1ada`,
-2026-07-01). B2 is the first instantiation of the thesis's precompile
+**Status: SOUND + COMPLETE — smoke-proven end-to-end (2026-07-01).**
+Constraint-level soundness closed (Path-A wiring + adversarial `proof-checker`
+re-verify, agent `a51c1ada`); completeness then demonstrated by a core STARK
+smoke-prove (`test_fp192_powres_prove`, 370 s — see the completeness note at the
+end). B2 is now validated at the same core-prove level as Griffin. B2 is the first instantiation of the thesis's precompile
 interface that *composes* an existing sound gadget rather than subtracting
 from one. Its field arithmetic is inherited unchanged from the audited
 `FieldOpCols` (exactly as B1); the new, load-bearing obligation was the
@@ -34,12 +36,22 @@ soundness, the `FieldOpCols` 32-limb operand budget, and unique authentic
 (clk,ptr). `L=191` is runtime-computed but non-load-bearing (constraints are
 symbolic in `exp_bit_len()`).
 
-**Completeness is UNVERIFIED and NOT claimed.** The chip has no trace
-generators / RiscvAir wiring and has never smoke-proven, so soundness (no
-false accept — the property that earns "a family") is established, but honest
-realizability (that a valid trace exists and verifies end-to-end) is not yet
-demonstrated. "Sound" ≠ "an honest proof will verify." Smoke-prove is the
-remaining engineering (~400 lines of MachineAir + trace generators).
+**Completeness is DEMONSTRATED (2026-07-01, `test_fp192_powres_prove`).** The
+chip now runs end-to-end: execute + core STARK prove + verify all pass (370 s);
+the guest asserts `B2 == guest-loop == reference a^((p-1)/256) mod p`, and the
+191-row step trace + controller + cross-chip `Fp192PowRes` lookup balance into a
+valid proof. The MachineAir impls + trace generators + registration were written
+(the ~400-line plumbing); `RiscvAir` internal consistency assertions
+(chips==discriminants, chips==costs) pass. **No soundness constraint was
+weakened** — the single bug found was a trace-gen element-vs-row slicing fix.
+The step-chip not-mprotect guard was added (defense-in-depth).
+
+So B2 is now validated at the **same core-prove level as Griffin**: constraint-
+level soundness (adversarially closed) + completeness (smoke-proven). Caveats:
+(i) CORE prove only — the recursion/compress shape is deferred, as with Griffin's
+own smoke-prove; (ii) the user/mprotect path is disabled by the guard (no page-
+prot columns), so it is not sound for a real user path — out of scope for this
+core-prove validation.
 
 Build artifacts (isolated SP1 fork-worktree, branch `prf-precompiles`):
 
