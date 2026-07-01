@@ -1,6 +1,6 @@
 % Static-circuit (Aurora) vs zkVM substrate — the decision-rule figure.
 % Numbers: Aurora setup+prove 3.78 min (tab:aurora-ref, this thesis, Loquat-BDEC,
-% lambda=80); zkVM PLUM-verify 32.5 min with precompile (Cell 2). Update churn:
+% lambda=80); zkVM PLUM-verify 14.25 min with precompile (Cell 2). Update churn:
 % static N_circ,N_param >= 1 per phi-change; zkVM = 0 (Table churn).
 % Compile: pdflatex substrate_compare.tex
 \documentclass[border=4pt]{standalone}
@@ -34,7 +34,7 @@
 \node[vm,below=3mm of vh] (va) {predicate $\phi$ in\\guest \emph{program}};
 \node[vm,below=3mm of va] (vb) {universal relation\\$R_{\mathsf{vm}}$ (fixed once)};
 \node[vm,below=3mm of vb] (vc) {prove\\\scriptsize $+$ field precompile};
-\node[vm,below=3mm of vc,fill=orange!24] (vd) {receipt\\\scriptsize $32.5$\,min (PLUM verify)};
+\node[vm,below=3mm of vc,fill=orange!24] (vd) {receipt\\\scriptsize $14.25$\,min (PLUM verify)};
 \draw[flow] (va)--(vb); \draw[flow](vb)--(vc); \draw[flow](vc)--(vd);
 % phi change -> guest edit, no recompile
 \draw[chg,green!50!black] (va.east) to[out=10,in=-10,looseness=2.2]

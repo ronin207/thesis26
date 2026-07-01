@@ -811,7 +811,8 @@ Table~\ref{tab:churn}) together with this measured wall-clock caveat, rather tha
 as a numeric crossover that favours the zkVM.
 
 \subsubsection{Matched-field control (execute mode)}
-The necessity claim of the criterion (Proposition~\ref{prop:field-match})---that the
+Distinct from the prove-mode keystone forecast above (which remains open), the
+necessity claim of the criterion (Proposition~\ref{prop:field-match})---that the
 field-mismatch benefit scales with the width $\ell$ and vanishes at $\ell=1$---admits
 a direct execute-mode test, forecast before the run
 (\texttt{docs/measurements/keystone\_matched\_field\_20260701}). We measure the
@@ -848,10 +849,12 @@ criterion is priced on trace area and not guest cycles: in execute mode the chip
 costs $365$ cycles against the guest loop's $6{,}549$ (a $17.9\times$ apparent saving),
 the opposite of the prove-cost verdict, so a criterion read off execute cycles would
 predict a win exactly where the prover pays more. Together with the Griffin arm
-(which pays---$56.4\times$ fewer cycles---because it is mismatched \emph{and} unserved)
-and the matched-field control (which does not, because it is unmismatched), the family
-gives the criterion two measured no-pay reasons and one pay case, all from the single
-inequality.
+(which pays---$56.4\times$ fewer cycles---because it is mismatched \emph{and}
+unserved), this already-served case is the criterion's one measured
+prove-relevant no-pay; it complements the matched-field control, whose
+$164\times$ execute-mode tax confirms the necessity direction while the prove-mode
+$\ell=1$ no-pay corollary itself remains open. All three arms follow from the
+single inequality.
 
 \subsection{Update Churn}\label{ssec:churn-eval}
 
