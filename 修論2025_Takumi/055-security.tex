@@ -225,8 +225,9 @@ link~L3 is a heuristic, not a theorem, and is exactly what arithmetisation-orien
 cryptanalysis probes. Two lifts stay open on top of this: L3 at our specific
 $(d{=}3,\,t{=}4,\,199\text{-bit},\,14\text{-round})$ instance is unverified against
 the FreeLunch/Resultant/CheapLunch frontier (the round-count disclosure below),
-and the whole chain is classical---its quantum lift (L4), covering both the sponge
-composition and PLUM's Fiat--Shamir step, is not established.
+and the whole chain is classical---its quantum lift (L4), covering the composition
+of the quantum sponge bound with the ideal-permutation heuristic (L3) and PLUM's
+Fiat--Shamir step, is not established.
 Pegasus~\cite{cryptoeprint:2025/1841} proves (Q)ROM security for a
 power-residue-PRF signature, which removes the presumption that the PRF family is
 the obstacle, but it is a $\Sigma$-protocol construction and says nothing about
@@ -395,8 +396,8 @@ open premise we therefore state which guarantee survives it, and we make no
 unconditional claim.
 
 A sharper disclosure is owed for the Griffin round count itself, since the hash
-makes up roughly $91\%$ of the verification's R1CS constraints (the PLUM-128 figure of Section~\ref{sec:theoretical}). Neither PLUM nor Loquat prints a Griffin round count. The $14$ rounds are our own
-instantiation, derived by Loquat's round-count heuristic, scaled for our S-box degree, at our
+makes up roughly $91\%$ of the verification's R1CS constraints (the PLUM-128 figure of Section~\ref{sec:theoretical}). Neither PLUM nor Loquat prints a Griffin round count for our parameters. The $14$ rounds are our own
+instantiation, derived by the Griffin round-count methodology~\cite{cryptoeprint:2022/403}---a margin over the Gr\"{o}bner-resistance floor---as implemented in Loquat~\cite{cryptoeprint:2024/868} and scaled for our S-box degree, at our
 parameters as $\lceil 1.2\times 11\rceil$, a $20\%$ margin over the floor of $11$ at which a
 constrained-input/constrained-output (CICO) solver of the FGLM type would cost $2^{64}$
 for our $(d{=}3,\,t{=}4,\,\lambda{=}128)$ instance over the $199$-bit prime. That
