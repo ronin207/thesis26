@@ -1,7 +1,7 @@
 \section{The Field-Mismatch Tax and When a Precompile Pays}
 \label{sec:theoretical}
 
-This section sets up the formal cost framework against which the rest of the thesis is measured. We name the dimensions along which the static-circuit and zkVM regimes will be compared (Section~\ref{ssec:cost-dimensions}), formalise the \emph{field-mismatch tax} as the quantitative manifestation of the arithmetic mismatch (Section~\ref{ssec:field-mismatch-tax}), formalise \emph{update churn} as a deployment-lifecycle dimension (Section~\ref{ssec:update-churn}), and decompose the cost of the verification predicate into the components that dominate either regime (Section~\ref{ssec:cost-decomposition}). Automated precompile synthesis and pricing---powdr's autoprecompiles~\cite{powdr2025autoprecompiles} and the vApps analysis~\cite{vapps2025}---rank or reprice accelerators from profiling data after the fact; the criterion developed here instead decides, from the specification and before any build, whether a native precompile lowers total trace area, and names the soundness obligation such a precompile must meet.
+This section sets up the formal cost framework against which the rest of the thesis is measured. We name the dimensions along which the static-circuit and zkVM regimes will be compared (Section~\ref{ssec:cost-dimensions}), formalise the \emph{field-mismatch tax} as the quantitative manifestation of the arithmetic mismatch (Section~\ref{ssec:field-mismatch-tax}), formalise \emph{update churn} as a deployment-lifecycle dimension (Section~\ref{ssec:update-churn}), and decompose the cost of the verification predicate into the components that dominate either regime (Section~\ref{ssec:cost-decomposition}). Automated precompile synthesis and pricing (powdr's autoprecompiles~\cite{powdr2025autoprecompiles} and the vApps analysis~\cite{vapps2025}) rank or reprice accelerators from profiling data after the fact; the criterion developed here instead decides, from the specification and before any build, whether a native precompile lowers total trace area, and names the soundness obligation such a precompile must meet.
 
 \subsection{Cost Dimensions}\label{ssec:cost-dimensions}
 
@@ -138,8 +138,8 @@ chip area is a separate, quantitative question.
 \paragraph{Scope: the field-mismatch tax only.} Proposition~\ref{prop:field-match}
 concerns algebraic primitives, whose cost is $\mathbb{F}_p$ arithmetic. A
 primitive whose cost is \emph{bitwise} (SHA-2, Keccak) carries a different
-tax---the cost of emulating Boolean operations on a small arithmetic
-field---and can warrant a precompile even when field-matched, which is why
+tax (the cost of emulating Boolean operations on a small arithmetic
+field) and can warrant a precompile even when field-matched, which is why
 production zkVMs ship Keccak precompiles over their native field. The
 field-matching criterion does not govern those; it predicts only the
 field-mismatch component, and its class boundary is the algebraic, large-prime
@@ -150,15 +150,15 @@ dominated by large-prime arithmetic.
 two-sided: a field-matched algebraic primitive ($\ell=1$) should show \emph{no}
 field-mismatch benefit, and a strongly mismatched one ($\ell=7$, PLUM) a large
 one. The mismatched side is measured in Section~\ref{sec:evaluation} (the Griffin
-precompile recovers feasibility). The matched side is the keystone control---a
+precompile recovers feasibility). The matched side is the keystone control: a
 primitive native to the prover field, precompiled against its own software
 baseline, which Proposition~\ref{prop:field-match} predicts will not pay. Stated
 as a held-out test, the trace-area constants calibrated on the mismatched arm
 forecast the sign of the matched arm \emph{before} it is run; a measured
 no-benefit at $\ell=1$ confirms the criterion as predictive, and a measured
 benefit would falsify it. The necessity direction is now confirmed in execute
-mode---the per-multiplication field-mismatch tax measures $164\times$ from
-$\ell=1$ to $\ell=7$ (Section~\ref{sec:evaluation})---so the criterion is
+mode: the per-multiplication field-mismatch tax measures $164\times$ from
+$\ell=1$ to $\ell=7$ (Section~\ref{sec:evaluation}), so the criterion is
 established analytically (Proposition~\ref{prop:field-match}) and postdictively (the
 mismatched arm), with its necessity direction confirmed in execute mode; the prove-mode corollary,
 that the precompile does not pay at $\ell=1$, remains the open empirical step.
@@ -199,4 +199,4 @@ The empirical evaluation of Section~\ref{sec:evaluation} tabulates the circuit a
 
 \subsection{Cost Decomposition of the Verification Predicate}\label{ssec:cost-decomposition}
 
-The unit of cost is the PLUM verification predicate $\Pred_{\Verify}^{\Sig,\ppSig}$; a credential relation is a fixed number of its invocations---two in CreGen, $k+2$ in ShowCre (Section~\ref{sec:prelim})---and the verifier-side membership, revocation, and disclosure checks fall outside the proof. Inside one predicate the load-bearing components are (i) the $t$-th power-residue PRF symbol checks, (ii) the BCS Merkle-commitment recomputations, and (iii) the low-degree-test invocations; the cost of (ii) and (iii) is dominated by the algebraic hash $H_{\mathsf{Griffin}}$ over $\mathbb{F}_p$. By Definition~\ref{def:fmt} every such Griffin permutation is a tax-bearing $\mathbb{F}_p$ operation on a small-native-field zkVM, so the field-mismatch tax of a whole credential relation is concentrated in the predicate's algebraic hashing. This locates the dominant term---the Griffin permutation count---and identifies it as the precompile target of the next chapter; whether precompiling it lowers prove-time is the question Equation~\eqref{eq:precompile-pays} and Section~\ref{sec:evaluation} answer, in both directions (feasibility recovery, and a Griffin arm slower than a SHA-3 control).
+The unit of cost is the PLUM verification predicate $\Pred_{\Verify}^{\Sig,\ppSig}$; a credential relation is a fixed number of its invocations, two in CreGen, $k+2$ in ShowCre (Section~\ref{sec:prelim}), and the verifier-side membership, revocation, and disclosure checks fall outside the proof. Inside one predicate the load-bearing components are (i) the $t$-th power-residue PRF symbol checks, (ii) the BCS Merkle-commitment recomputations, and (iii) the low-degree-test invocations; the cost of (ii) and (iii) is dominated by the algebraic hash $H_{\mathsf{Griffin}}$ over $\mathbb{F}_p$. By Definition~\ref{def:fmt} every such Griffin permutation is a tax-bearing $\mathbb{F}_p$ operation on a small-native-field zkVM, so the field-mismatch tax of a whole credential relation is concentrated in the predicate's algebraic hashing. This locates the dominant term (the Griffin permutation count) and identifies it as the precompile target of the next chapter; whether precompiling it lowers prove-time is the question Equation~\eqref{eq:precompile-pays} and Section~\ref{sec:evaluation} answer, in both directions (feasibility recovery, and a Griffin arm slower than a SHA-3 control).

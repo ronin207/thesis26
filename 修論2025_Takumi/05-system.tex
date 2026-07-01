@@ -105,17 +105,17 @@ untrusted user path.
 the $14.25$-min figure of Section~\ref{sec:evaluation} is produced by the Griffin
 chip together with the host \texttt{UINT256\_MUL} for field multiplication, not by
 the \texttt{FP192\_MUL} or \texttt{FP192\_POW\_RES} chips. Those two are built to
-demonstrate that the interface \emph{generalises} across primitive classes---a
-permutation, a field multiplication, and a composed modular exponentiation---and
+demonstrate that the interface \emph{generalises} across primitive classes (a
+permutation, a field multiplication, and a composed modular exponentiation) and
 they also locate where the criterion's \emph{positive} question lives.
 \texttt{FP192\_MUL} re-implements arithmetic the host \texttt{UINT256\_MUL}
-precompile already serves---it is essentially that host chip retargeted---so the
+precompile already serves (it is essentially that host chip retargeted), so the
 criterion predicts it does not pay. \texttt{FP192\_POW\_RES} is the interesting
 case: the power-residue symbol $a^{(p-1)/t}\bmod p$ is the one verifier component
 that is \emph{irreducibly large-prime} for two independent reasons. Its PRF
-security is $O(\sqrt p)$ key recovery---established for the Legendre ($t{=}2$)
+security is $O(\sqrt p)$ key recovery (established for the Legendre ($t{=}2$)
 case~\cite{khovratovich2019legendre,may2022legendre}, on whose hardness the
-general $t$-th residue rests---so the prime cannot shrink to a matched field the
+general $t$-th residue rests), so the prime cannot shrink to a matched field the
 way the hash can (the SHA-3 control of Section~\ref{sec:evaluation} shows the hash
 can); and the STIR low-degree test needs a smooth multiplicative subgroup of the
 same $\mathbb{F}_p$~\cite{cryptoeprint:2024/390}. Either bind makes it the natural target
@@ -123,9 +123,9 @@ for a bespoke chip. Whether that chip \emph{pays} is open. As a naive
 square-and-multiply chip \texttt{FP192\_POW\_RES} commits more
 field-multiplication area than the guest loop it replaces
 (Section~\ref{sec:evaluation}), so on the arithmetic axis alone it does not; but
-that comparison omits the guest loop's per-symbol control overhead---one syscall
+that comparison omits the guest loop's per-symbol control overhead (one syscall
 dispatch, memory access, and lookup for each of the ${\approx}261$
-multiplications, against one for a fused chip---which a fused fixed-exponent chip
+multiplications, against one for a fused chip), which a fused fixed-exponent chip
 would pay once. The break-even turns on that control-overhead saving, which our
 measurement did not isolate, and the deciding experiment is specified in
 Section~\ref{sec:evaluation}. Griffin, by contrast, is field-mismatched \emph{and}

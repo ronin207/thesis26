@@ -161,7 +161,7 @@ complete within five hours on this hardware.
 \end{tikzpicture}
 \caption{Prove time of the two SP1 arms sharing the same PLUM verification
 ($\lambda=80$, $n=3$). The Griffin precompile is slower than the SHA-3
-control---the inversion; the no-precompile baseline does not complete.}
+control: the inversion; the no-precompile baseline does not complete.}
 \label{fig:prove-time}
 \end{figure}
 
@@ -583,7 +583,7 @@ not dependably ZK~\cite{risc0zkadvisory,l2beatzk} (\S\ref{sec:security}).}
 % (Griffin vs SHA-3) -- the ~33x gap between CreGen-Griffin (4.69e9/verify) and
 % PLUM-verify-SHA3 (~1.4e8) IS the field-mismatch tax, NOT a basis error.
 
-The criterion this thesis defends---\emph{when does a precompile pay?}---is
+The criterion this thesis defends (\emph{when does a precompile pay?}) is
 decided on a single declared axis: the trace-area cost model of
 Section~\ref{sec:theoretical} (Equation~\eqref{eq:trace-area-model}), which
 prices a primitive by the chip cells a precompile commits against the core
@@ -776,8 +776,8 @@ as a numeric crossover that favours the zkVM.
 
 \subsubsection{Matched-field control (execute mode)}
 Distinct from the prove-mode keystone forecast above (which remains open), the
-necessity claim of the criterion (Proposition~\ref{prop:field-match})---that the
-field-mismatch benefit scales with the width $\ell$ and vanishes at $\ell=1$---admits
+necessity claim of the criterion (Proposition~\ref{prop:field-match}), that the
+field-mismatch benefit scales with the width $\ell$ and vanishes at $\ell=1$, admits
 a direct execute-mode test, forecast before the run
 (\texttt{docs/measurements/keystone\_matched\_field\_20260701}). We measure the
 per-multiplication emulated cost of a field-matched primitive (a KoalaBear
@@ -787,7 +787,7 @@ multiplication against $3{,}121$ for the mismatched one, a $164\times$ field-mis
 tax. The emulated cost a precompile removes is therefore large at $\ell=7$ and
 essentially nothing at $\ell=1$, confirming the necessity direction. The ratio
 exceeds the schoolbook $\ell^2=49$ because the Fp192 software path is a general
-bignum (\texttt{num\_bigint}) rather than a limb-aligned routine---an implementation
+bignum (\texttt{num\_bigint}) rather than a limb-aligned routine, an implementation
 datum consistent with the $\ell$ lower bound of Proposition~\ref{prop:fmt-lb}, not a
 violation; the naive KoalaBear reduction makes $164\times$ a conservative estimate.
 This establishes the necessity direction in execute mode; the prove-mode corollary
@@ -796,7 +796,7 @@ remains open.
 
 \paragraph{A field-width sweep.} Across four widths ($\ell=2,4,7,8$;
 \texttt{docs/measurements/gap2\_sweep\_20260701}) the per-multiplication cost of a
-limb-aligned schoolbook multiply---the operation a precompile removes---grows
+limb-aligned schoolbook multiply (the operation a precompile removes) grows
 monotonically as $\ell^{1.30}$, inside the $[\ell,\ell^2]$ band of
 Proposition~\ref{prop:fmt-lb}, extending the two-point control to a curve that
 tracks the criterion's width-dependence. A general bignum library
@@ -808,7 +808,7 @@ the conservative endpoint magnitudes above.
 The matched-field control probes one reason a precompile does not pay: $\ell=1$,
 where there is no multi-limb emulation to remove. A second, distinct case arises at
 full mismatch ($\ell=7$) when a primitive's multi-limb arithmetic is \emph{already}
-served by an existing precompile---and it is where the criterion's positive question
+served by an existing precompile, and it is where the criterion's positive question
 lives. The \texttt{FP192\_POW\_RES} chip (\S\ref{ssec:soundness}) makes it concrete:
 it composes the power-residue-PRF symbol $a^{(p-1)/t}\bmod p$ as a $191$-step
 square-and-multiply, every step a $199$-bit modular multiplication the host
@@ -816,14 +816,14 @@ square-and-multiply, every step a $199$-bit modular multiplication the host
 dedicated chip does not pay: as a naive square-and-multiply chip it commits $382$
 \texttt{FieldOpCols} per symbol against the guest loop's $261$
 (\texttt{docs/measurements/prf\_chip\_20260701}), \emph{adding} field-multiplication
-area rather than removing it. But that comparison is incomplete---it counts
+area rather than removing it. But that comparison is incomplete: it counts
 field-op columns only, and omits the guest loop's per-symbol \emph{control}
 overhead: one syscall dispatch, memory access, and cross-table lookup for each of
 the ${\approx}261$ multiplications, against one for a fused chip. A fused
 fixed-exponent chip (a preprocessed addition chain, not naive square-and-multiply)
 would pay that control width once. The break-even therefore turns on a quantity the
-field-op measurement did not isolate---the ${\approx}261{:}1$ control-overhead
-ratio---so whether a chip for this primitive pays is \emph{open}, and the deciding
+field-op measurement did not isolate (the ${\approx}261{:}1$ control-overhead
+ratio), so whether a chip for this primitive pays is \emph{open}, and the deciding
 measurement is the fused chip against the guest loop on \emph{total} committed area
 (field-op plus control), at $\ell=7$, on the honest baseline where
 \texttt{UINT256\_MUL} is available. The already-served case does still sharpen why

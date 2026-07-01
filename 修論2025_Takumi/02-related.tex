@@ -50,7 +50,7 @@ Two 2025 lines automate the accelerate-or-not decision. powdr's
 \emph{autoprecompiles}~\cite{powdr2025autoprecompiles} rank a guest program's
 basic blocks by the trace cells they induce and synthesise a merged circuit for
 the costly ones, and the vApps analysis~\cite{vapps2025} finds several EVM
-precompiles---notably modular exponentiation---dramatically mispriced relative to
+precompiles (notably modular exponentiation) dramatically mispriced relative to
 their zero-knowledge proving cost. Both are close in spirit to the cost model of
 Section~\ref{sec:theoretical}, and the distinction is worth stating. They are
 heuristics and measurements over profiling data gathered \emph{after} the
@@ -60,8 +60,8 @@ decides, from the specification and before any build, whether replacing the
 emulation with a \emph{native} large-field AIR will lower total trace area, and
 neither carries the soundness side-condition a hand-written AIR must discharge.
 The distinction is mechanical as well as methodological: a block-merging
-autoprecompile optimises \emph{within} the field-mismatch tax---the merged block
-still emulates the large-prime operation in multi-limb form---whereas the
+autoprecompile optimises \emph{within} the field-mismatch tax (the merged block
+still emulates the large-prime operation in multi-limb form), whereas the
 criterion of Section~\ref{sec:theoretical} prices whether a native chip removes
 that tax, and returns, for the Griffin arm, the first reported
 \emph{do-not-build} verdict.

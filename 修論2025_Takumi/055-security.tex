@@ -27,7 +27,7 @@ so we treat it as a finding about the substrate. Read against the cost criterion
 of Section~\ref{sec:evaluation}, this analysis answers the second half of a
 deployer's question: the criterion fixes \emph{when} the precompile makes the
 zkVM substrate affordable, and this section fixes \emph{which} security
-properties survive the move when it does---knowledge soundness in full,
+properties survive the move when it does: knowledge soundness in full,
 deployable zero-knowledge not on this stack.
 
 \subsection{Security Model and Threat Model}\label{ssec:threat-model}
@@ -153,7 +153,7 @@ substrate preserves, we name the target as a single predicate.
 A deployment delivers \emph{deployable post-quantum anonymity} for the credential
 system if the holder's machine can produce, within its resource budget, a proof
 of the credential relation that is simultaneously (i) knowledge-sound,
-(ii) zero-knowledge, and (iii) post-quantum-sound---soundness and the
+(ii) zero-knowledge, and (iii) post-quantum-sound: soundness and the
 zero-knowledge simulator resting on no assumption a quantum adversary breaks.
 Section~\ref{ssec:preservation} establishes which of these conditions transfer to
 the zkVM substrate; Section~\ref{ssec:zk-gap} establishes which does not.
@@ -322,7 +322,7 @@ unconditional claim.
 
 A sharper disclosure is owed for the Griffin round count itself, since the hash
 makes up roughly $91\%$ of the verification's R1CS constraints (the PLUM-128 figure of Section~\ref{sec:theoretical}). Neither PLUM nor Loquat prints a Griffin round count for our parameters. The $14$ rounds are our own
-instantiation, derived by the Griffin round-count methodology~\cite{cryptoeprint:2022/403}---a margin over the Gr\"{o}bner-resistance floor---as implemented in Loquat~\cite{cryptoeprint:2024/868} and scaled for our S-box degree, at our
+instantiation, derived by the Griffin round-count methodology~\cite{cryptoeprint:2022/403} (a margin over the Gr\"{o}bner-resistance floor) as implemented in Loquat~\cite{cryptoeprint:2024/868} and scaled for our S-box degree, at our
 parameters as $\lceil 1.2\times 11\rceil$, a $20\%$ margin over the floor of $11$ at which a
 constrained-input/constrained-output (CICO) solver of the FGLM type would cost $2^{64}$
 for our $(d{=}3,\,t{=}4,\,\lambda{=}128)$ instance over the $199$-bit prime. That
@@ -335,7 +335,7 @@ FreeLunch; the line continues in~\cite{cheaplunch2025}, which does not by itself
 threaten a full-round instance). The instances broken in practice use an $\alpha=3$ S-box, the same degree as
 our instantiation, and were solved at $7$--$8$ of their $10$ rounds on reduced or
 smaller-field parameters. Our $14$-round, width-$4$, $199$-bit instance is not
-among them (Table~\ref{tab:round-margin}), separated from the broken ones---which use a wider state ($t{=}12$)---by its state width, round count, and field rather
+among them (Table~\ref{tab:round-margin}), separated from the broken ones, which use a wider state ($t{=}12$), by its state width, round count, and field rather
 than by its S-box degree. We therefore do not claim the $14$-round count
 establishes a $128$-bit floor against the current attack frontier. Establishing such a floor would require instantiating the
 FreeLunch/resultant complexity estimator at our parameters
@@ -359,7 +359,7 @@ Griffin, Resultant~\cite{resultant2025}  & $3$ & $12$ & ${\approx}55$ & $10$ & $
 \end{tabular}
 \caption{Round-margin disclosure. The Griffin instances broken in practice by
 algebraic (CICO) attacks share our S-box degree but differ in state width, field,
-and round count. We do not claim $14$ rounds establishes a $128$-bit floor---the
+and round count. We do not claim $14$ rounds establishes a $128$-bit floor. The
 estimator at our parameters is future work.}
 \label{tab:round-margin}
 \end{table}
@@ -422,7 +422,7 @@ one of two independent horns:
   simulator, so the error $\epsilon_{\mathrm{ZK}}$ of
   Equation~\eqref{eq:adv-anon} is not negligible; the wrap that would supply one
   is not produced on the stack as shipped, blocked by the recursion-shape
-  provisioning wall---a one-time toolchain regeneration, not a memory bound.
+  provisioning wall: a one-time toolchain regeneration, not a memory bound.
   \item[Horn 2 (the zero-knowledge proof is not post-quantum).] The only
   zero-knowledge wraps the toolchains expose are pairing-based, hence classically
   secure only, violating condition (iii).
@@ -455,7 +455,7 @@ Horn~2 is a primitive limit no memory or time budget removes.
 \end{tikzpicture}
 \caption{The dual obstruction. The feasible proof (left, bare STARK) is not
 zero-knowledge; the zero-knowledge proof (right, a pairing wrap) is blocked by two
-independent prongs---structural (the recursion-shape wall) and primitive
+independent prongs: structural (the recursion-shape wall) and primitive
 (pairing-based, not post-quantum).}
 \label{fig:dual-obstruction}
 \end{figure}
