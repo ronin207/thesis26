@@ -121,13 +121,10 @@ SP1, SHA-3 hasher (control)                  & 80 & 13.05~min & 2.80~s & 59.8\% 
 RISC~Zero, \texttt{sys\_bigint}, SHA-3 hasher & 80 & 6\,h\,19\,m & n/a\textsuperscript{\ddag} & n/a   & receipt verified \\          % uint256 doc
 \bottomrule
 \end{tabular}
-\caption{PLUM single-signature verification, prove mode, $\lambda=80$, M5~Pro
-24~GB. \emph{Cell~1} (no precompile), \emph{Cell~2} (Griffin-$\mathbb{F}_p^{192}$
-precompile), and \emph{Cell~3} (software SHA-3 control) name the three SP1 arms
-throughout; Cell~2 and Cell~3 are means of three fixed-config runs
-(\S\ref{ssec:headline}), and the SHA-3 arm is a control, not a deployable PLUM
-variant. $^\dag$$14.25$~min mean (range $14.05$--$14.61$, ${\approx}14.2$~GB peak
-RSS). $^\ddag$RISC~Zero receipt verified; verify wall-clock not separately logged.}
+\caption{PLUM single-signature verification, prove mode ($\lambda=80$, M5~Pro 24~GB).
+\emph{Cell~1/2/3} $=$ no precompile / Griffin precompile / SHA-3 control; the
+control is not a deployable variant (\S\ref{ssec:headline}). $^\dag$Mean of three
+runs. $^\ddag$Receipt verified.}
 \label{tab:plum-verify}
 \end{table}
 
@@ -162,11 +159,9 @@ complete within five hours on this hardware.
   node[midway, right=2pt, font=\footnotesize] {$1.09\times$ ($+1.2$~min)};
 \end{axis}
 \end{tikzpicture}
-\caption{Prove time of the two SP1 arms sharing the same PLUM verification at
-$\lambda=80$ ($n=3$ means, M5~Pro 24~GB, linear scale). The Griffin precompile
-($14.25$~min) is slower than the SHA-3 control ($13.05$~min): a $1.09\times$ wall
-($1.13\times$ cycle) inversion. Baseline DNF (OOM ${\approx}1$m$45$s); RISC~Zero's
-\texttt{sys\_bigint} route completes in $6$\,h\,$19$\,m.}
+\caption{Prove time of the two SP1 arms sharing the same PLUM verification
+($\lambda=80$, $n=3$). The Griffin precompile is slower than the SHA-3
+control---the inversion; the no-precompile baseline does not complete.}
 \label{fig:prove-time}
 \end{figure}
 
@@ -279,11 +274,8 @@ Zero-knowledge              & disabled \\
 \bottomrule
 \end{tabular}
 \caption{Aurora over a single Loquat-verification R1CS ($\mathbb{F}_{p^2}$,
-$127$-bit base)~\cite{10.1007/978-981-96-0957-4_3}, M5~Pro 24~GB; mean of three
-solo runs, per-run range in parentheses (records in
-\texttt{docs/measurements/pub\_hardening\_20260610}). Prover time includes Aurora
-setup, not recompile time (\S\ref{ssec:churn-eval}). Achieved $107.5$-bit security
-(below the $128$ target); \texttt{ACCEPT} every run.}
+$127$-bit)~\cite{10.1007/978-981-96-0957-4_3}; mean of three runs, range in
+parentheses. Prover time includes setup, not recompile (\S\ref{ssec:churn-eval}).}
 \label{tab:aurora-ref}
 \end{table}
 
@@ -335,13 +327,10 @@ Aurora static circuit (native $\mathbb{F}_{p^2}$) & $3.76$~min & $688$~KiB & no 
 SP1 zkVM ($\mathbb{F}_{p^2}$ emulated on KoalaBear) & $44$--$64$~min & $405$~MiB & no \\
 \bottomrule
 \end{tabular}
-\caption{Same-scheme substrate comparison: one Loquat verification, $\lambda=80$,
-M5~Pro 24~GB, three solo runs per leg, neither zero-knowledge. Aurora leg $=$ mean
-of Table~\ref{tab:aurora-ref}; SP1 leg $=$ range of three runs
-($44.4$/$47.4$/$64.0$~min) under the reduced-memory config
-(\S\ref{ssec:settings-justify}), succinct core STARK. Only the substrate differs;
-the $12$--$17\times$ gap is the zkVM's cost for this scheme. Isolates the substrate
-for \emph{Loquat}; does not transfer to PLUM (no $127$-bit Aurora harness).}
+\caption{Same-scheme substrate comparison: one Loquat verification, neither
+zero-knowledge (three runs per leg). Only the substrate differs; the gap is the
+zkVM's cost for this scheme. Isolates the substrate for \emph{Loquat}; does not
+transfer to PLUM.}
 \label{tab:loquat-substrate}
 \end{table}
 
@@ -384,13 +373,10 @@ $+$ power as square-and-multiply             & 240{,}857{,}140 & n/a            
 $+$ skip redundant reduction                 & 179{,}952{,}920 & 239{,}599{,}616 & SP1 $-37.9\%$, R0 $-70.5\%$ \\
 \bottomrule
 \end{tabular}
-\caption{Cycle-level cost attribution, PLUM verification, SHA-3 hasher,
-$\lambda=128$, \emph{execute mode}. Routing field arithmetic through the host
-precompile (and removing redundant reductions) cuts $37.9\%$ of SP1 cycles and
-$70.5\%$ of RISC~Zero cycles; RISC~Zero's larger reduction reflects its heavier
-per-multiplication baseline emulation ($6{,}625$ cycles/mul at baseline, falling
-to $1{,}826$ with the precompile path, against SP1's baseline of about
-$2{,}567$ cycles/mul).}
+\caption{Cycle-level cost attribution (PLUM verification, SHA-3 hasher,
+$\lambda=128$, execute mode). Routing field arithmetic through the host precompile
+cuts SP1 and RISC~Zero cycles substantially, RISC~Zero more (heavier baseline
+emulation).}
 \label{tab:ablation}
 \end{table}
 
@@ -447,14 +433,10 @@ ShowCre $k{=}1$, SP1 & prove (succinct) & $40.15$ and $44.24$~min ($n=2$) & rece
 ShowCre $k{=}2$, SP1 & prove (succinct) & $58.14$~min ($n{=}1$) & receipt verified; not zero-knowledge \\
 \bottomrule
 \end{tabular}
-\caption{Credential relations, $\lambda=80$, M5~Pro 24~GB. On RISC~Zero, execute
-mode validates CreGen's honest path ($9.4\times10^{9}$ cycles); its succinct prove
-yielded no receipt (internal-verifier rejection, not a resource limit;
-\S\ref{ssec:cregen-anomaly}). On SP1 both relations complete a \emph{succinct}
-(non-ZK) prove: CreGen $26.98$/$31.11$~min, ShowCre $40.15$/$44.24$~min at $k{=}1$
-and $58.14$~min at $k{=}2$---the $k{=}2$ within ${\approx}3.3\%$ of the
-additive-model projection (records
-\texttt{pub\_hardening\_20260611}, \texttt{audit5\_campaign\_20260612}).}
+\caption{Credential relations ($\lambda=80$). RISC~Zero execute-validates CreGen;
+its succinct prove yielded no receipt (\S\ref{ssec:cregen-anomaly}). SP1 completes
+a succinct (non-ZK) prove of both relations, agreeing with the additive cost
+model.}
 \label{tab:bdec}
 \end{table}
 
@@ -587,16 +569,11 @@ Aurora, Loquat single-verify & yes & no\textsuperscript{$\dagger$} & yes & compl
 Aurora, Loquat single-verify, ZK enabled & yes & yes & yes & completes, ${\approx}22$~min ($n{=}3$) \\
 \bottomrule
 \end{tabular}
-\caption{Proof-mode feasibility matrix. Of the modes the zkVMs \emph{produce} on
-the target hardware, none is dependably zero-knowledge: SP1's rows are not ZK,
-RISC~Zero's receipt carries no formal ZK guarantee, and the only ZK mode the
-toolchain exposes (row~3, a pairing wrap) is neither post-quantum nor shipped by
-default---the dual obstruction; the one ZK proof produced here is the static Aurora
-run (last row, \S\ref{ssec:aurora-ref}). \textsuperscript{$\dagger$}zk-enabled
-Aurora now measured, the zk-disabled row kept for comparison (both $107.5$ bits,
-below $\lambda=128$). \textsuperscript{$\ddagger$}RISC~Zero's receipt has ZK
-blinding but the vendor disclaims a formal guarantee, so we treat it as not
-dependably ZK~\cite{risc0zkadvisory,l2beatzk} (Section~\ref{sec:security}).}
+\caption{Proof-mode feasibility matrix. No mode the zkVMs produce on this hardware
+is dependably zero-knowledge (the dual obstruction); the one ZK proof produced is
+the static Aurora run. \textsuperscript{$\dagger$}zk-enabled Aurora measured;
+zk-disabled row kept for comparison. \textsuperscript{$\ddagger$}RISC~Zero receipt
+not dependably ZK~\cite{risc0zkadvisory,l2beatzk} (\S\ref{sec:security}).}
 \label{tab:proof-mode}
 \end{table}
 
@@ -880,14 +857,12 @@ Signature swap (Loquat $\to$ PLUM)              & $\geq 1$ & $\geq 1$ & $\geq 1$
 Security retune ($\lambda{=}80\to128$)          & $\geq 1$ & $\geq 1$ & $0$ & $0$ \\
 \bottomrule
 \end{tabular}
-\caption{Circuit/parameter regeneration footprint
-($N_{\mathsf{circ}},N_{\mathsf{param}}$; Definition~\ref{def:update-churn}). The
-static regime regenerates and re-audits its R1CS and constraint-dependent
-parameters on every localised change; the zkVM absorbs a change as a guest edit
-($N_{\mathsf{circ}}{=}N_{\mathsf{param}}{=}0$), except across the precompile
-boundary. \textsuperscript{$\ast$}The Loquat$\to$PLUM swap moves the hash field
-($\mathbb{F}_{p^2}$ 127-bit $\to$ 199-bit $\mathbb{F}_p$), regenerating the
-field-specific Griffin AIR. $N_{\mathsf{src}},N_{\mathsf{audit}}$ in prose below.}
+\caption{Regeneration footprint ($N_{\mathsf{circ}},N_{\mathsf{param}}$;
+Def.~\ref{def:update-churn}). The static regime regenerates per change; the zkVM
+absorbs a change as a guest edit, except across the precompile
+boundary.\textsuperscript{$\ast$} \textsuperscript{$\ast$}Loquat$\to$PLUM
+regenerates the field-specific Griffin AIR; $N_{\mathsf{src}},N_{\mathsf{audit}}$
+in prose.}
 \label{tab:churn}
 \end{table}
 
@@ -970,12 +945,9 @@ $2^{14}$ ($16{,}384$)         & $0.0025$~ms & $18.5$~s \\
 $2^{19}$ ($524{,}288$; Loquat single-verify) & $0.0029$~ms & OOM-killed at ${\approx}33$~min \\
 \bottomrule
 \end{tabular}
-\caption{Per-change recompile components for a non-preprocessing (Aurora) versus a
-preprocessing (Fractal) argument on the same $127$-bit harness, M5~Pro 24~GB. The
-$2^{10}$--$2^{14}$ rows are synthetic R1CS; the $2^{19}$ row is the
-single-Loquat-verification (BDEC building-block) size. Aurora has no per-circuit
-indexer ($R_{\mathsf{static}}$ sub-second); Fractal's indexer is superlinear and
-OOMs at $2^{19}$. The zkVM regenerates no circuit.}
+\caption{Per-change recompile cost: non-preprocessing (Aurora) vs preprocessing
+(Fractal), same $127$-bit harness. Aurora sub-second; Fractal's indexer OOMs at
+the BDEC size. The zkVM regenerates no circuit.}
 \label{tab:rstatic-fractal}
 \end{table}
 

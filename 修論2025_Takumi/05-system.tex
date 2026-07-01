@@ -58,12 +58,10 @@ An adversarial probe exercises an honest control plus six single-field tamper ca
   \draw[->] (op) -- (e1); \draw[->] (e1) -- (e2); \draw[->] (e2) -- (e3);
   \draw[->] (op) -- (s1); \draw[->] (s1) -- (s2); \draw[->] (s2) -- (s3);
 \end{tikzpicture}
-\caption{Where the field-mismatch tax is incurred and what the precompile absorbs.
-Left: un-precompiled, each $\mathbb{F}_p^{199}$ operation expands into multi-limb
-arithmetic and does not complete (OOM, $1$m$45$s). Right: a syscall routes it to a
-native chip (Griffin AIR on SP1, \texttt{sys\_bigint} on RISC~Zero), bound by a
-cross-table lookup and charged host-side---so a guest-cycle saving need not be a
-wall-clock one.}
+\caption{Where the field-mismatch tax is incurred and what a precompile absorbs.
+Un-precompiled, a large-field operation does not complete; a syscall routes it to a
+native chip, whose cost is charged host-side---so a guest-cycle saving need not be
+a wall-clock one.}
 \label{fig:fmt-precompile}
 \end{figure}
 No existing SP1 chip computes a Griffin permutation over a $199$-bit prime field; the closest upstream pattern is SP1's Poseidon2 chip~\cite{succinct2024sp1}, implementing the Poseidon2 permutation~\cite{grassi2023poseidon2}, which has the same shape (a permutation precompile with single-pointer state I/O, per-round columns, and memory binding) but operates over SP1's $31$-bit base field (KoalaBear, $2^{31}-2^{24}+1$, in the evaluated fork). We therefore implement a custom AIR for one Griffin-$\pi$ permutation over $\mathbb{F}_p^{4}$, exposed to the guest as a single syscall on a $16$-word ($4$-lane) state.
