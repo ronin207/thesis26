@@ -183,21 +183,27 @@ the precompile the workload \emph{does not complete} on this hardware, and with
 it the workload completes in $14.25$~minutes (mean of three runs, $14.05$--$14.61$). The defensible claim is therefore
 qualitative at the prove level (\emph{the precompile moves PLUM verification
 from infeasible to feasible on consumer hardware}) and quantitative only at the
-cycle level (\S\ref{ssec:attribution}). The two zkVMs are not directly comparable
+cycle level (\S\ref{ssec:attribution}).
+
+The two zkVMs are not directly comparable
 here: the RISC~Zero leg is the SHA-3-hasher arm, carrying the field arithmetic
 through \texttt{sys\_bigint} without a native Griffin chip
 (\S\ref{ssec:griffin-air}), so its like-for-like SP1 counterpart is the
 $13.05$-min SHA-3 control, with the residual same-hash gap reflecting the
 substrate and receipt kind; no Griffin-hashed single-verification prove was run
 on RISC~Zero (the Griffin AIR port is future work), and the gaps should not be
-read as a like-for-like substrate ranking. The SHA-3 control
+read as a like-for-like substrate ranking.
+
+The SHA-3 control
 isolates the hash family: the verification harness is identical except that every
 Griffin-$\mathbb{F}_p^{192}$ sponge call is replaced by a SHA3-256 call computed in
 software, so that the SHA-3 arm fires \emph{no} hash precompile and only the shared
 \texttt{UINT256\_MUL} field-multiplication precompile remains active. It
 shows that a workload using a \emph{standard} hash in software is markedly
 cheaper than one using the algebraic hash PLUM requires through a bespoke chip,
-which is the quantitative form of the arithmetic-mismatch argument of Section~\ref{sec:theoretical}. The
+which is the quantitative form of the field-mismatch-tax argument of Section~\ref{sec:theoretical}.
+
+The
 inversion is direct: the bespoke Griffin-$\mathbb{F}_p^{192}$ precompile proves
 \emph{slower} at prove than the software SHA-3 control at matched $\lambda=80$ in
 every run we took. The sign is robust. At a fixed tuned config on a clean machine,
@@ -210,6 +216,8 @@ versus $13.28$~min; its high Cell~2 figure was not reproduced under fixed-config
 replication and is attributed to machine-state contamination rather than an
 intrinsic build difference, so it is retired in favour of the replicated
 $14.25$~min.
+
+\paragraph{Why the model postdicts the sign.}
 We read the inversion as a genuine
 property of the pipeline rather than a measurement artefact, and the trace-area
 accounting of Section~\ref{sec:theoretical}
@@ -314,6 +322,7 @@ against $44$--$64$~min for the SP1 zkVM ($51.9$~min at the mean of three runs;
 the spread on an otherwise idle machine is thermal, run~2 starting on a package
 heated by run~1). Same scheme, same $\mathbb{F}_{p^2}$
 ($127$-bit) field, same unit, same security setting; only the substrate differs.
+
 The zkVM is the dearer per-proof substrate by $12$--$17\times$
 ($13.8\times$ at the means), the gap being
 the cost of executing Loquat's field arithmetic as emulated RISC-V over KoalaBear
@@ -321,6 +330,7 @@ rather than as a native constraint system. The zkVM leg uses no Loquat-specific
 precompile (none exists for the $127$-bit field), so this is the substrate's
 emulated cost, which is precisely what adopting a general-purpose zkVM both buys
 and pays for.
+
 The two substrates are measured at different rates, the zkVM arm at $|U|=4096$ and the Aurora arm at $|U|=256$, so the ratio indicates direction rather than a calibrated factor.
 The instance uses the paper-faithful rate after the $\rho^{*}$ fix but keeps $L$ and $B$ reduced below the paper's $\lambda=128$ set, so the timing is not fully security-calibrated.
 
