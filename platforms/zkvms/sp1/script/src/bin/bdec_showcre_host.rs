@@ -84,8 +84,15 @@ fn run_prove(client: &impl Prover, security: usize, k: usize, bytes: &[u8]) {
     let mut stdin = SP1Stdin::new();
     stdin.write_vec(bytes.to_vec());
 
+    // MEASUREMENT TOGGLE (mirrors bdec_cregen_host, 2026-07-05): default proves
+    // the syscall (precompile) arm; BDEC_PROVE_ARM=emulated proves the rv32im
+    // arm to measure the no-precompile OOM/DNF behaviour. Non-thesis test knob.
+    let arm = std::env::var("BDEC_PROVE_ARM").unwrap_or_else(|_| "syscall".into());
+    let prove_elf: &[u8] = if arm == "emulated" { EMULATED_ELF } else { SYSCALL_ELF };
+    println!("prove_arm={arm}");
+
     let t = Instant::now();
-    let pk_proof = client.setup(Elf::Static(SYSCALL_ELF)).expect("setup failed");
+    let pk_proof = client.setup(Elf::Static(prove_elf)).expect("setup failed");
     println!("setup_ms={}", t.elapsed().as_millis());
 
     let t = Instant::now();

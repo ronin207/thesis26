@@ -1,0 +1,5 @@
+KEYSTONE_GEOM WIDTHS(cols): uint256_mul_sup=371 uint256_mul_usr=419 fp192_mul_sup=304 fp192_mul_usr=352 powres_ctrl=73 powres_step=619
+KEYSTONE_GEOM SCHEDULE: L(exp_bits)=191 popcount(set_bits)=70 guest_loop_muls=L+popcount=261
+KEYSTONE_GEOM MUL_EXP(per 192-bit modmul, supervisor): dedicated_fp192_mul_cells=304 host_uint256_mul_cells=371 ratio_ded/host=0.8194
+KEYSTONE_GEOM POWRES_EXP(per symbol, supervisor): B2_dedicated_cells=118302 (ctrl 73 + 191x step 619); host_uint256_cells=96831 (261x 371); host_fp192mul_cells=79344 (261x 304)
+KEYSTONE_GEOM POWRES_RATIO: B2/host_uint256=1.2217 B2/host_fp192mul=1.4910

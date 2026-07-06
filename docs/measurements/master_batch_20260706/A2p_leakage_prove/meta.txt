@@ -1,0 +1,15 @@
+=== A2p (leakage-prove-N3) ===
+start:   2026-07-06T10:53:24+09:00
+bin:     /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_leakage_host  (mtime Jul  6 01:28:43 2026)
+profile: TUNED SHARD=2^22 HEIGHT=2^20 | 3 witnesses core-prove; proof-size variance
+leak env: PLUM_LEAK_MODE=prove PLUM_LEAK_N=3 PLUM_SECURITY=80
+config:  SHARD_SIZE=4194304 HEIGHT_THRESHOLD=1048576
+repo HEAD:cde7874695e770ef7eef93c4f946d957a0e2b89b
+witness=0 accepted=true prove_ms=856241 proof_bytes=154665328
+witness=1 accepted=true prove_ms=865353 proof_bytes=156116354
+witness=2 accepted=true prove_ms=850380 proof_bytes=153205678
+=== A2 PROOF-SIZE VARIANCE (N=3) ===
+proof_bytes:   distinct=3 min=153205678 max=156116354 spread=2910676
+A2_PROVE_VERDICT: proof_size_data_independent=false all_accepted=true
+end:     2026-07-06T11:37:45+09:00  wall_s=2661 rc=0
+verdict: OK

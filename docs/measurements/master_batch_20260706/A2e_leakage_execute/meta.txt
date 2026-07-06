@@ -1,0 +1,15 @@
+=== A2e (leakage-execute-N20) ===
+start:   2026-07-06T01:31:37+09:00
+bin:     /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_leakage_host  (mtime Jul  6 01:28:43 2026)
+profile: lambda=80 | 20 witnesses, fixed pk+M, fresh signing randomness, Cell-2 ELF
+leak env: PLUM_LEAK_MODE=execute PLUM_LEAK_N=20 PLUM_SECURITY=80
+config:  SHARD_SIZE=4194304 HEIGHT_THRESHOLD=1048576
+repo HEAD:cde7874695e770ef7eef93c4f946d957a0e2b89b
+=== A2 LEAKAGE VARIANCE (N=20) ===
+cycles:        distinct=20 min=123827404 max=126263077 spread=2435673
+griffin_fp192: distinct=1 min=1052 max=1052 spread=0
+uint256_mul:   distinct=20 min=69313 max=69436 spread=123
+sig_bytes:     distinct=1 min=47976 max=47976 spread=0
+A2_VERDICT: data_independent=false all_accepted=true (trace invariant across witnesses => positive anonymity micro-result; nonzero spread => located leak)
+end:     2026-07-06T01:39:59+09:00  wall_s=502 rc=0
+verdict: FINDING(leak-located)

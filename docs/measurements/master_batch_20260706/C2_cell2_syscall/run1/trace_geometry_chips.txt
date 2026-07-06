@@ -1,0 +1,10 @@
+[2m2026-07-05T18:05:40.978170Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 9_760 | Cells = 3_620_960 
+[2m2026-07-05T18:07:12.531284Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 9_760 | Cells = 3_620_960 
+[2m2026-07-05T18:08:59.315533Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 9_760 | Cells = 3_620_960 
+[2m2026-07-05T18:10:42.344498Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 9_760 | Cells = 3_620_960 
+[2m2026-07-05T18:12:00.602571Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 9_760 | Cells = 3_620_960 
+[2m2026-07-05T18:13:47.667049Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 9_760 | Cells = 3_620_960 
+[2m2026-07-05T18:15:19.105754Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 9_760 | Cells = 3_620_960 
+[2m2026-07-05T18:15:28.570913Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Uint256MulMod   | Prep Cols = 0     | Main Cols = 371   | Rows = 1_120 | Cells = 415_520   
+[2m2026-07-05T18:15:41.527024Z[0m [34mDEBUG[0m [1mprove shard with data[0m: GriffinFp192    | Prep Cols = 0     | Main Cols = 3_819 | Rows = 14_752 | Cells = 56_337_888
+[2m2026-07-05T18:15:41.527030Z[0m [34mDEBUG[0m [1mprove shard with data[0m: GriffinFp192Control | Prep Cols = 0     | Main Cols = 265   | Rows = 1_056 | Cells = 279_840   

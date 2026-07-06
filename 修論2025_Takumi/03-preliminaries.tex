@@ -43,7 +43,7 @@ We require an algebraic hash function whose internal computation is dominated by
 \[
   H_{\mathsf{Griffin}}:\mathbb{F}_p^{\ast}\to\mathbb{F}_p^{c}
 \]
-for a Griffin-based sponge or compression hash producing a $c$-element digest, following the construction of~\cite{cryptoeprint:2022/403}. The instantiation used throughout has state width $t_{\mathsf{state}}=4$, capacity $2$ (hence rate $2$ and digest length $c=2$), S-box degree $d=3$ (the smallest integer $\ge 3$ with $\gcd(d,p-1)=1$ over PLUM's prime; \S\ref{ssec:griffin-air}), and $14$ rounds, the value the Griffin round-count argument of~\cite{cryptoeprint:2022/403} yields for this width-$4$, $199$-bit instance (computed and checked in the reference implementation, \S\ref{ssec:griffin-air}). The digest length $c=2$ over the $199$-bit field is intended to provide collision resistance at the targeted security level, conditional on the security analysis of~\cite{cryptoeprint:2022/403} applying to this width-$4$, $d=3$, $14$-round instance. The implemented linear layer, the circulant $\mathrm{circ}(2,1,1,1)=I+J$ inherited from Loquat's implementation, is invertible but not MDS, unlike the standard width-$4$ layer of~\cite{cryptoeprint:2022/403}, so the cited analysis must additionally be re-checked against this linear-layer deviation. A second inherited deviation sits in the nonlinear layer: the published definition builds the lane-$3$ combination $L_3$ from the \emph{input} lane $x_2$, whereas the implementation, which updates lanes in place, feeds it the already-updated lane $y_2$; invertibility is preserved, but the permutation computed throughout this thesis (in both the Fp127 Loquat path and the Fp192 PLUM path, hence consistently across all measurements) is this variant rather than the published Griffin-$\pi$, and the cited security analysis must be re-checked against it as well.
+for a Griffin-based sponge or compression hash producing a $c$-element digest, following the construction of~\cite{cryptoeprint:2022/403}. The instantiation used throughout has state width $t_{\mathsf{state}}=4$, capacity $2$ (hence rate $2$ and digest length $c=2$), S-box degree $d=3$ (the smallest integer $\ge 3$ with $\gcd(d,p-1)=1$ over PLUM's prime; \S\ref{ssec:griffin-air}), and $14$ rounds, the value the Griffin round-count argument of~\cite{cryptoeprint:2022/403} yields for this width-$4$, $199$-bit instance (computed and checked in the reference implementation, \S\ref{ssec:griffin-air}). The digest length $c=2$ over the $199$-bit field is intended to provide collision resistance at the targeted security level, conditional on the security analysis of~\cite{cryptoeprint:2022/403} applying to this width-$4$, $d=3$, $14$-round instance. The implemented linear layer is the standard Griffin width-$4$ MDS matrix $M_4$, with rows $(5,7,1,3)$, $(4,6,1,1)$, $(1,3,5,7)$, $(1,1,4,6)$, the genuine MDS matrix (branch number $5$) of~\cite{cryptoeprint:2022/403}, and the nonlinear layer is the standard one, with the lane-$3$ combination $L_3$ built from the round-\emph{input} lane $x_2$ exactly as in the published Griffin-$\pi$. The permutation used on the Fp192 PLUM path, which carries the central measurements of this thesis, is therefore the published Griffin-$\pi$ of~\cite{cryptoeprint:2022/403} at these parameters; it was validated against an independent from-specification reference implementation on known-answer vectors, which agree on every lane. The Fp127 Loquat instantiation kept only as the in-SNARK Cell-$4$ reference still carries Loquat's inherited linear and nonlinear layers; that choice leaves the R1CS constraint count of a Griffin permutation unchanged, so it is cost-neutral for the constraint- and time-measurement that reference serves, and we make no claim that this path computes the published permutation. What remains conditional is the round-count security \emph{margin}: whether the analysis of~\cite{cryptoeprint:2022/403} bounds the algebraic-attack cost of this width-$4$, $d=3$, $199$-bit, $14$-round instance is a separate question, taken up in the security chapter, and is unaffected by the arithmetic fixed here.
 
 When a zkVM exposes Griffin as a precompile we will write the corresponding syscall as $\mathsf{Griffin}_{\mathbb{F}_p^{192}}$, indicating that the precompile operates natively over the same prime field used by PLUM (nominally labelled $192$-bit; concretely the $199$-bit prime of Remark~\ref{rem:prime-substitution}). The cost of one Griffin permutation under this precompile is, by definition, one zkVM syscall.
 
@@ -308,7 +308,7 @@ Soundness requires that for every adversary $\Adv$,
 \]
 
 \paragraph{Knowledge soundness (argument of knowledge).}
-A property strictly stronger than soundness, and the one a higher-level reduction needs when it must \emph{extract} a witness rather than merely conclude that one exists. The argument is \emph{knowledge-sound} if there is a probabilistic polynomial-time extractor $\mathcal{E}$ such that, for every prover $\Adv$ producing an accepting proof for a statement $x$ with non-negligible probability, $\mathcal{E}$, given $\Adv$'s code and randomness (or rewinding/oracle access), outputs a witness $w$ with $R(x;w)=1$, except with negligible \emph{knowledge error}. BDEC's unforgeability reduction relies on this property of $\Pi$ to pull a credential and its signatures out of an accepting showing; plain soundness, which only certifies that a witness exists, does not suffice.
+A property strictly stronger than soundness, and the one a higher-level reduction needs when it must \emph{extract} a witness rather than merely conclude that one exists. The argument is \emph{knowledge-sound} if there is a probabilistic polynomial-time extractor $\mathcal{E}$ such that, for every prover $\Adv$ producing an accepting proof for a statement $x$ with non-negligible probability, $\mathcal{E}$, given $\Adv$'s code and randomness (or rewinding/oracle access), outputs a witness $w$ with $R(x;w)=1$, except with negligible \emph{knowledge error}. BDEC's unforgeability reduction relies on this property of $\Pi$ to pull a credential and its signatures out of an accepting showing; plain soundness, which only certifies that a witness exists, does not suffice. The formal extractor-and-knowledge-error statement is Definition~\ref{def:ks}.
 
 \paragraph{Zero-knowledge.}
 Zero-knowledge requires that there exists a simulator $\mathsf{Sim}$ such that, for every $x$ and $w$ satisfying $R(x;w)=1$, the distributions
@@ -397,8 +397,9 @@ the issuance log containing all tuples
 \[
   (\mathsf{ipk},\mathsf{upk},A,\mathsf{cred})
 \]
-honestly issued during the experiment. The adversary may interact with issuing
-oracles and then outputs \((\mathsf{ipk}^\star,\mathsf{stmt}^\star,\pi^\star)\).
+honestly issued during the experiment. The adversary may interact with the
+issuance oracle $\mathcal O_{\mathsf{Issue}}$ and the showing oracle
+$\mathcal O_{\mathsf{Show}}$, and then outputs \((\mathsf{ipk}^\star,\mathsf{stmt}^\star,\pi^\star)\).
 The adversary wins if
 \[
   \AC.\Verify(\pp,\mathsf{ipk}^\star,\mathsf{stmt}^\star,\pi^\star)=1
@@ -516,7 +517,7 @@ R_{\mathsf{cre}}^{\Sig}(x_{\mathsf{cre}};w_{\mathsf{cre}})=1
 \Longleftrightarrow{}&
 \Pred_{\Verify}^{\Sig,\ppSig}(\pk_U,h_{U,TA},c_{U,TA})=1\\
 &\land
-\Pred_{\Verify}^{\Sig,\ppSig}(\pk_U,\mathsf{ppk}_{U,TA},\mathsf{psk}_{U,TA})=1.
+\Pred_{\Verify}^{\Sig,\ppSig}(\pk_U,\EncodeSig(\mathsf{ppk}_{U,TA}),\mathsf{psk}_{U,TA})=1.
 \end{aligned}
 \]
 Equivalently, the circuit proved by the zkSNARK is the AND concatenation of

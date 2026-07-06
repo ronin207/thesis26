@@ -1,0 +1,20 @@
+=== S2 (showcre-k2-syscall-prove) ===
+start:        2026-07-06T08:28:39+09:00
+bin:          /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/bdec_showcre_host  (mtime Jul  6 01:28:43 2026)
+hostkind:     bdec    expect: COST    cap_s: 12000
+profile:      H16 SHARD=2^20 HEIGHT=2^16 ELEMENT=2^26 | prove syscall k=2 lambda=80
+host env:
+  BDEC_HOST_MODE=prove
+  BDEC_HOST_SECURITY=80
+  BDEC_PROVE_ARM=syscall
+  BDEC_SHOWCRE_K=2
+config:       SHARD_SIZE=1048576 ELEMENT_THRESHOLD=67108864 HEIGHT_THRESHOLD=65536 TRACE_CHUNK_SLOTS=2 RAYON_NUM_THREADS=8
+RUST_LOG:     warn,sp1_hypercube::prover=debug
+DYLD:         /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-3e96e65b8132e4df/out/build/libiop:/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-b02e27a5f21351b3/out/build/libiop
+repo HEAD:    cde7874695e770ef7eef93c4f946d957a0e2b89b
+sp1 sub HEAD: 8bf0248bc5b6b7ba7c820253c3918ea277008641 (working-tree dirty = standard-Griffin chip fix)
+execute_sanity: accepted=true cycles=575089654
+end:      2026-07-06T10:53:24+09:00
+rc:       0   wall_s: 8384
+prove_ms: 8209063 (136.82 min)   proof_bytes: 2911822343   peak_gb: 13.83
+accepted: true   cycles: 575089654   verdict: OK

@@ -1,0 +1,7 @@
+run	mode	prove_ms	prove_min	proof_bytes	peak_gb	accepted	cycles	verdict
+cell2.run1	cell2-syscall-prove(ref)	852972	14.22	NA	13.17	true	NA	OK
+cell2.run2	cell2-syscall-prove(ref)	837866	13.96	NA	14.56	true	NA	OK
+cell2.run3	cell2-syscall-prove(ref)	840887	14.01	NA	14.91	true	NA	OK
+R1.run1	cell3-sha3-prove	812664	13.54	NA	12.61	true	110798116	OK
+R1.run2	cell3-sha3-prove	802861	13.38	NA	14.05	true	NA	OK
+R1.run3	cell3-sha3-prove	1146495	19.11	NA	12.85	true	NA	OK

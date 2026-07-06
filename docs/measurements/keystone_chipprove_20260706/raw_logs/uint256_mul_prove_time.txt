@@ -1,0 +1,1 @@
+cargo test --manifest-path "$FORK/Cargo.toml" -p sp1-core-machine --release    119.92s user 75.65s system 1106% cpu 17.683 total

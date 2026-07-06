@@ -8,6 +8,10 @@ name = "plum_host"
 path = "src/bin/plum_host.rs"
 
 [[bin]]
+name = "plum_leakage_host"
+path = "src/bin/plum_leakage_host.rs"
+
+[[bin]]
 name = "griffin_smoke_host"
 path = "src/bin/griffin_smoke_host.rs"
 

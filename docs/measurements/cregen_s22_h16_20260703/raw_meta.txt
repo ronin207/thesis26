@@ -1,0 +1,8 @@
+[2026-07-03 09:53:14] START name=e4_s22_h16 sp1_fork=8bf0248bc
+[2026-07-03 09:53:14] prove_cfg: SHARD_SIZE=4194304 HEIGHT_THRESHOLD=65536 ELEMENT_THRESHOLD=67108864 TRACE_CHUNK_SLOTS=2 RAYON_NUM_THREADS=8 BDEC_HOST_MODE=prove BDEC_HOST_SECURITY=80 BDEC_PROVE_ARM=syscall
+[2026-07-03 09:55:53] build OK (attempt 1)
+[2026-07-03 09:55:53] DYLD_LIBRARY_PATH set
+[2026-07-03 11:08:20] prove END rc=0 wall_s=4347 peak_rss=13.22GiB overflow_errs=0
+0 accepted=1 prove_ms=4257727
+/tmp/bdec_runs/e4_s22_h16/stdout.log:prove_ms=4257727 (= 70.96 min)
+/tmp/bdec_runs/e4_s22_h16/stdout.log:accepted=true prove_ms=4257727 verify_ms=27546 proof_bytes=1470771798

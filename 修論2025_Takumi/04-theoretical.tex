@@ -133,7 +133,15 @@ predicate built on a field-matched hash, which never incurs the mismatched-field
 work the chip is built to absorb. The sufficient condition is
 Equation~\eqref{eq:precompile-pays} itself, evaluated with the chips' calibrated
 $\kappa$'s; mismatch makes the benefit term nonzero, but whether it clears the
-chip area is a separate, quantitative question.
+chip area is a separate, quantitative question. A distinct no-pay case sits at full
+mismatch itself: when the primitive's multi-limb arithmetic is \emph{already} served
+by an existing precompile, each covered operation is already priced at
+$\mathsf{cyc}_{\mathsf{syscall}}$, so its benefit term
+$(\mathsf{cyc}_{\mathsf{em}}-\mathsf{cyc}_{\mathsf{syscall}})$ in
+Equation~\eqref{eq:precompile-pays} is essentially zero, the core-area saving is
+$\Delta A_{\mathsf{core}}\approx 0$, and a dedicated chip only adds area without
+removing emulation (the power-residue-PRF case, Section~\ref{sec:evaluation},
+\S\ref{sssec:already-served}).
 
 \paragraph{Scope: the field-mismatch tax only.} Proposition~\ref{prop:field-match}
 concerns algebraic primitives, whose cost is $\mathbb{F}_p$ arithmetic. A
@@ -158,7 +166,11 @@ forecast the sign of the matched arm \emph{before} it is run; a measured
 no-benefit at $\ell=1$ confirms the criterion as predictive, and a measured
 benefit would falsify it. The necessity direction is now confirmed in execute
 mode: the per-multiplication field-mismatch tax measures $164\times$ from
-$\ell=1$ to $\ell=7$ (Section~\ref{sec:evaluation}), so the criterion is
+$\ell=1$ to $\ell=7$ (Section~\ref{sec:evaluation}), a general-bignum
+(\texttt{num\_bigint}), non-limb-aligned per-multiplication ratio that legitimately
+exceeds the limb-aligned schoolbook ceiling $\ell^2=49$ because only the $\ell$
+lower bound of Proposition~\ref{prop:fmt-lb} governs that path, not the $\ell^2$
+upper bound (Section~\ref{sec:evaluation}); so the criterion is
 established analytically (Proposition~\ref{prop:field-match}) and postdictively (the
 mismatched arm), with its necessity direction confirmed in execute mode; the prove-mode corollary,
 that the precompile does not pay at $\ell=1$, remains the open empirical step.

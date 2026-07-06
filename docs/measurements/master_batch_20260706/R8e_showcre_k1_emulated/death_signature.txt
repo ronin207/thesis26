@@ -1,0 +1,1 @@
+WATCHDOG_KILL cap=1800s reached at 2026-07-06T03:00:07+09:00

@@ -1,0 +1,8 @@
+[2026-07-03 08:28:51] START name=e3_h16 sp1_fork=8bf0248bc
+[2026-07-03 08:28:51] prove_cfg: SHARD_SIZE=1048576 ELEMENT_THRESHOLD=67108864 HEIGHT_THRESHOLD=65536 TRACE_CHUNK_SLOTS=2 RAYON_NUM_THREADS=8 BDEC_HOST_MODE=prove BDEC_HOST_SECURITY=80 BDEC_PROVE_ARM=syscall
+[2026-07-03 08:31:30] build OK (attempt 1)
+[2026-07-03 08:31:30] DYLD_LIBRARY_PATH set
+[2026-07-03 09:43:56] prove END rc=0 wall_s=4346 peak_rss=13.98GiB overflow_errs=0
+0 accepted=1 prove_ms=4254093
+/tmp/bdec_runs/e3_h16/stdout.log:prove_ms=4254093 (= 70.90 min)
+/tmp/bdec_runs/e3_h16/stdout.log:accepted=true prove_ms=4254093 verify_ms=27579 proof_bytes=1470771798

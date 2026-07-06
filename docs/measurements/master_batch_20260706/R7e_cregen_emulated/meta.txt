@@ -1,0 +1,18 @@
+=== R7e (cregen-emulated-prove) ===
+start:        2026-07-06T02:00:01+09:00
+bin:          /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/bdec_cregen_host  (mtime Jul  6 01:28:42 2026)
+hostkind:     bdec    expect: FINDING    cap_s: 1800
+profile:      H16 SHARD=2^20 HEIGHT=2^16 ELEMENT=2^26 | prove emulated lambda=80 (expect OOM/DNF)
+host env:
+  BDEC_HOST_MODE=prove
+  BDEC_HOST_SECURITY=80
+  BDEC_PROVE_ARM=emulated
+config:       SHARD_SIZE=1048576 ELEMENT_THRESHOLD=67108864 HEIGHT_THRESHOLD=65536 TRACE_CHUNK_SLOTS=2 RAYON_NUM_THREADS=8
+RUST_LOG:     warn,sp1_hypercube::prover=debug
+DYLD:         /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-3e96e65b8132e4df/out/build/libiop:/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-b02e27a5f21351b3/out/build/libiop
+repo HEAD:    cde7874695e770ef7eef93c4f946d957a0e2b89b
+sp1 sub HEAD: 8bf0248bc5b6b7ba7c820253c3918ea277008641 (working-tree dirty = standard-Griffin chip fix)
+end:      2026-07-06T02:30:05+09:00
+rc:       137   wall_s: 1803
+prove_ms: NA (NA min)   proof_bytes: NA   peak_gb: 13.75
+accepted: false   cycles: NA   verdict: FINDING(bound)

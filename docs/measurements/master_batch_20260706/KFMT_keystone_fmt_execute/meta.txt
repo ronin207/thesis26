@@ -1,0 +1,18 @@
+=== KFMT (keystone-fmt-matched-field-execute) ===
+start:     2026-07-06T03:00:09+09:00
+bin:       /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/fmt_keystone_host  (mtime Jul  6 01:28:33 2026)
+profile:   execute | Fp192(l=7) vs KoalaBear(l=1) per-mult cycle tax; M=10000/20000 slope
+host env:
+config:    SHARD_SIZE=4194304 ELEMENT_THRESHOLD=67108864 HEIGHT_THRESHOLD=1048576 RAYON_NUM_THREADS=8
+repo HEAD: cde7874695e770ef7eef93c4f946d957a0e2b89b
+sp1 HEAD:  8bf0248bc5b6b7ba7c820253c3918ea277008641 (dirty = standard-Griffin chip fix)
+--- Raw execute-mode cycle counts (total_instruction_count) ---
+Fp192     (mode 0)  M= 10000:     31205663 cycles
+Fp192     (mode 0)  M= 20000:     62416593 cycles
+KoalaBear (mode 1)  M= 10000:       194735 cycles
+KoalaBear (mode 1)  M= 20000:       384735 cycles
+Fp192     per-mult:  3121.0930 cycles/mul
+KoalaBear per-mult:    19.0000 cycles/mul
+ratio = c_Fp192 / c_KoalaBear = 164.2681  (ℓ=7 baseline; ℓ²=49)
+end:     2026-07-06T03:00:20+09:00  wall_s=11 rc=0
+accepted:true cycles=3121.0930 peak_gb=7.75 verdict=OK

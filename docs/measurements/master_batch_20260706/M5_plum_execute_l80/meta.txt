@@ -1,0 +1,15 @@
+=== M5 (plum-execute-syscall-l80) ===
+start:     2026-07-06T01:31:04+09:00
+bin:       /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_host  (mtime Jul  6 01:28:43 2026)
+profile:   lambda=80 | PLUM_HOST_MODE=execute PLUM_PROVE_ARM=syscall
+host env:
+  PLUM_HOST_MODE=execute
+  PLUM_PROVE_ARM=syscall
+  PLUM_SECURITY=80
+config:    SHARD_SIZE=4194304 ELEMENT_THRESHOLD=67108864 HEIGHT_THRESHOLD=1048576 RAYON_NUM_THREADS=8
+repo HEAD: cde7874695e770ef7eef93c4f946d957a0e2b89b
+sp1 HEAD:  8bf0248bc5b6b7ba7c820253c3918ea277008641 (dirty = standard-Griffin chip fix)
+griffin_fp192: griffin_fp192=1052
+uint256_mul:   uint256_mul=69433
+end:     2026-07-06T01:31:37+09:00  wall_s=33 rc=0
+accepted:true cycles=123372417 peak_gb=7.09 verdict=OK

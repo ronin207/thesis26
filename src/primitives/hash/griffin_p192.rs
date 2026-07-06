@@ -241,23 +241,34 @@ pub fn plum_griffin_permutation_raw(lanes: &mut [Fp192; PLUM_GRIFFIN_STATE_WIDTH
 }
 
 fn nonlinear_layer(params: &PlumGriffinParams, state: &mut PlumGriffinState) {
+    // ROUND-INPUT snapshot. Griffin Eq. (6) (2022/403 p.18), i >= 3
+    // case, evaluates L_i on `x_{i-1}` = the round INPUT of lane i-1,
+    // NOT the freshly computed round OUTPUT `y_{i-1}`. Taking the
+    // snapshot before any lane is overwritten is what restores the
+    // standard quadratic structure (Horst factor degree 4). The prior
+    // code fed the overwritten lane (`y_2`) into `L_3`, making lane 3
+    // degree-3 (Horst factor degree-6) — a non-standard variant.
+    let round_input = state.lanes.clone();
+
     // Lane 0: inverse S-box (raise to d_inv).
     state.lanes[0] = state.lanes[0].pow_biguint(&params.d_inv);
     // Lane 1: forward S-box (raise to d).
     state.lanes[1] = state.lanes[1].pow_u128(params.d as u128);
 
-    // Lanes 2..STATE_WIDTH: quadratic factor on a linear combination.
+    // Lane 2: L_2 = y_0 + y_1 (no x term).
     let l_first = li(&state.lanes[0], &state.lanes[1], &Fp192::zero(), 2);
     state.lanes[2] = state.lanes[2].clone()
         * (l_first.clone() * l_first.clone()
             + params.alphas[0].clone() * l_first
             + params.betas[0].clone());
 
+    // Lanes 3..STATE_WIDTH: L_i = (i-1)·y_0 + y_1 + x_{i-1}, where
+    // x_{i-1} is the ROUND INPUT of lane i-1 (from `round_input`).
     for idx in 3..PLUM_GRIFFIN_STATE_WIDTH {
         let l = li(
             &state.lanes[0],
             &state.lanes[1],
-            &state.lanes[idx - 1],
+            &round_input[idx - 1],
             idx,
         );
         state.lanes[idx] = state.lanes[idx].clone()
@@ -504,29 +515,25 @@ fn binomial(n: usize, k: usize) -> BigUint {
     numerator / denominator
 }
 
-fn build_matrix() -> [[Fp192; PLUM_GRIFFIN_STATE_WIDTH]; PLUM_GRIFFIN_STATE_WIDTH] {
-    // Same circulant `[2, 1, 1, 1]` as Loquat (= I + J, MDS over our field
-    // since the determinant 5 is nonzero mod p).
-    circulant([
-        Fp192::from_u64(2),
-        Fp192::from_u64(1),
-        Fp192::from_u64(1),
-        Fp192::from_u64(1),
-    ])
-}
+/// Standard Griffin `t = 4` MDS matrix (eprint 2022/403 p.19,
+/// footnote 17). This is a genuine MDS matrix (branch number
+/// `t + 1 = 5`).
+///
+/// The previous instantiation used the circulant `[2, 1, 1, 1] = I + J`.
+/// That matrix has branch number 4 and is NOT MDS: a nonzero
+/// determinant is *necessary but not sufficient* for MDS (MDS requires
+/// every square submatrix to be non-singular, not just the full one).
+const GRIFFIN_MDS_M4: [[u64; PLUM_GRIFFIN_STATE_WIDTH]; PLUM_GRIFFIN_STATE_WIDTH] = [
+    [5, 7, 1, 3],
+    [4, 6, 1, 1],
+    [1, 3, 5, 7],
+    [1, 1, 4, 6],
+];
 
-fn circulant(
-    first_row: [Fp192; PLUM_GRIFFIN_STATE_WIDTH],
-) -> [[Fp192; PLUM_GRIFFIN_STATE_WIDTH]; PLUM_GRIFFIN_STATE_WIDTH] {
-    let mut matrix: [[Fp192; PLUM_GRIFFIN_STATE_WIDTH]; PLUM_GRIFFIN_STATE_WIDTH] =
-        core::array::from_fn(|_| core::array::from_fn(|_| Fp192::zero()));
-    for row in 0..PLUM_GRIFFIN_STATE_WIDTH {
-        for col in 0..PLUM_GRIFFIN_STATE_WIDTH {
-            let idx = (row + col) % PLUM_GRIFFIN_STATE_WIDTH;
-            matrix[row][col] = first_row[idx].clone();
-        }
-    }
-    matrix
+fn build_matrix() -> [[Fp192; PLUM_GRIFFIN_STATE_WIDTH]; PLUM_GRIFFIN_STATE_WIDTH] {
+    core::array::from_fn(|row| {
+        core::array::from_fn(|col| Fp192::from_u64(GRIFFIN_MDS_M4[row][col]))
+    })
 }
 
 #[cfg(test)]

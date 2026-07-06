@@ -100,7 +100,10 @@ Prove-mode and attribution runs use fixed RNG seeds and fixed messages; the
 SP1/RISC~Zero submodule versions are pinned in the lockfile; the memory-tuning
 environment variables, host binaries, and the adversarial-probe harness are
 recorded in the project's measurement notes, together with the per-run commit
-hashes and, where applicable, guest-image identifiers.
+hashes and, where applicable, guest-image identifiers. The two credential-relation
+prove runs (CreGen and ShowCre) are the exception: their shard configuration was
+recorded only in a human-written summary rather than machine-echoed in the run
+log, and does not reproduce on the shipped fork (\S\ref{ssec:frontier}).
 
 \subsection{PLUM Verification With and Without the Precompile}\label{ssec:headline}
 
@@ -183,7 +186,11 @@ on RISC~Zero (the Griffin AIR port is future work), and the gaps should not be
 read as a like-for-like substrate ranking.
 
 The SHA-3 control
-isolates the hash family: the verification harness is identical except that every
+isolates the hash family (it differs from the Griffin arm in both hash family and
+field, bit-oriented SHA-3 against $\mathbb{F}_p^{192}$ Griffin, matched on the
+security level $\lambda$ and not on field or primitive, so it is an
+explicitly-confounded control and not a curated-setting artefact): the
+verification harness is identical except that every
 Griffin-$\mathbb{F}_p^{192}$ sponge call is replaced by a SHA3-256 call computed in
 software, so that the SHA-3 arm fires \emph{no} hash precompile and only the shared
 \texttt{UINT256\_MUL} field-multiplication precompile remains active. It
@@ -428,15 +435,20 @@ Workload & Mode & Cost & Outcome \\
 \midrule
 CreGen, RISC~Zero & execute & $9.40\times10^{9}$ cyc, $\approx$65~s & both verifications accept \\ % plum_in_bdec doc
 CreGen, RISC~Zero & prove (succinct) & $\geq$15.6~h, peak RSS 11.24~GB & internal-verifier rejection (anomaly; \S\ref{ssec:cregen-anomaly}) \\ % risc0_prove_failure doc
-CreGen, SP1 & prove (succinct) & $26.98$ and $31.11$~min ($n=2$) & receipt verified; not zero-knowledge \\ % S9 pub_hardening_20260611 + audit5
-ShowCre $k{=}1$, SP1 & prove (succinct) & $40.15$ and $44.24$~min ($n=2$) & receipt verified; not zero-knowledge \\
-ShowCre $k{=}2$, SP1 & prove (succinct) & $58.14$~min ($n{=}1$) & receipt verified; not zero-knowledge \\
+CreGen, SP1 & prove (succinct) & $26.98$ and $27.45$~min ($n=2$) & receipt verified; not zero-knowledge \\ % S9 pub_hardening_20260611 + audit5
+ShowCre $k{=}1$, SP1 & prove (succinct) & $40.15$ and $40.19$~min ($n=2$) & receipt verified; not zero-knowledge \\
+ShowCre $k{=}2$, SP1 & prove (succinct) & $53.71$~min ($n{=}1$) & receipt verified; not zero-knowledge \\
 \bottomrule
 \end{tabular}
 \caption{Credential relations ($\lambda=80$). RISC~Zero execute-validates CreGen;
 its succinct prove yielded no receipt (\S\ref{ssec:cregen-anomaly}). SP1 completes
 a succinct (non-ZK) prove of both relations, agreeing with the additive cost
-model.}
+model. The SP1 CreGen figures of $26.98$ and $27.45$~min ($296$~MB) are the
+fastest observed, but their shard configuration was recorded only in a
+human-written summary, not machine-echoed, and does not reproduce on the current
+fork; the config-verified reproducible completing prove is $70.90$~min
+($1.47$~GB) at \texttt{HEIGHT\_THRESHOLD}$=2^{16}$. No completing ShowCre prove
+has been reproduced on the shipped fork.}
 \label{tab:bdec}
 \end{table}
 
@@ -563,8 +575,8 @@ SP1, PLUM verify, SHA-3 control (\texttt{core}) & yes & no & yes & completes, $1
 SP1, PLUM verify, Groth16/PLONK wrap & \textbf{no} & yes & \textbf{no} & structural: recursion-shape provisioning wall (OOM ${\approx}20$~GB, default conc.) \\
 RISC~Zero, PLUM verify, \texttt{sys\_bigint}, SHA-3 hasher (succinct) & yes & blinded; ZK not formally established\textsuperscript{$\ddagger$} & yes & completes, $6$\,h\,$19$\,m \\
 RISC~Zero, CreGen (succinct) & \textbf{no} & n/a & n/a & $\geq15.6$~h, internal-verifier rejection \\
-SP1, CreGen (succinct) & yes & no & yes & completes, $27$--$31$~min \\
-SP1, ShowCre $k{=}1,2$ (succinct) & yes & no & yes & completes, $40$--$58$~min \\
+SP1, CreGen (succinct) & yes & no & yes & completes, $\approx 27$~min \\
+SP1, ShowCre $k{=}1,2$ (succinct) & yes & no & yes & completes, $40$--$54$~min \\
 Aurora, Loquat single-verify & yes & no\textsuperscript{$\dagger$} & yes & completes, $3.76$~min \\
 Aurora, Loquat single-verify, ZK enabled & yes & yes & yes & completes, ${\approx}22$~min ($n{=}3$) \\
 \bottomrule
@@ -1041,7 +1053,7 @@ this resource-failure evidence alone; the CreGen prove anomaly
   and Cell~3 prove-mode wall-clock figures (Table~\ref{tab:plum-verify}) are now
   means of three fixed-config runs each
   (\texttt{docs/measurements/tier2\_replication\_20260629}); the remaining
-  prove-mode figures (the CreGen and ShowCre relations) are single runs. The Loquat
+  prove-mode figures are two runs each for CreGen and ShowCre $k{=}1$ and a single run for ShowCre $k{=}2$. The Loquat
   substrate legs are three runs each
   (\texttt{docs/measurements/pub\_hardening\_20260610}), and they characterise
   the variance directly: the Aurora leg is tight ($223.2$--$226.6$~s,

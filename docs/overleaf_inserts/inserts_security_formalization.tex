@@ -1,0 +1,332 @@
+% ============================================================================
+% inserts_security_formalization.tex
+% ----------------------------------------------------------------------------
+% THREE drop-in Overleaf inserts for the security chapter (055-security.tex),
+% assembled after adversarial verification and fix application. Every macro
+% used here (\Sig, \Setup, \Sign, \Verify, \Prove, \pk, \sk, \pp, \ppSig,
+% \crs, \parms, \st, \RL, \negl, \Adv, \MSig, \EncodeSig, \Pred, \BDEC, \AC)
+% is defined in main.tex; every \ref target (def:zkvm-cred-adv, asm:air,
+% asm:szk, def:zk, def:szk, prop:wall, prop:precompile-pays, eq:precompile-pays,
+% lem:relation-preserve, eq:adv-unf, eq:adv-anon, ssec:zk-gap, sec:prelim,
+% sec:system, sec:security) already exists in the manuscript. No new macro or
+% label is introduced; JBind is written inline as \mathsf{JBind}.
+%
+% HOW TO USE: paste the gamebox environment into the preamble ONCE, then drop
+% each numbered INSERT at the location marked in its "% PLACEMENT:" comment.
+% ============================================================================
+
+
+% ============================================================================
+% PUT IN PREAMBLE (once): self-contained framed game box, core LaTeX only.
+% ============================================================================
+\newenvironment{gamebox}[1]{%
+  \par\medskip\noindent
+  \setlength{\fboxsep}{8pt}%
+  \noindent\fbox{\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}%
+  \textbf{#1}\par\smallskip
+}{%
+  \end{minipage}}\par\medskip
+}
+
+
+% ============================================================================
+% INSERT 1 — GAME INSERT: the three zkVM-Cred experiments.
+% PLACEMENT: in 055-security.tex, IMMEDIATELY AFTER Definition~\ref{def:zkvm-cred-adv}
+%            (currently ends at 055-security.tex line ~52). These games INSTANTIATE
+%            that definition; they do NOT re-bind the advantage symbols.
+% ============================================================================
+
+Unfolding Definition~\ref{def:zkvm-cred-adv}, the experiments defining
+$\mathsf{Adv}^{\bullet}_{\mathsf{zkVM\text{-}Cred}}$ for
+$\bullet\in\{\mathsf{unf},\mathsf{anon},\mathsf{unlink}\}$ are as follows. We
+first fix the proved object and the zkVM interface, then the oracles, then the
+three games; each game is the corresponding experiment of
+Section~\ref{sec:prelim} evaluated on BDEC instantiated with PLUM and the zkVM,
+so BDEC's Theorems~1--3 bounds apply to them unchanged.
+
+\paragraph{The proved object: a zero-knowledge proof of knowledge of a valid signature.}
+The object the credential prover produces is not a signature verification but a
+\emph{zero-knowledge argument of knowledge} of a witness that makes a
+signature-verification relation accept, with that witness hidden. Checking a signature is
+easy once the signature is in hand; the difficulty this thesis instruments is to certify
+that such a signature exists \emph{without revealing it, or the key it verifies under}.
+Fix $\ppSig\leftarrow\Sig.\Setup(1^\lambda)$ and recall the efficiently decidable credential
+relation of Section~\ref{sec:prelim}. Every value to be signed is first mapped into the
+message space by $\EncodeSig:\{0,1\}^{\ast}\to\MSig$, so $h_{U,TA}=H(A)\in\MSig$ and the
+pseudonym is signed under the encoded message $m_{\mathsf{nym}}:=\EncodeSig(\mathsf{ppk}_{U,TA})$;
+the signatures are produced honestly by
+$c_{U,TA}\leftarrow\Sig.\Sign(\ppSig,\sk_U,h_{U,TA})$ and
+$\mathsf{psk}_{U,TA}\leftarrow\Sig.\Sign(\ppSig,\sk_U,m_{\mathsf{nym}})$. With this encoding the
+credential relation reads
+\[
+  R_{\mathsf{cre}}^{\Sig}(x_{\mathsf{cre}};w_{\mathsf{cre}})=1
+  \Longleftrightarrow
+  \Pred_{\Verify}^{\Sig,\ppSig}(\pk_U,h_{U,TA},c_{U,TA})=1
+  \ \land\
+  \Pred_{\Verify}^{\Sig,\ppSig}(\pk_U,m_{\mathsf{nym}},\mathsf{psk}_{U,TA})=1,
+\]
+with public instance $x_{\mathsf{cre}}=(c_{U,TA},h_{U,TA},\mathsf{ppk}_{U,TA})$ and \emph{private}
+witness $w_{\mathsf{cre}}=(\pk_U,\mathsf{psk}_{U,TA})$. Membership is decidable in time polynomial in
+$|x_{\mathsf{cre}}|+|w_{\mathsf{cre}}|$ by running $\Sig.\Verify$ twice. The credential prover supplies
+a proof $\pi$ for ``$\exists\,w_{\mathsf{cre}}:R_{\mathsf{cre}}^{\Sig}(x_{\mathsf{cre}};w_{\mathsf{cre}})=1$''
+that is zero-knowledge in $w_{\mathsf{cre}}$. Crucially $\pk_U$, though public \emph{by type}, is used here
+as a hidden witness \emph{by role}: revealing it would tie the showing to the user's identity,
+so anonymity requires $\pk_U\in w_{\mathsf{cre}}$, never in $x_{\mathsf{cre}}$. The same reading
+carries to the showing relation $R_{\mathsf{show}}^{\Sig}$ with its $k+2$ predicate conjuncts,
+where each pseudonym message is $m_{\mathsf{nym}}^{(j)}:=\EncodeSig(\mathsf{ppk}_{U,TA}^{(j)})$ as in
+Section~\ref{sec:prelim}.
+
+\paragraph{Modelling the zkVM interface and journal-binding inside the game.}
+The proof is produced by a zkVM whose universal relation is
+$R_{\mathsf{vm}}\bigl((\mathsf{img},\mathsf{in}_{\mathsf{pub}},\mathsf{out});(\mathsf{P},\mathsf{in}_{\mathsf{priv}})\bigr)=1$
+iff $\mathsf{img}=\mathsf{digest}(\mathsf{P})$ and running guest $\mathsf{P}$ on
+$(\mathsf{in}_{\mathsf{pub}},\mathsf{in}_{\mathsf{priv}})$ terminates emitting public output $\mathsf{out}$;
+the public instance is $x_{\mathsf{vm}}=(\mathsf{img},\mathsf{in}_{\mathsf{pub}},\mathsf{out})$ and the
+witness $w_{\mathsf{vm}}=(\mathsf{P},\mathsf{in}_{\mathsf{priv}})$. The host supplies inputs over a
+\emph{read} channel and receives outputs over a \emph{commit} channel: values placed on the commit
+channel enter $\mathsf{out}$ and become public, values read but not committed stay in
+$\mathsf{in}_{\mathsf{priv}}$ and remain hidden. In the BDEC instantiation $\sk_U$, $\pk_U$, and the
+credential signatures enter only via the read channel and are never committed, so they remain in
+$w_{\mathsf{vm}}$ across the entire relation, which is what keeps $w_{\mathsf{cre}}$ hidden. We make
+the binding of the public statement an explicit predicate of the game:
+\[
+  \mathsf{JBind}(\mathsf{out},x)=1
+  \iff
+  \text{$x$ is committed on the commit channel, i.e.\ $x$ is recoverable from $\mathsf{out}$.}
+  % \mathsf{JBind}: journal-binding indicator, written inline; no macro introduced.
+\]
+An accepting receipt certifies only ``$\exists\,w:R(x;w)=1$ for the $x$ that $\mathsf{JBind}$ pins
+down''. The games below carry $\mathsf{JBind}$ as an explicit conjunct in the win condition, so that
+they model the fixed/correct system in which $x_{\mathsf{cre}}$ is committed to the journal (a
+cost-negligible change); the shipped prototype removes it, and we state that variant explicitly after
+the games.
+
+\paragraph{Oracles.}
+All three experiments give the challenger an honest-user registry populated at setup (so that the
+notion of an honestly generated user key pair is well defined, exactly as in
+Section~\ref{sec:prelim}) and an issuance log $\mathcal L$ of tuples
+$(\mathsf{ipk},\mathsf{upk},A,\mathsf{cred})$, together with the following two oracles, to which the
+adversary $\Adv$ has \emph{adaptive} access. There is no corruption oracle: the source model of
+Section~\ref{sec:prelim} exposes only issuance and showing, and the cited BDEC bounds are proved
+against exactly this interface.
+\begin{itemize}
+\item $\mathcal O_{\mathsf{Issue}}(\mathsf{upk},A)$: runs the honest issuance path. The teaching
+authority signs
+$\sigma_{\mathsf{cred}}\leftarrow\Sig.\Sign(\ppSig,\sk_{TA},\EncodeSig(\pk_U,\mathsf{ppk}_{U,TA},A,\mathsf{aux}))$,
+the ledger stores the record digest
+$\rho_{U,TA}=H(\pk_{TA},\mathsf{ppk}_{U,TA},A,\mathsf{aux},\sigma_{\mathsf{cred}})$, the challenger
+appends $(\mathsf{ipk},\mathsf{upk},A,\mathsf{cred})$ to $\mathcal L$, and returns the issued
+credential material.
+\item $\mathcal O_{\mathsf{Show}}(i,\phi,A^\downarrow)$: for a registered honest user $i$, runs
+honest $\BDEC.\mathsf{ShowCre}$ and returns the receipt $(x_{\mathsf{vm}},\mathsf{receipt})$, i.e.\ the
+public statement
+$x_{\mathsf{show}}=(A^\downarrow,(\mathsf{ppk}_{U,TA}^{(j)})_{j=1}^{k},\mathsf{ppk}_{U,V})$ and the proof
+$\pi$; the presentation predicate $\phi$ is adversary-chosen at show time.
+\end{itemize}
+
+\begin{gamebox}{Experiment $\mathsf{Exp}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred},\Adv}(\lambda)$ (unforgeability)}
+\begin{enumerate}
+\item The challenger samples $\parms=(\ppSig,\crs,\mathsf{img})\leftarrow\BDEC.\Setup(1^\lambda)$, where
+$\mathsf{img}$ is the fixed guest-image digest of the credential guest, initialises
+$\mathcal L\gets\emptyset$ and the honest-user registry, and gives $\parms$ and the public ledger roots
+$(\mathsf{rt}_{\mathsf{cred},e},\mathsf{rt}_{TA,e},\mathsf{rt}_{\RL,e})$ to $\Adv$.
+\item $\Adv$ interacts adaptively with $\mathcal O_{\mathsf{Issue}}$ and $\mathcal O_{\mathsf{Show}}$.
+\item $\Adv$ outputs $(\mathsf{ipk}^\star,x^\star,\mathsf{receipt}^\star)$ with
+$\mathsf{receipt}^\star=(\mathsf{out}^\star,\pi^\star)$ and public instance
+$x_{\mathsf{vm}}^\star=(\mathsf{img},\mathsf{in}_{\mathsf{pub}}^\star,\mathsf{out}^\star)$.
+\item The experiment outputs $1$ iff
+\[
+  \Pi_{\mathsf{vm}}.\Verify(\crs, x_{\mathsf{vm}}^\star, \pi^\star)=1
+  \ \land\
+  \mathsf{JBind}(\mathsf{out}^\star,x^\star)=1,
+\]
+the witness $w^\star$ extracted from $\pi^\star$ by the knowledge extractor satisfies
+$R_{\mathsf{cre}}^{\Sig}(x^\star;w^\star)=1$ (equivalently $R_{\mathsf{show}}^{\Sig}$ for a showing),
+$\mathsf{ipk}^\star$ is an authorised teaching authority (a member under the published root
+$\mathsf{rt}_{TA,e}$), and the forgery is \emph{fresh}: there is no tuple
+$(\mathsf{ipk}^\star,\mathsf{upk}^\star,A^\star,\mathsf{cred}^\star)\in\mathcal L$ and no honestly
+generated user key pair $(\mathsf{usk}^\star,\mathsf{upk}^\star)$ accounting for $w^\star$.
+\end{enumerate}
+$\displaystyle
+\mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred}}(\Adv)
+=\Pr\!\bigl[\mathsf{Exp}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred},\Adv}(\lambda)=1\bigr].$
+The extraction step in~4 is where knowledge soundness ($\epsilon_{\mathrm{KS}}$) is spent, and the
+$\mathsf{JBind}$ conjunct is what pins the extracted $x^\star$ to a committed statement.
+\end{gamebox}
+
+\begin{gamebox}{Experiment $\mathsf{Exp}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}Cred},\Adv}(\lambda)$ (anonymity)}
+\begin{enumerate}
+\item Setup as above; $\Adv$ receives $\parms$, the roots, and adaptive access to
+$\mathcal O_{\mathsf{Issue}}$ and $\mathcal O_{\mathsf{Show}}$.
+\item $\Adv$ outputs two honestly issued credentials
+$(\mathsf{cred}_0,\mathsf{usk}_0,A_0)$, $(\mathsf{cred}_1,\mathsf{usk}_1,A_1)$, a predicate $\phi$ with
+$\phi(A_0)=\phi(A_1)=1$, and disclosed attributes $A^\downarrow$.
+\item Well-formedness: the challenge is admissible only if
+$\mathsf{Leak}(\mathsf{stmt}_0)=\mathsf{Leak}(\mathsf{stmt}_1)$, where $\mathsf{Leak}(\cdot)$ projects the
+statement onto its intentionally-disclosed components, namely $A^\downarrow$, the teaching-authority
+pseudonym multiset $\{\mathsf{ppk}_{U,TA}^{(j)}\}$, and any linking tag carried in $\phi$; the
+verifier-facing pseudonym $\mathsf{ppk}_{U,V}$ is freshly sampled at showing time.
+\item The challenger samples $b\leftarrow\{0,1\}$ and returns
+$(\mathsf{stmt},\mathsf{receipt}_b)\leftarrow\BDEC.\mathsf{ShowCre}$ for $\mathsf{cred}_b$.
+\item $\Adv$, with continued oracle access, outputs $b'$.
+\end{enumerate}
+$\displaystyle
+\mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}Cred}}(\Adv)
+=\Bigl|\Pr[b'=b]-\tfrac12\Bigr|.$
+This advantage is made small only when the receipt is zero-knowledge in $w_{\mathsf{vm}}$; on the
+shipped succinct-STARK path it is not (Section~\ref{ssec:zk-gap}), so the bound is sound but not
+effective there. Non-cryptographic side channels (timing, ledger-access and revocation-update
+patterns, wallet metadata) are outside this model.
+\end{gamebox}
+
+\begin{gamebox}{Experiment $\mathsf{Exp}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}Cred},\Adv}(\lambda)$ (unlinkability)}
+\begin{enumerate}
+\item Setup and the \emph{same} oracle interface as the unforgeability experiment
+($\mathcal O_{\mathsf{Issue}}$ and $\mathcal O_{\mathsf{Show}}$), available adaptively to $\Adv$.
+\item The challenger creates two pseudonym key pairs $(\mathsf{psk}^0,\mathsf{ppk}^0)$,
+$(\mathsf{psk}^1,\mathsf{ppk}^1)$ and an attribute set $A^\downarrow$, samples $b\leftarrow\{0,1\}$, and
+issues a \emph{single} credential $c^{(b)}$ with respect to $\mathsf{ppk}^{(b)}$ on $A^\downarrow$,
+forwarding it to $\Adv$.
+\item $\Adv$ outputs $b'$.
+\end{enumerate}
+$\displaystyle
+\mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}Cred}}(\Adv)
+=\Bigl|\Pr[b'=b]-\tfrac12\Bigr|.$
+When the statements intentionally carry a public linking tag, linkability is allowed only as that tag
+determines. The single-transcript structure is why the one-transcript simulation of
+Section~\ref{sec:security} applies once, giving unlinkability the same bound as anonymity.
+\end{gamebox}
+
+\paragraph{The shipped-prototype game ($\mathsf{JBind}$ removed).}
+The measured artifact commits only the verification outcome, a single boolean, so
+$\mathsf{JBind}(\mathsf{out}^\star,x^\star)=0$ for every nontrivial $x^\star$; modelling it means
+deleting the $\mathsf{JBind}$ conjunct from the unforgeability win condition above. With that conjunct
+gone the extracted $x^\star$ is unpinned, and the adversary trivially satisfies statement-binding with
+any $x^\star$ consistent with the one committed boolean, so an accepting receipt attests merely
+``two signatures verify under \emph{some} witness''. The prototype is therefore a functional benchmark,
+not a statement-bound verifier; committing $x_{\mathsf{cre}}$ to the journal restores the conjunct and
+closes the gap.
+
+
+% ============================================================================
+% INSERT 2 — BOUND TABLE INSERT: leaf-error forms + assembled bounds.
+% PLACEMENT: in 055-security.tex, in the security-preservation subsection. The
+%            \begin{align} block below carries the labels eq:adv-unf/eq:adv-anon,
+%            which ALREADY EXIST on an identical block at 055-security.tex ~225-232.
+%            *** REPLACE that existing block with this one — do NOT keep both, or
+%            LaTeX reports "Label multiply defined". *** The table + surrounding
+%            prose are new content and can be inserted adjacent to the theorem.
+% ============================================================================
+
+The assembled bounds of this chapter are sums of leaf error terms. It is worth stating, term by term,
+what \emph{form} of bound each source actually delivers, because the honest answer is that none of the
+five is a reproduced concrete or parameterised expression: every one resolves to ``negligible'', and
+three of them (\(\epsilon_{\mathrm{AIR}}\), \(\epsilon_{\mathrm{sZK}}\), and \(\epsilon_{\mathrm{ZK}}\)
+on the shipped stack) are \emph{open or not-met} rather than established. Table~\ref{tab:leaf-errors}
+records this. In particular the only probabilistic figures attached to any leaf-error term in this sum,
+\(2^{-199}\) per vector and \(2^{-191}\) aggregate, are the positive-direction \emph{test coverage} of
+the executor-equivalence suite under a uniform-wrong-output model; they bound random disagreement on the
+sampled set, not the rejection of a malformed trace, and are therefore \emph{not} a soundness bound on
+\(\epsilon_{\mathrm{AIR}}\).
+
+\begin{table}[t]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{1.9cm}p{3.4cm}p{3.7cm}p{3.4cm}@{}}
+\toprule
+\textbf{Term} & \textbf{Meaning} & \textbf{Bound form in source} & \textbf{Source / status} \\
+\midrule
+$\epsilon_{\mathrm{EUF}}$ &
+PLUM EU-CMA error &
+$\negl(\lambda)$; no concrete or parameterised formula reproduced &
+PLUM Thm.~1~\cite{10.1007/978-981-95-2961-2_6}, carried from Loquat~\cite{cryptoeprint:2024/868}; classical ROM. \emph{Established (cited)} (its carry-over into the zkVM setting is under the black-box-transfer hypothesis of Section~\ref{sec:security}, argued but not audited line by line). \\
+$\epsilon_{\mathrm{KS}}$ &
+zkVM knowledge-soundness error &
+$\negl(\lambda)$; ``up to a negligible knowledge error'', no STARK/BCS formula reproduced &
+STARK/BCS soundness~\cite{ethstark,bensasson2016iop}; classical ROM. \emph{Assumed (cited).} \\
+$\epsilon_{\mathrm{AIR}}$ &
+Griffin-AIR arithmetisation soundness error &
+Asserted $\negl(\lambda)$; no constraint-level bound. $2^{-199}$/$2^{-191}$ are positive-direction test \emph{coverage}, \textbf{not} a soundness bound &
+Assumption~\ref{asm:air}; not established for the lookup-borne families. \emph{Open.} \\
+$\epsilon_{\mathrm{ZK}}$ &
+Produced-proof zero-knowledge error &
+Assumed $\negl(\lambda)$ for the bound; on the measured stack qualitatively \emph{not negligible} (no numeric value) &
+Def.~\ref{def:zk}; SP1~\cite{sp1docs-sec}, RISC~Zero~\cite{risc0zkadvisory,l2beatzk}. \emph{Assumed; not delivered on this stack.} \\
+$\epsilon_{\mathrm{sZK}}$ &
+PLUM signature-transcript-simulation error &
+Asserted $\negl(\lambda)$; no formula &
+Assumption~\ref{asm:szk}, required by BDEC Thm.~2--3~\cite{10.1007/978-981-96-0957-4_3}; PLUM gives EU-CMA, not simulatability. \emph{Open.} \\
+\bottomrule
+\end{tabular}
+\caption{Leaf security-error terms, with the bound \emph{form} each source actually provides. No term
+carries a reproduced concrete or parameterised value; the $2^{-191}$ figure is executor-equivalence
+test coverage, explicitly not a bound on $\epsilon_{\mathrm{AIR}}$.}
+\label{tab:leaf-errors}
+\end{table}
+
+With these forms, the assembled bounds read, in the classical random-oracle model,
+\begin{align}
+  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred}}(\Adv)
+  &\le \epsilon_{\mathrm{EUF}} + \epsilon_{\mathrm{KS}} + \epsilon_{\mathrm{AIR}},
+  \label{eq:adv-unf}\\
+  \mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}Cred}}(\Adv)
+  &\le \epsilon_{\mathrm{ZK}} + \epsilon_{\mathrm{sZK}},
+  \label{eq:adv-anon}
+\end{align}
+and the same bound $\epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}}$ holds for
+$\mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}Cred}}(\Adv)$, whose game forwards a single challenge
+credential so the one-transcript simulation applies once. Unforgeability is negligible whenever its
+three terms are, of which $\epsilon_{\mathrm{AIR}}$ is the open prong. Anonymity and unlinkability are
+negligible only when $\epsilon_{\mathrm{ZK}}$ is, which the shipped stack does not deliver
+(Section~\ref{ssec:zk-gap}); on that path Equation~\eqref{eq:adv-anon} is sound but not made
+effective.
+
+
+% ============================================================================
+% INSERT 3 — FRAMING INSERT: honest reframing of the security contribution.
+% PLACEMENT: at the head of the security-chapter results discussion, adjacent
+%            to Proposition~\ref{prop:wall} (055-security.tex ~line 414). The
+%            game insert (Insert 1) appears earlier in the same chapter, so
+%            "the experiments above" refers to it.
+% ============================================================================
+
+What this chapter delivers is two results, ordered as in the abstract: a \emph{cost criterion} for when
+a precompile pays, which is the chapter's reusable, positive contribution, and a \emph{dual obstruction}
+to deployable post-quantum anonymity on the studied stack, which is the deployability finding. The cost
+criterion (Proposition~\ref{prop:precompile-pays}, Equation~\eqref{eq:precompile-pays}) is a single
+inequality evaluated at two operating points: against standalone PLUM verification, which does not
+complete (out of memory at ${\approx}1$m$45$s), the bespoke Griffin-$\mathbb{F}_p^{192}$ precompile
+removes millions of guest cycles per event at a per-event chip area on the order of $10^{4}$ cells and
+recovers a finite $14.25$-minute succinct proof at $\lambda=80$; against a software SHA-3 control whose
+hash costs the substrate no chip area at all, the same inequality places the precompiled arm
+\emph{behind} the control ($14.25$ versus $13.05$~min, ${\approx}1.09\times$ wall, $1.13\times$ cycles,
+$n{=}3$). The precompile is the instrument, not the result: the criterion is the reusable contribution,
+and it is the demonstrated \emph{instance} --- the with/without-precompile inversion that the accounting
+postdicts --- that is the one falsified prediction, not the criterion itself. The dual obstruction
+(Proposition~\ref{prop:wall}) is likewise real and has two independent horns: the feasible bare-STARK
+receipt is not zero-knowledge, and the only wraps the toolchains expose are pairing-based, hence not
+post-quantum. Horn~1 is a recursion-shape provisioning wall, a one-time build cost (${\approx}51$~h of
+regeneration) and \emph{not} a memory bound; Horn~2 is a primitive limit no memory or time budget
+removes. Within the literature we surveyed we did not find this conjunction stated for post-quantum
+anonymous credentials, and surfacing it is the second contribution.
+
+We do \emph{not} claim a delivered anonymity or unlinkability guarantee on the evaluated stack. Those
+guarantees are conditional and sound, but their bound is non-informative (vacuous) on this stack because
+$\epsilon_{\mathrm{ZK}}$ is not made small: Equation~\eqref{eq:adv-anon} bounds anonymity by
+$\epsilon_{\mathrm{ZK}}$, and on the target hardware that error is not driven small, because the
+succinct receipt has no established zero-knowledge simulator and the wrap that would supply one is not
+produced as the toolchain ships (Horn~1). Aligning with Proposition~\ref{prop:wall}, the construction's
+anonymity is therefore ``sound but not made effective on this stack: no proof the stack produces drives
+its $\epsilon_{\mathrm{ZK}}$ term negligible.'' Two further honesty caveats bound the claim. First, the
+shipped prototype commits the verification outcome but not the public statement $x_{\mathsf{cre}}$ to the
+journal, so an accepting receipt attests ``two signatures verify under some witness'' without binding to
+a specific statement; until $x_{\mathsf{cre}}$ is committed the artifact is a functional benchmark, not a
+statement-bound credential verifier. This statement-binding requirement is disclosed in
+Section~\ref{sec:system} and carried as an explicit conditional in Lemma~\ref{lem:relation-preserve}, and
+made an explicit win-condition conjunct ($\mathsf{JBind}$) in the experiments above. Second, ``the user's
+long-term key and signatures enter only via the read channel and are never committed'' is a statement
+about the witness channel, not an unlinkability result; it is the mechanism that \emph{could} deliver
+anonymity under a zero-knowledge wrap, and nothing more absent that wrap. The contribution is the
+criterion and the obstruction, both established; the anonymity guarantee is stated as what it is, a
+conditional that the measured substrate does not discharge.

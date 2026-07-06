@@ -94,9 +94,35 @@ $R^{\Sig}_{\mathsf{cre}}$ this enumeration is complete at the predicate level, c
 $R^{\Sig}_{\mathsf{show}}$ adds only $k+2$ further signature-verification
 predicates built from the same multiplications and Griffin permutations; its
 ledger-membership, non-revocation, and disclosure checks are performed by the
-relying party outside the arithmetised relation. Composing the per-operation
-equalities along the finite, input-fixed execution yields equality of the
-accept-or-reject decision at the program level. This program-level equality lifts
+relying party outside the arithmetised relation.
+\emph{Composition, by induction over the guest execution.} Fix the input;
+the guest evaluation is then a finite, deterministic sequence of operations
+$o_1,\dots,o_N$, each an instance of one of three classes: a large-field
+modular multiplication (returned identically by the modular-multiplication
+precompile), a Griffin permutation (returned identically by the Griffin
+precompile under the lookup binding, modulo Assumption~\ref{asm:air}), or a
+native RISC-V instruction (whose faithful execution follows from the
+\emph{soundness} of the zkVM argument for the RISC-V execution relation). Let
+$\sigma_i$ denote the machine state after $o_i$ under the precompile-equipped
+execution and $\hat\sigma_i$ the state after $o_i$ under the reference
+field-emulated execution, and take as invariant
+\[
+  I(i):\qquad \sigma_i=\hat\sigma_i .
+\]
+\emph{Base case.} The input is fixed, so $\sigma_0=\hat\sigma_0$. Operation
+$o_1$ belongs to one of the three classes and, applied to the common input
+state, returns the same output; hence $\sigma_1=\hat\sigma_1$, that is $I(1)$.
+\emph{Inductive step.} Assume $I(i-1)$, i.e.\ $\sigma_{i-1}=\hat\sigma_{i-1}$.
+The operation $o_i$ is a deterministic function of the state before it, of one
+of the three classes; by the per-operation equality for that class its output
+and its state transition agree under the two executions, so
+$\sigma_i=\hat\sigma_i$, that is $I(i)$. The step invokes one invariant class
+only, state equality, with no appeal to any other argument.
+\emph{Conclusion.} By induction $I(N)$ holds, so $\sigma_N=\hat\sigma_N$. The
+terminating accept-or-reject bit is a fixed projection of the final state and
+therefore agrees under the two executions, yielding equality of the
+accept-or-reject decision at the program level: the precompile-equipped guest
+accepts $(x;w)$ if and only if $R^{\Sig}(x;w)=1$. This program-level equality lifts
 to credential-verifier acceptance only when the zkVM journal commits the public
 statement $x$; the specification assumes this binding, whereas the current
 RISC~Zero prototype commits the verification outcome but not $x_{\mathsf{cre}}$
@@ -113,103 +139,325 @@ PLUM as the signature scheme $\Sig$ and the zkVM as the zkSNARK $\Pi$; by
 Lemma~\ref{lem:relation-preserve} the two provers accept the same relation.
 
 \begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unforgeability]
-Let $\mathcal A$ win the zkVM credential unforgeability experiment. We build a PLUM
-EU-CMA forger $\mathcal B$. $\mathcal B$ runs $\mathcal A$, answering its issuance
-and showing queries with its own signing oracle and the zkVM prover, so
-$\mathcal A$'s view matches the real experiment. When $\mathcal A$ outputs an
-accepting $(x^\star,\pi^\star)$ for a statement outside the issued set, $\mathcal B$
-invokes the extractor $\mathcal{E}$ of Definition~\ref{def:ks} to obtain
-$w^\star=(\pk_U^\star,\mathsf{psk}^\star)$, which fails with probability at most
-$\epsilon_{\mathrm{KS}}$. Conditioned on extraction, $w^\star$ satisfies
-$R^{\Sig}_{\mathsf{cre}}$ except when the committed Griffin transition differs from
-the reference permutation, an event of probability at most $\epsilon_{\mathrm{AIR}}$
-by Definition~\ref{def:eair}; otherwise the extracted $\mathsf{psk}^\star$ (the pseudonym secret, structurally a PLUM signature under $\pk_U$, Section~\ref{sec:prelim}) is valid
-on a message $\mathcal A$ never had signed, and by the black-box-transfer hypothesis the
-precompile substitution leaves PLUM's EU-CMA reduction unchanged, so
-$\mathsf{psk}^\star$ is a forgery against the unmodified scheme, which $\mathcal B$
-outputs.
-Writing $\epsilon_{\mathrm{EUF}}$ for PLUM's EU-CMA advantage bound (Definition~\ref{def:euf}),
+We recast the direct reduction as a labelled sequence of games
+$\mathsf G_0,\mathsf G_1,\mathsf G_2$ on a single probability space, with
+success event $S_i=[\mathsf G_i\text{ outputs }1]$ and target probability $0$.
+The adversary $\mathcal A$ plays the zkVM credential unforgeability experiment
+of Section~\ref{sec:security} with the issuance and showing oracles and the
+honestly issued log $\mathcal L$; it wins by outputting an accepting
+$(x^\star,\pi^\star)$ whose statement lies outside $\mathcal L$. Each hop below
+is a transition based on a failure event: we exhibit the event $F$, check the
+Difference-Lemma event identity $S_i\wedge\neg F\iff S_{i+1}\wedge\neg F$
+explicitly on the common probability space, and bound the gap by $\Pr[F]$
+(Shoup's Difference Lemma).
+
+\smallskip\noindent\emph{Game $\mathsf G_0$ (real).} The credential
+unforgeability experiment verbatim, so
+$\Pr[S_0]=\mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)$.
+
+\smallskip\noindent\emph{Hop $\mathsf G_0\to\mathsf G_1$: a transition based on
+a failure event ($F_1$, extractor failure).} $\mathsf G_1$ runs exactly as
+$\mathsf G_0$ and, on the accepting $(x^\star,\pi^\star)$, additionally invokes
+the knowledge extractor $\mathcal E$ of Definition~\ref{def:ks} to obtain
+$w^\star=(\pk_U^\star,\mathsf{psk}^\star)$; it sets
+$\mathsf{bad}_1\leftarrow\mathsf{true}$ and aborts, outputting $0$, if
+$\mathcal E$ returns no $w^\star$ with $R^{\Sig}_{\mathsf{cre}}(x^\star;w^\star)=1$.
+Let $F_1=[\mathsf{bad}_1\text{ set}]$; $F_1$ is defined purely as extractor
+failure and fuses no other concern. On $\neg F_1$ no line of $\mathsf G_1$ past
+the extraction differs from $\mathsf G_0$, so $S_0\wedge\neg F_1\iff
+S_1\wedge\neg F_1$ and the Difference Lemma gives
+$|\Pr[S_0]-\Pr[S_1]|\le\Pr[F_1]$. By Definition~\ref{def:ks}, on an accepting
+instance the extractor fails with probability at most the knowledge error, so
+$\Pr[F_1]\le\epsilon_{\mathrm{KS}}$.
+
+\smallskip\noindent\emph{Hop $\mathsf G_1\to\mathsf G_2$: a transition based on
+a failure event ($F_2$, AIR mismatch across the verification's Griffin
+permutations).} A PLUM verification commits $N_{\mathrm G}$ Griffin transitions,
+one per permutation it invokes ($N_{\mathrm G}\approx 1052$ at the measured
+parameters, Section~\ref{sec:system}); the accepting trace underlying
+$\pi^\star$ carries all of them. Define, \emph{purely over those committed
+transitions and independently of whether extraction succeeded},
 \[
-  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)
-  \le \epsilon_{\mathrm{EUF}}+\epsilon_{\mathrm{KS}}+\epsilon_{\mathrm{AIR}},
+  F_2=\bigl[\text{some one of the $N_{\mathrm G}$ committed Griffin transitions
+  differs from the reference permutation }\pi\text{ of
+  Definition~\ref{def:ref-perm}}\bigr].
 \]
-which is~\eqref{eq:adv-unf}.
+Because $F_2$ is a property of the trace alone, evaluated on the
+post-extraction state, the hop needs one argument class only, arithmetisation
+soundness. $\mathsf G_2$ is $\mathsf G_1$ with
+$\mathsf{bad}_2\leftarrow\mathsf{true}$ and abort whenever $F_2$ occurs, so
+$S_1\wedge\neg F_2\iff S_2\wedge\neg F_2$ and the Difference Lemma gives
+$|\Pr[S_1]-\Pr[S_2]|\le\Pr[F_2]$. Definition~\ref{def:eair} bounds the AIR's
+acceptance of a \emph{single} wrong Griffin transition by
+$\epsilon_{\mathrm{AIR}}$ (consuming the open Assumption~\ref{asm:air}); a
+union bound over the $N_{\mathrm G}$ committed transitions gives
+$\Pr[F_2]\le N_{\mathrm G}\,\epsilon_{\mathrm{AIR}}$. On $\neg F_2$ every
+committed transition equals $\pi$, so by relation preservation
+(Lemma~\ref{lem:relation-preserve}) the extracted $w^\star$ is a genuine
+witness for $R^{\Sig}_{\mathsf{cre}}(x^\star;\cdot)$.
+
+\smallskip\noindent\emph{Terminal game $\mathsf G_2$: embedding into PLUM
+EU-CMA under a guessed honest key.} In $\mathsf G_2$ every surviving run carries
+an extracted witness $w^\star=(\pk_U^\star,\mathsf{psk}^\star)$ with
+$R^{\Sig}_{\mathsf{cre}}(x^\star;w^\star)=1$ on a statement outside
+$\mathcal L$. The long-term key $\pk_U^\star$ is prover-chosen (a witness
+component, Section~\ref{sec:prelim}), so we \emph{cannot} assert
+$\pk_U^\star=\pk$; the forger $\mathcal B$ instead guesses the honest key the
+forgery implicates. $\mathcal B$ receives $(\ppSig,\pk)$ and a signing oracle
+$\mathcal O_{\mathsf{Sign}}$ (recording queried messages in $Q$) from its
+EU-CMA challenger (Definition~\ref{def:euf}). At setup $\mathcal B$ samples
+$i^\star$ uniformly from the $N$ honestly generated signing keys in the
+registry --- the total honest signing keys, that is the honest users together
+with the authorised teaching authorities (Section~\ref{sec:security}) ---
+and embeds its challenge key there, $\pk_{i^\star}\leftarrow\pk$ --- the
+honest-key embedding of BDEC's unforgeability reduction, cf.\ the
+unforgeability experiment of Section~\ref{sec:security} and
+\cite[Appendix~A.1]{10.1007/978-981-96-0957-4_3}; it generates the other $N-1$
+keys itself, and runs $\mathcal A$:
+\begin{itemize}
+  \item \emph{Issuance queries.} For a query implicating key $i^\star$,
+  $\mathcal B$ obtains the required PLUM signatures --- the pseudonym secrets
+  $\mathsf{psk}$ and teaching-authority credentials, structurally PLUM
+  signatures under $\pk_{i^\star}$ (Section~\ref{sec:prelim}) --- by calling
+  $\mathcal O_{\mathsf{Sign}}$ on the corresponding messages; for every other
+  key it signs with the keys it holds. It records each issued tuple in
+  $\mathcal L$; the messages $\mathcal B$ submits to $\mathcal O_{\mathsf{Sign}}$
+  are exactly the $i^\star$-entries of $Q$, each the signed component of some
+  tuple in $\mathcal L$.
+  \item \emph{Showing queries.} $\mathcal B$ answers with the honest prover on
+  the witnesses it holds.
+\end{itemize}
+Since $i^\star$ is uniform and hidden from $\mathcal A$, $\mathcal A$'s view is
+distributed as in $\mathsf G_2$. On $\mathcal A$'s accepting
+$(x^\star,\pi^\star)$ outside $\mathcal L$, $\mathcal B$ runs $\mathcal E$ to
+recover $w^\star$; on the surviving $(\neg F_1\wedge\neg F_2)$ path the extracted
+signature (the pseudonym secret $\mathsf{psk}^\star$, or the teaching-authority
+credential when the forgery is carried there) is a valid PLUM signature under
+$\pk_U^\star$ on the message $m^\star$ that $x^\star$ binds. Let $E^\star$ be the
+event that this key equals $\pk_{i^\star}=\pk$. On $E^\star$, $\mathcal B$
+outputs $(m^\star,\mathsf{psk}^\star)$.
+
+\emph{Freshness $m^\star\notin Q$.} We do not re-derive freshness from first
+principles. The extracted pair $(m^\star,\mathsf{psk}^\star)$ is handed to the
+honest-key-guess embedding set up above, which is the one BDEC's own EU-CMA
+reduction uses (\cite[Appendix~A.1]{10.1007/978-981-96-0957-4_3}): $\mathcal B$
+answers every issuance query implicating $\pk_{i^\star}=\pk$ through its signing
+oracle $\mathcal O_{\mathsf{Sign}}$, so the messages in circulation under $\pk$
+are exactly the recorded set $Q$. In that reduction the forgery's statement
+lying outside the honestly issued log, $x^\star\notin\mathcal L$, is what makes
+$\mathsf{psk}^\star$ a signature on a message never queried, and it is in that
+reduction, not here, that $m^\star\notin Q$ is established. The black-box
+precompile substitution changes none of the reduction's inputs, leaving the
+signature scheme, its EU-CMA experiment, and the log-membership bookkeeping
+untouched, so BDEC's freshness argument transfers unchanged. With
+$\Sig.\Verify(\ppSig,\pk,m^\star,\mathsf{psk}^\star)=1$ on $E^\star$ and
+$m^\star\notin Q$, the pair $(m^\star,\mathsf{psk}^\star)$ makes
+$\mathsf{Exp}^{\mathsf{euf\mbox{-}cma}}_{\Sig,\mathcal B}$ output $1$, a forgery
+against the unmodified scheme.
+
+\emph{Resources and advantage.} $\mathcal B$ runs $\mathcal A$ once, answers each
+of its $q$ issuance and showing queries with one $\mathcal O_{\mathsf{Sign}}$
+call and one prover invocation, and runs $\mathcal E$ once, so
+$t_{\mathcal B}=t_{\mathcal A}+t_{\mathcal E}+q\cdot t_{\mathrm{prove}}+O(q)$
+and $\mathcal B$ makes at most $q$ signing queries. $\mathcal B$ wins whenever a
+run survives to a forgery under a registered honest key and its guess is
+correct; since $i^\star$ is uniform and hidden,
+$\Pr[E^\star\mid\text{surviving run}]\ge 1/N$, so
+$\mathsf{Adv}^{\mathsf{euf\mbox{-}cma}}_{\Sig}(\mathcal B)\ge
+\tfrac1N\Pr[S_2]$, i.e.\ $\Pr[S_2]\le N\,\epsilon_{\mathrm{EUF}}$ by
+Definition~\ref{def:euf}.
+
+\smallskip\noindent Summing the chain,
+\[
+  \mathsf{Adv}^{\mathsf{unf}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)=\Pr[S_0]
+  \le \Pr[S_2]+\Pr[F_1]+\Pr[F_2]
+  \le N\,\epsilon_{\mathrm{EUF}}+\epsilon_{\mathrm{KS}}
+     +N_{\mathrm G}\,\epsilon_{\mathrm{AIR}},
+\]
+which is~\eqref{eq:adv-unf}. Each leaf is pointed at its source:
+$\epsilon_{\mathrm{KS}}$ at Definition~\ref{def:ks}, $\epsilon_{\mathrm{AIR}}$
+at the open Assumption~\ref{asm:air}, and $\epsilon_{\mathrm{EUF}}$ at PLUM's
+EU-CMA analysis (Definition~\ref{def:euf}); the multiplicities $N$ (the
+honest-key guess) and $N_{\mathrm G}$ (Griffin permutations per verification)
+are the assembly's polynomial factors, not bounds on any leaf. This appendix
+bounds none of the leaves, only their assembled sum.
 \end{proof}
 
 \begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, anonymity]
-Let $\mathcal A$ be the anonymity distinguisher, with advantage
-$\bigl|\Pr[b'=b]-\tfrac12\bigr|$. We proceed through a sequence of games on the
-challenge showing for the credential $\mathsf{cred}_b$. Game~$\mathsf{G}_0$ is the
-real experiment. In game~$\mathsf{G}_1$ the pseudonym key and credential are
-produced by $\mathcal{S}_\sigma$ rather than with the secret key, so by
-Definition~\ref{def:szk}
-$\bigl|\Pr[\mathsf{G}_0{=}1]-\Pr[\mathsf{G}_1{=}1]\bigr|\le\epsilon_{\mathrm{sZK}}$.
-The role of $\mathcal{S}_\sigma$ is to let the reduction produce the challenge
-credential $c_b$ and pseudonym signature $\mathsf{psk}_b$ without the challenge
-user's long-term secret key $\sk_U$, matching BDEC's anonymity simulator
-(\cite[Appendix~A.2]{10.1007/978-981-96-0957-4_3}); the hop is load-bearing
-whenever PLUM's transcripts cannot be produced without $\sk_U$.
-In game~$\mathsf{G}_2$ the proof is produced by $\mathcal{S}_\Pi$ rather than from
-the witness, so by Definition~\ref{def:zk}
-$\bigl|\Pr[\mathsf{G}_1{=}1]-\Pr[\mathsf{G}_2{=}1]\bigr|\le\epsilon_{\mathrm{ZK}}$.
-In $\mathsf{G}_2$ we account for every $b$-dependent component of the challenge
-statement
-$x_{\mathsf{show}}=(A^\downarrow,(\mathsf{ppk}_{U,TA}^{(j)})_{j=1}^{k},\mathsf{ppk}_{U,V})$.
-The disclosed attribute set $A^\downarrow$ is equalised across the two credentials
+We proceed through a labelled sequence
+$\mathsf G_0\to\mathsf G_1\to\mathsf G_2$ on a single probability space over the
+challenge showing of $\mathsf{cred}_b$, with success event $S_i=[b'=b]$ in
+$\mathsf G_i$ and target probability $\tfrac12$; the anonymity advantage is
+$|\Pr[S_0]-\tfrac12|$. The first hop is itself a \emph{hybrid} over the $k+2$
+PLUM signature transcripts the challenge showing carries under $\pk_U$.
+
+\smallskip\noindent\emph{Game $\mathsf G_0$ (real).} The anonymity experiment
+verbatim.
+
+\smallskip\noindent\emph{Hop $\mathsf G_0\to\mathsf G_1$: a hybrid of $k+2$
+indistinguishability sub-hops (gap $\le(k+2)\,\epsilon_{\mathrm{sZK}}$).} The
+challenge showing evaluates $R^{\Sig}_{\mathsf{show}}$, whose witness carries
+$k+2$ PLUM signature transcripts under $\pk_U$
+(Section~\ref{sec:prelim}): the $k$ teaching-authority pseudonym signatures
+$\mathsf{psk}_{U,TA}^{(1)},\dots,\mathsf{psk}_{U,TA}^{(k)}$, the verifier-facing
+pseudonym signature $\mathsf{psk}_{U,V}$, and the shown credential $c_{U,V}$.
+Enumerate them $\tau_1,\dots,\tau_{k+2}$. Define hybrids
+$\mathsf G_0=\mathsf H_0,\mathsf H_1,\dots,\mathsf H_{k+2}=\mathsf G_1$, where in
+$\mathsf H_i$ the transcripts $\tau_1,\dots,\tau_i$ are produced by the
+signature-transcript simulator $\mathcal S_\sigma$ (Definition~\ref{def:szk})
+without $\sk_U$, and $\tau_{i+1},\dots,\tau_{k+2}$ are still produced with
+$\sk_U$; the two adjacent hybrids differ only in slot $i$. For each
+$i\in\{1,\dots,k+2\}$ we exhibit an interpolating distinguisher
+$\mathcal D_\sigma^{(i)}$: it receives a single transcript $\tau$ drawn from one
+of
+\begin{itemize}
+  \item $\mathsf{Real}_\sigma^{(i)}$: $\tau_i$ produced with $\sk_U$ on its
+  message and public key;
+  \item $\mathsf{Sim}_\sigma^{(i)}$: the output of $\mathcal S_\sigma$ on the
+  same message and public key, run without $\sk_U$;
+\end{itemize}
+produces slots $1,\dots,i-1$ by $\mathcal S_\sigma$ and slots
+$i+1,\dots,k+2$ with $\sk_U$, places $\tau$ in slot $i$, assembles the resulting
+witness, runs the common remainder of $\mathsf H_{i-1}/\mathsf H_i$ (in which the
+proof is still produced honestly from the witness), obtains $\mathcal A$'s guess
+$b'$, and outputs $[b'=b]$. Then
+$\Pr[\mathcal D_\sigma^{(i)}(\mathsf{Real}_\sigma^{(i)})=1]=\Pr[\mathsf H_{i-1}
+\text{ succeeds}]$ and
+$\Pr[\mathcal D_\sigma^{(i)}(\mathsf{Sim}_\sigma^{(i)})=1]=\Pr[\mathsf H_i
+\text{ succeeds}]$, so each sub-hop gap is
+$\mathsf{Adv}(\mathcal D_\sigma^{(i)})\le\epsilon_{\mathrm{sZK}}$ by
+Definition~\ref{def:szk}. Telescoping over the $k+2$ sub-hops,
+\[
+  |\Pr[S_0]-\Pr[S_1]|
+  \le\sum_{i=1}^{k+2}\bigl|\Pr[\mathsf H_{i-1}\text{ succeeds}]
+      -\Pr[\mathsf H_i\text{ succeeds}]\bigr|
+  \le (k+2)\,\epsilon_{\mathrm{sZK}}.
+\]
+This is the load-bearing hop that produces the challenge showing's transcripts
+without the challenge user's $\sk_U$, matching BDEC's anonymity simulator; its
+gap is governed by the open Assumption~\ref{asm:szk}, scaled by the $k+2$
+transcripts.
+
+\smallskip\noindent\emph{Hop $\mathsf G_1\to\mathsf G_2$: a single transition
+based on indistinguishability (gap $\le\epsilon_{\mathrm{ZK}}$).} $\mathsf G_2$
+produces the one proof with the zkVM simulator $\mathcal S_\Pi$
+(Definition~\ref{def:zk}) rather than from the witness; the two games differ
+only in the proof. The interpolating distinguisher $\mathcal D_\Pi$ receives a
+proof string $\varpi$ drawn from one of
+\begin{itemize}
+  \item $\mathsf{Real}_\Pi$: the honest proof
+  $\Pi.\Prove(\crs,x_{\mathsf{show}},w)$ on the $\mathcal S_\sigma$-simulated
+  statement of $\mathsf G_1$;
+  \item $\mathsf{Sim}_\Pi$: the simulated proof
+  $\mathcal S_\Pi(x_{\mathsf{show}})$;
+\end{itemize}
+hands $(\mathsf{stmt},\varpi)$ to $\mathcal A$ in the common remainder of
+$\mathsf G_1/\mathsf G_2$, and outputs $[b'=b]$. Then
+$|\Pr[S_1]-\Pr[S_2]|=\mathsf{Adv}(\mathcal D_\Pi)\le\epsilon_{\mathrm{ZK}}$ by
+Definition~\ref{def:zk}. There is one proof, so this hop enters once, with no
+factor of $k+2$.
+
+\smallskip\noindent\emph{Terminal game $\mathsf G_2$: information-theoretic
+equalisation ($\Pr[S_2]=\tfrac12$).} We show, self-contained inside
+$\mathsf G_2$, that the challenge statement
+$x_{\mathsf{show}}=(A^\downarrow,(\mathsf{ppk}_{U,TA}^{(j)})_{j=1}^{k},
+\mathsf{ppk}_{U,V})$ is distributed identically under $b=0$ and $b=1$. The
+disclosed attribute set $A^\downarrow$ is equalised across the two credentials
 by the well-formedness condition
-$\mathsf{Leak}(\mathsf{stmt}_0)=\mathsf{Leak}(\mathsf{stmt}_1)$. The verifier-facing
-pseudonym $\mathsf{ppk}_{U,V}$ is sampled freshly at showing time,
-$\mathsf{ppk}_{U,V}\leftarrow\{0,1\}^{\lambda}$, independently of which credential
-is shown, so its distribution is uniform regardless of $b$. The teaching-authority
-pseudonyms $(\mathsf{ppk}_{U,TA}^{(j)})_{j}$ are issuance-time, credential-bound
-values that the well-formedness condition equalises across the two challenge
-credentials, so $\mathsf{Leak}$ includes the multiset $\{\mathsf{ppk}_{U,TA}^{(j)}\}$
-(Section~\ref{sec:prelim}). The secret keys, the long-term key $\pk_U$, and the
-credential $c_{U,V}$ are witness-only: they were replaced by $\mathcal{S}_\sigma$
-in $\mathsf{G}_1$ and removed from the proof by $\mathcal{S}_\Pi$ in $\mathsf{G}_2$.
-Every $b$-dependent component being equalised, freshly sampled, or simulated, the
-challenge is distributed identically under $b=0$ and $b=1$, so
-$\Pr[b'=b]=\tfrac12$.
-Summing the two hops,
+$\mathsf{Leak}(\mathsf{stmt}_0)=\mathsf{Leak}(\mathsf{stmt}_1)$. The
+verifier-facing pseudonym $\mathsf{ppk}_{U,V}$ is sampled freshly at showing
+time, $\mathsf{ppk}_{U,V}\leftarrow\{0,1\}^{\lambda}$, independently of which
+credential is shown, so its distribution is uniform regardless of $b$. The
+teaching-authority pseudonyms $(\mathsf{ppk}_{U,TA}^{(j)})_{j}$ are
+issuance-time, credential-bound values that the well-formedness condition
+equalises across the two challenge credentials, since $\mathsf{Leak}$ includes
+the multiset $\{\mathsf{ppk}_{U,TA}^{(j)}\}$ (Section~\ref{sec:prelim}). The
+secret keys, the long-term key $\pk_U$, and the $k+2$ signature transcripts
+(the $k$ teaching-authority pseudonym signatures, the verifier-facing pseudonym
+signature, and the shown credential $c_{U,V}$) are witness-only: each transcript
+was replaced by $\mathcal S_\sigma$ across the $\mathsf G_0\to\mathsf G_1$
+hybrid, and the whole witness was removed from the proof by $\mathcal S_\Pi$ in
+$\mathsf G_2$. Every $b$-dependent component being equalised, freshly sampled,
+or simulated, the challenge is independent of $b$, whence $\mathcal A$'s view is
+independent of $b$ and $\Pr[S_2]=\Pr[b'=b]=\tfrac12$.
+
+\smallskip\noindent Chaining,
 \[
   \mathsf{Adv}^{\mathsf{anon}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)
-  \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}},
+  =\Bigl|\Pr[S_0]-\tfrac12\Bigr|
+  \le |\Pr[S_0]-\Pr[S_1]|+|\Pr[S_1]-\Pr[S_2]|+\Bigl|\Pr[S_2]-\tfrac12\Bigr|
+  \le (k+2)\,\epsilon_{\mathrm{sZK}}+\epsilon_{\mathrm{ZK}},
 \]
-which is~\eqref{eq:adv-anon}. No witness is extracted, so $\epsilon_{\mathrm{KS}}$
-does not enter; the challenge showing is honestly generated, so
-$\epsilon_{\mathrm{AIR}}$ does not enter.
+which is~\eqref{eq:adv-anon}. Both segments are indistinguishability
+transitions and the terminal is exact; no failure-event hop appears, so
+$\epsilon_{\mathrm{KS}}$ does not enter (no witness is extracted) and
+$\epsilon_{\mathrm{AIR}}$ does not enter (the challenge showing is honestly
+generated).
 \end{proof}
 
 \begin{proof}[Proof of Theorem~\ref{thm:security-preserve}, unlinkability]
-BDEC's unlinkability experiment (\cite[Appendix~A.3]{10.1007/978-981-96-0957-4_3},
-Theorem~3) forwards a single challenge credential $c^{(b)}$ issued under one of two
-pseudonym keys $\mathsf{ppk}^{(b)}$, with the verifier-facing pseudonym sampled
-freshly as in the anonymity step, and the distinguisher $\mathcal A$ guesses $b$
-with advantage $\bigl|\Pr[b'=b]-\tfrac12\bigr|$. The reduction mirrors the anonymity
-proof, with the challenge bit selecting the pseudonym key rather than the
-credential. Game $\mathsf{G}_0$ is the real experiment. In $\mathsf{G}_1$ the
-challenge pseudonym signature under $\mathsf{psk}^{(b)}$ is produced by
-$\mathcal{S}_\sigma$ in place of the secret key, so by Definition~\ref{def:szk}
-$\bigl|\Pr[\mathsf{G}_0{=}1]-\Pr[\mathsf{G}_1{=}1]\bigr|\le\epsilon_{\mathrm{sZK}}$,
-applied once to the single challenge transcript. In $\mathsf{G}_2$ the proof is
-produced by $\mathcal{S}_\Pi$ in place of the witness, so by
-Definition~\ref{def:zk}
-$\bigl|\Pr[\mathsf{G}_1{=}1]-\Pr[\mathsf{G}_2{=}1]\bigr|\le\epsilon_{\mathrm{ZK}}$.
-In $\mathsf{G}_2$ the only $b$-dependent component is the pseudonym signature, now
-simulated without $\mathsf{psk}^{(b)}$, and the verifier-facing pseudonym is
-independent of $b$, so $\Pr[b'=b]=\tfrac12$. Summing the two hops,
+BDEC's unlinkability experiment
+(\cite[Appendix~A.3]{10.1007/978-981-96-0957-4_3}, Theorem~3) forwards a
+\emph{single} challenge credential $c^{(b)}$ issued under one of two pseudonym
+keys $\mathsf{ppk}^{(b)}$, with the verifier-facing pseudonym sampled freshly
+as in the anonymity step, and the distinguisher $\mathcal A$ guesses $b$ with
+advantage $|\Pr[b'=b]-\tfrac12|$. We mirror the anonymity sequence on the one
+challenge transcript, the challenge bit now selecting the pseudonym key rather
+than the credential; success event $S_i=[b'=b]$, target probability
+$\tfrac12$.
+
+\smallskip\noindent\emph{Game $\mathsf G_0$ (real).} The unlinkability
+experiment verbatim.
+
+\smallskip\noindent\emph{Hop $\mathsf G_0\to\mathsf G_1$: a transition based on
+indistinguishability (gap $\le\epsilon_{\mathrm{sZK}}$).} $\mathsf G_1$ produces
+the single challenge pseudonym signature under $\mathsf{psk}^{(b)}$ with
+$\mathcal S_\sigma$ in place of the secret key. The interpolating distinguisher
+$\mathcal D_\sigma$ receives one transcript $\tau$ from either
+$\mathsf{Real}_\sigma$ (the signature under $\mathsf{psk}^{(b)}$ produced with
+$\sk_U$) or $\mathsf{Sim}_\sigma$ ($\mathcal S_\sigma$'s output without
+$\sk_U$), substitutes it for the challenge transcript, runs the common
+remainder of $\mathsf G_0/\mathsf G_1$, and outputs $[b'=b]$. Applied
+\emph{once} to the single challenge transcript, this gives
+$|\Pr[S_0]-\Pr[S_1]|\le\epsilon_{\mathrm{sZK}}$ by Definition~\ref{def:szk}
+(the open Assumption~\ref{asm:szk}); there is one transcript, so no hybrid and
+no factor of $k+2$.
+
+\smallskip\noindent\emph{Hop $\mathsf G_1\to\mathsf G_2$: a transition based on
+indistinguishability (gap $\le\epsilon_{\mathrm{ZK}}$).} $\mathsf G_2$ produces
+the proof with $\mathcal S_\Pi$ in place of the witness. The interpolating
+distinguisher $\mathcal D_\Pi$ receives $\varpi$ from either
+$\mathsf{Real}_\Pi=\Pi.\Prove(\crs,x_{\mathsf{show}},w)$ or
+$\mathsf{Sim}_\Pi=\mathcal S_\Pi(x_{\mathsf{show}})$, hands
+$(\mathsf{stmt},\varpi)$ to $\mathcal A$ in the common remainder, and outputs
+$[b'=b]$, giving $|\Pr[S_1]-\Pr[S_2]|\le\epsilon_{\mathrm{ZK}}$ by
+Definition~\ref{def:zk}. Applied once to the single transcript, the two
+simulators each enter once: no factor of two.
+
+\smallskip\noindent\emph{Terminal game $\mathsf G_2$: information-theoretic
+equalisation ($\Pr[S_2]=\tfrac12$).} In $\mathsf G_2$ the only $b$-dependent
+component is the challenge pseudonym signature, now simulated without
+$\mathsf{psk}^{(b)}$, and the verifier-facing pseudonym is sampled freshly and
+independently of $b$; every $b$-dependent component is thus simulated or
+freshly sampled, so the challenge is independent of $b$ and
+$\Pr[S_2]=\Pr[b'=b]=\tfrac12$.
+
+\smallskip\noindent Chaining the two hops,
 \[
   \mathsf{Adv}^{\mathsf{unlink}}_{\mathsf{zkVM\text{-}Cred}}(\mathcal A)
-  \le \epsilon_{\mathrm{ZK}}+\epsilon_{\mathrm{sZK}},
+  =\Bigl|\Pr[S_0]-\tfrac12\Bigr|
+  \le \epsilon_{\mathrm{sZK}}+\epsilon_{\mathrm{ZK}},
 \]
-the same bound as~\eqref{eq:adv-anon}; the single-transcript game incurs each
-simulation once, with no factor of two. One difference of presentation from BDEC's
-A.3: there $c^{(b)}$ is a public-statement component, so its $\mathcal{S}_\sigma$
-hop is forced, whereas in this thesis's relation $R^{\Sig}_{\mathsf{show}}$ the
-credential $c_{U,V}$ is a witness component (Section~\ref{sec:prelim}), so the
-$\mathcal{S}_\Pi$ hop already hides it and $\mathcal{S}_\sigma$ is needed only to
-produce $c^{(b)}$ without $\sk_U$ inside the reduction. Either way
-$\epsilon_{\mathrm{sZK}}$ enters once.
+the single-transcript specialisation ($k+2\to1$) of~\eqref{eq:adv-anon}: the one
+challenge transcript incurs each simulation once, with no factor of $k+2$ and no
+factor of two, and $\epsilon_{\mathrm{KS}},\epsilon_{\mathrm{AIR}}$ do not
+enter. One difference of presentation from BDEC's~A.3: there $c^{(b)}$ is a
+public-statement component, so its $\mathcal S_\sigma$ hop is forced, whereas in
+this thesis's relation $R^{\Sig}_{\mathsf{show}}$ the credential $c_{U,V}$ is a
+witness component (Section~\ref{sec:prelim}), so the $\mathcal S_\Pi$ hop
+already hides it and $\mathcal S_\sigma$ is needed only to produce $c^{(b)}$
+without $\sk_U$ inside the reduction. Either way $\epsilon_{\mathrm{sZK}}$
+enters once.
 \end{proof}
 
 \begin{corollary}[Preservation under closed assumptions]\label{cor:unconditional}
@@ -224,8 +472,9 @@ Fiat--Shamir compilation are established.
 
 \begin{proof}
 Each bound of Theorem~\ref{thm:security-preserve} is a sum of the named error
-terms; under the stated hypotheses every term is negligible, so each advantage is
-negligible. The quantum clause adds the two open lifts as further hypotheses.
+terms with polynomial multiplicities ($N$, $N_{\mathrm G}$, $k+2$), all
+polynomial in $\lambda$, so under the stated hypotheses every term is negligible;
+hence each advantage is negligible. The quantum clause adds the two open lifts as further hypotheses.
 \end{proof}
 
 \begin{remark}[Relation to BDEC]\label{rem:reinstantiation}
@@ -270,11 +519,13 @@ Griffin permutation at PLUM's parameters, a degree-$3$ S-box over a width-$4$
 state with $14$ rounds and the SHAKE256-derived round constants and base quadratic
 coefficients $(\alpha,\beta)$, scaled per lane by Griffin's index law, fixed in
 Section~\ref{sec:prelim}, as computed by the reference implementation. The
-reference permutation follows the implementation's in-place nonlinear layer,
-which deviates from the published Griffin definition in the lane-$3$
-combination ($y_2$ in place of $x_2$; Section~\ref{sec:prelim}); the lemmas
-below establish chip--reference equality, and conformance of the reference to
-the published design is the separate obligation recorded there.
+reference permutation is the published Griffin-$\pi$ of~\cite{cryptoeprint:2022/403}
+at these parameters: its nonlinear layer forms the lane-$3$ combination $L_3$
+from the round-\emph{input} lane $x_2$ (Griffin's $i\ge 3$ index law), and its
+linear layer is the standard width-$4$ MDS matrix $M_4$ (branch number $5$),
+both fixed in Section~\ref{sec:prelim}. The lemmas below establish
+chip--reference equality; since the reference is the published design, this is
+equality to the specification.
 \end{definition}
 
 \begin{definition}[Algebraic satisfiability]\label{def:air-sat}
@@ -371,8 +622,8 @@ the Griffin modulus $p$, and $\mathbb{1}$ is the all-ones polynomial, then
   \mathsf{int}(c) \;\equiv\; \mathsf{int}(a) \circ \mathsf{int}(b) \pmod{p}.
 \]
 The same conclusion holds for the multi-operand linear cells used by the
-linear layer, whose $p_{\mathsf{op}}$ is a fixed integer combination of up to
-four operand polynomials with coefficient sum $5$.
+linear layer, whose $p_{\mathsf{op}}$ is a fixed integer combination of the
+four operand polynomials with row-sum at most $16$ (the standard $M_4$ rows).
 \end{lemma}
 
 \begin{proof}
@@ -443,8 +694,9 @@ the range predicate, since every cell's result limbs are byte-checked, so
 Lemma~\ref{lem:limb-gadget} applies link by link and the congruences compose to
 $s^{\mathrm{nl}}_i \equiv s_i\,(L_i^{2}+\alpha_{i-2}L_i+\beta_{i-2}) \pmod{p}$
 with $L_2 = s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1$ and
-$L_3 = 2s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1+s^{\mathrm{nl}}_2$, the updated
-lanes, and with the index law $\alpha_0=\alpha$, $\beta_0=\beta$,
+$L_3 = 2s^{\mathrm{nl}}_0+s^{\mathrm{nl}}_1+s_2$, whose third summand is the
+round-\emph{input} lane $s_2$ (Griffin's $i\ge 3$ index law), not the updated
+lane, and with the index law $\alpha_0=\alpha$, $\beta_0=\beta$,
 $\alpha_1=2\alpha$, $\beta_1=4\beta$ baked into the constant operands; the base
 pair $(\alpha,\beta)$ and the $52$ round constants are read from
 $\mathrm{SHAKE256}$ seeded by the domain string
@@ -453,11 +705,11 @@ preprocessing-bound constants (parameter immutability), not prover columns.
 
 \emph{Linear layer}. The four linear cells, by the multi-operand
 case of Lemma~\ref{lem:limb-gadget}, give
-$\mathsf{mds}_j \equiv \bigl\langle \mathrm{circ}(2,1,1,1)_j,\,
-s^{\mathrm{nl}} \bigr\rangle \pmod{p}$, where $\mathrm{circ}(2,1,1,1)_j$ is the
-symmetric circulant row $\mathrm{first}[(j+\mathrm{col})\bmod 4]$ matching
-\texttt{build\_matrix}, not the standard $(\mathrm{col}-j)\bmod 4$ form (the
-two differ on rows $1,3$).
+$\mathsf{mds}_j \equiv \bigl\langle (M_4)_j,\,
+s^{\mathrm{nl}} \bigr\rangle \pmod{p}$, where $(M_4)_j$ is row $j$ of the
+standard Griffin width-$4$ MDS matrix $M_4$ with rows $(5,7,1,3)$,
+$(4,6,1,1)$, $(1,3,5,7)$, $(1,1,4,6)$ (branch number $5$), as fixed in
+\texttt{build\_matrix}.
 
 \emph{Round constants}. The four addition cells give
 $\mathsf{int}(s'_\ell) \equiv \mathsf{mds}_\ell + \mathrm{RC}[4r{+}\ell]
@@ -518,10 +770,12 @@ syscall's memory input and output.
 
 \begin{lemma}[Completeness]\label{lem:air-complete}
 For every input $s\in\mathbb{F}_p^{4}$, the honest Griffin execution on $s$ yields
-a trace satisfying $\mathcal{C}$ with output $\pi(s)$.
+a trace satisfying $\mathcal{C}$ with output $\pi(s)$. This direction is empirically
+supported by the smoke-prove and fault-injection positive controls, not proved by
+construction.
 \end{lemma}
 
-\begin{proof}
+\begin{proof}[Operational discharge]
 Following the practice of~\cite{cairoverify}, where soundness is the
 load-bearing direction and completeness is discharged operationally, we support
 the claim by the tests that evaluate the constraints on an honest trace: the
@@ -569,8 +823,9 @@ set and is \emph{not} a bound on the open constraint-level premise. The suite pi
 executor is what the vector suite does not reach.
 A separate fault-injection suite reaches the constraint system in the
 \emph{rejection} direction for seven of the ten families (the per-row families): a single-cell corruption of a satisfying trace is
-rejected by the per-row constraints in each case, including the linear-layer lanes $1$ and
-$3$ that distinguish the implemented symmetric circulant from the standard one.
+rejected by the per-row constraints in each case, including the standard-$M_4$
+linear-layer lanes $1$ and $3$ (rows $(4,6,1,1)$ and $(1,1,4,6)$) and the
+lane-$2$-to-lane-$3$ dependency that enforces $L_3$'s round-input wiring.
 This evidence is itself bounded, and we state the bounds. It is evaluated through
 \texttt{debug\_constraints}, which checks the per-row algebraic constraints but not
 the cross-table lookups, so the lookup-borne families (round count, memory

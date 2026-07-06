@@ -1,0 +1,44 @@
+=== cell2_recheck after Griffin-Fp192 fix (standard Griffin: MDS M_4 + quadratic lane-3) ===
+date_start:        2026-07-05T03:46:27+09:00
+repo HEAD:         cde7874695e770ef7eef93c4f946d957a0e2b89b on main
+sp1 submodule HEAD:8bf0248bc5b6b7ba7c820253c3918ea277008641
+sp1 submodule dirty (the Griffin fix, working-tree):
+     M crates/core/executor/src/griffin_fp192_compute.rs
+     M crates/core/machine/src/syscall/precompiles/griffin_fp192/air.rs
+     M crates/core/machine/src/syscall/precompiles/griffin_fp192/mod.rs
+     M crates/prover/compress_shape.json
+     M crates/recursion/gnark-ffi/build.rs
+    ?? crates/core/machine/src/syscall/precompiles/griffin_fp192/fault_injection.rs
+binary:            /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_host
+binary mtime:      Jul  5 03:43:12 2026
+config:            PLUM_HOST_MODE=prove PLUM_PROVE_ARM=syscall PLUM_SECURITY=80 PLUM_ZK_WRAP=core
+tuned config:      SHARD_SIZE=2^22 ELEMENT_THRESHOLD=2^26 HEIGHT_THRESHOLD=2^20 TRACE_CHUNK_SLOTS=2 RAYON_NUM_THREADS=8
+RUST_LOG:          warn,sp1_hypercube::prover=debug
+DYLD_LIBRARY_PATH: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-3e96e65b8132e4df/out/build/libiop:/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-b02e27a5f21351b3/out/build/libiop
+hardware:          M5 Pro, 18 logical cores, 24 GB
+baseline (tier2 n=3 Cell2): prove_ms mean=854990 (14.25 min), range [843267..876591], peak ~14.21 GB
+
+[2026-07-05T03:46:27+09:00] execute-mode sanity (Cell-2 syscall arm)...
+  sanity: accepted=true cycles=123372417 elapsed_ms=1775 syscalls=70485 uint256_mul=69433 griffin_fp192=1052
+
+[2026-07-05T03:47:00+09:00] === run1 START (prove, syscall) ===
+[2026-07-05T04:01:48+09:00] === run1 END rc=0 wall_s=888 prove_ms=852972 (14.22 min) verify_ms=2901 peak=13.17GB ===
+  griffin trace geom lines: 2
+
+[2026-07-05T04:01:48+09:00] === run2 START (prove, syscall) ===
+[2026-07-05T04:16:22+09:00] === run2 END rc=0 wall_s=874 prove_ms=837866 (13.96 min) verify_ms=2908 peak=14.56GB ===
+  griffin trace geom lines: 2
+
+[2026-07-05T04:16:22+09:00] === run3 START (prove, syscall) ===
+[2026-07-05T04:30:59+09:00] === run3 END rc=0 wall_s=877 prove_ms=840887 (14.01 min) verify_ms=2911 peak=14.91GB ===
+  griffin trace geom lines: 2
+
+
+=== SUMMARY (n=3 Cell-2 syscall, tuned, zk_wrap=core, lambda=80) ===
+run	prove_ms	prove_min	verify_ms	setup_ms	peak_gb	rc
+1	852972	14.22	2901	788	13.17	0
+2	837866	13.96	2908	788	14.56	0
+3	840887	14.01	2911	795	14.91	0
+prove_ms mean=843908 (14.07 min), range=[837866..852972] ms, n=3
+baseline mean=854990 ms (14.25 min); delta = (this mean) - baseline
+date_end: 2026-07-05T04:30:59+09:00
