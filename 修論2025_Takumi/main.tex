@@ -11,11 +11,11 @@
 \usepackage{amssymb}
 \usepackage{appendix}
 \usepackage{algorithm}
-\usepackage{algpseudocode}
 \usepackage{tikz}
-\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+\usepackage{algpseudocode}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
 
 % Theorem environments (italic text)
 \newtheorem{theorem}{Theorem}[section]
@@ -76,6 +76,10 @@
 \usepackage{subfigure}
 \usepackage{url}
 \usepackage{threeparttable}
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+% \rr{...}: typewriter run-record path, breakable at / _ . - so long measurement paths wrap (uses url, loaded above)
+\DeclareUrlCommand\rr{\urlstyle{tt}\def\UrlBreaks{\do\/\do\_\do\.\do\-}}
 % \usepackage{caption}
 % \captionsetup[table]{justification=centering}
 % \captionsetup[figure]{justification=centering}
@@ -122,19 +126,19 @@
 \newcommand{\PKPlum}{\mathsf{\mathcal{PK}_{Plum}}}
 
 \usepackage{sakolab-thesis}
-
 %
 % 論文の表紙の項目
 %
 %\thesistype{令和6年度 修士論文}
-\date{20 July, 2026}
-\title{When Does a Precompile Pay? A Cost Criterion for Compiling Low-Constraint Post-Quantum Signatures into General-Purpose zkVMs}
+\date{July 20th, 2026}
+\title{}
+% todo: 英語版タイトルの変更
 \etitle{A Thesis Submitted to the Department of Computer Science and Communications Engineering, the Graduate School of Fundamental Science and Engineering of Waseda University in Partial Fulfillment of the Requirements for the Degree of
 Master of Engineering}
 \titlesize{24truept}
 \department{\fontsize{17pt}{17pt}\selectfont The Department of Computer Science and Communications Engineering, the}
 \major{\fontsize{17pt}{17pt}\selectfont Graduate School of Fundamental Science and Engineering of Waseda University}
-\guidance{Research on Cryptographic Protocols}
+\guidance{Research on Cryptographic Protocols and Blockchain}
 \supervisor{Prof. Kazue Sako}
 \studentid{5124FG15-6}
 \author{Takumi Otsuka}
@@ -145,7 +149,7 @@ Master of Engineering}
     
     %概要
     \begin{coverabstract}
-       General-purpose zero-knowledge virtual machines (zkVMs) prove the correctness of the output of an arbitrary program when the input is given as commitments under a single universal relation, so updating a verification predicate becomes a program edit rather than a newly compiled and re-audited circuit, an attractive substrate for post-quantum anonymous credentials, whose underlying signatures evolve as standards mature. But a zkVM prover operates over a $31$-bit field, while the low-constraint post-quantum signatures (whose verification encodes as a relatively small arithmetic circuit, which lowers the cost of proving in zero knowledge that one holds a valid signature) of the Legendre/power-residue-PRF family (Loquat, and its successor PLUM) verify over a large prime field, so every operation is emulated at a multi-limb \emph{field-mismatch tax}; an application-defined precompile (a dedicated native sub-circuit) can absorb it. We ask \emph{when a precompile pays, and which security properties survive the move}, and answer with a trace-area cost model validated by benchmarking the BDEC CreGen and ShowCre relations (as non-statement-bound cost workloads) instantiated with PLUM on RISC~Zero and SP1 (Apple M5~Pro, $24$~GB). Without a precompile, standalone PLUM verification does not complete (out of memory at ${\approx}1$m$45$s); a bespoke Griffin-$\mathbb{F}_p^{192}$ precompile turns it into a finite $14.25$-minute succinct proof at the $80$-bit level, conditional on the constraint-level soundness of the chip. The precompile is the instrument, not the contribution: at matched security it proves \emph{slightly slower} than a software SHA-3 control ($14.25$ versus $13.05$~min, ${\approx}1.09\times$, $n{=}3$; this control differs from the Griffin arm in both hash family and field, bit-oriented SHA-3 against $\mathbb{F}_p^{192}$ Griffin, matched on the security level $\lambda$ and not on field or primitive), an inversion whose sign the cost model postdicts: a precompile pays exactly when the core trace area it removes exceeds the chip area it adds. The same interface, instantiated as a family of three precompiles, the permutation, a large-prime multiplication, and a power-residue PRF, all three built and core-proved (only the permutation on the measured path), shows the model generalises: only the Griffin instance is field-mismatched and unserved, so only it pays; the field-multiplication chip does not (the host already serves it); and whether the power-residue symbol (the one irreducibly-large-prime component) warrants a chip is the open positive case the criterion poses precisely, with a specified deciding experiment. The zkVM's update-churn advantage over a transparent static circuit never appears in wall-clock (the static recompile is sub-second), surviving only as a re-audit footprint; and deployable post-quantum anonymity is not reached on this stack: knowledge soundness transfers, but the zero-knowledge wrap is blocked by a recursion-shape provisioning wall (a one-time toolchain regeneration, not a memory bound) and the only wraps shipped are pairing-based and hence not post-quantum. We locate this dual obstruction and name the levers that would move it. The security guarantees are conditional on three explicitly stated open assumptions: Griffin-AIR constraint soundness, PLUM signature-transcript simulatability, and the quantum-random-oracle lift of the Fiat--Shamir step.
+       Zero-knowledge virtual machines (zkVMs) prove an arbitrary program executed correctly under one universal relation, so a predicate update is a program edit, making it an attractive substrate for post-quantum anonymous credentials whose signatures evolve as standards mature. But a zkVM prover works over a $31$-bit field, while low-constraint post-quantum signatures of the Legendre/power-residue-PRF family (Loquat, PLUM) verify over a large prime field, so every operation pays a multi-limb \emph{field-mismatch tax} that an application-defined precompile can absorb. We ask \emph{when a precompile pays, and which security properties survive the move}, and answer with a cost criterion, built on a trace-area cost model, validated by benchmarking the BDEC credential relations with PLUM on SP1 (Apple M5~Pro, $24$~GB). Without a precompile, standalone PLUM verification does not complete on the target machine, running over five hours without terminating. A bespoke Griffin-$\mathbb{F}_p^{192}$ precompile turns it into a $14.24$-minute succinct proof at the $80$-bit level. The suite of three such precompiles is the instrument through which the criterion is calibrated. At the same $80$-bit security level, swapping the bespoke Griffin-$\mathbb{F}_p^{192}$ hash for a software SHA-3 is faster ($13.24$ versus $14.24$~min, $n{=}5$), so the custom-precompiled algebraic hash loses even to a standard hash run in software. The cost model postdicts the sign of this inversion and generalises it across the family of three precompiles. Deployable post-quantum anonymity is not reached. The zero-knowledge wrap now runs within budget but ships only pairing-based, hence not post-quantum, the dual obstruction we locate, conditional on four explicitly stated open assumptions.
     \end{coverabstract}
     \newpage
     
@@ -172,7 +176,7 @@ Master of Engineering}
     \newpage
     \input{05-system}
     \newpage
-    \input{055-security}   % Security Analysis — the cryptographic keystone (becomes §6)
+    \input{055-security} 
     \newpage
     \input{06-evaluation}
     \newpage
