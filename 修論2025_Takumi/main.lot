@@ -5,6 +5,6 @@
 \contentsline {table}{\numberline {5}{\ignorespaces Aurora reference: one Loquat verification, three runs.}}{79}{}%
 \contentsline {table}{\numberline {6}{\ignorespaces Cycle-level cost attribution of the field-arithmetic optimizations.}}{80}{}%
 \contentsline {table}{\numberline {7}{\ignorespaces Credential relations: execute and prove-mode cost ($\lambda =80$).}}{81}{}%
-\contentsline {table}{\numberline {8}{\ignorespaces Proof-mode feasibility: produced, zero-knowledge, post-quantum. \textsuperscript {$\dagger $}zk-enabled Aurora measured. \textsuperscript {$\ddagger $}wrap completion and zero-knowledge blinding measured.}}{83}{}%
+\contentsline {table}{\numberline {8}{\ignorespaces Proof-mode feasibility: produced, zero-knowledge, post-quantum. Wrap end-to-end times include a one-time core-shape pass ($\approx 2$--$3$~h) amortised across proofs, so the recurring per-proof cost is lower (\S \ref {ssec:resource-frontier}). \textsuperscript {$\dagger $}zk-enabled Aurora measured. \textsuperscript {$\ddagger $}wrap completion and zero-knowledge blinding measured.}}{83}{}%
 \contentsline {table}{\numberline {9}{\ignorespaces Regeneration footprint per localised relation change (Def.~\ref {def:update-churn}). \textsuperscript {$\ast $}Loquat$\to $PLUM regenerates the field-specific Griffin AIR.}}{88}{}%
 \contentsline {table}{\numberline {10}{\ignorespaces Per-change recompile cost: Aurora versus Fractal.}}{89}{}%
