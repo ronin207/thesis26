@@ -1,7 +1,7 @@
 \contentsline {table}{\numberline {1}{\ignorespaces Griffin round margin versus broken CICO instances.}}{64}{}%
 \contentsline {table}{\numberline {2}{\ignorespaces Property-survival matrix across proof configurations.}}{67}{}%
 \contentsline {table}{\numberline {3}{\ignorespaces Evaluation platform and measurement setup.}}{75}{}%
-\contentsline {table}{\numberline {4}{\ignorespaces PLUM verification, prove mode ($\lambda =80$). $^\dag $Mean of five runs.}}{76}{}%
+\contentsline {table}{\numberline {4}{\ignorespaces PLUM verification, prove mode ($\lambda =80$; the Griffin instance runs at $14$ rounds, one below the security-conservative $15$ of Table~\ref {tab:round-margin}). $^\dag $Mean of five runs.}}{76}{}%
 \contentsline {table}{\numberline {5}{\ignorespaces Aurora reference: one Loquat verification, three runs.}}{79}{}%
 \contentsline {table}{\numberline {6}{\ignorespaces Cycle-level cost attribution of the field-arithmetic optimizations.}}{80}{}%
 \contentsline {table}{\numberline {7}{\ignorespaces Credential relations: execute and prove-mode cost ($\lambda =80$).}}{81}{}%
