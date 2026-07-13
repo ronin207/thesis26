@@ -647,3 +647,134 @@ First question (Gate 1): is the goal "when does a precompile pay" or "get PLUM p
 - 🟡 matched-security-to-what (SHA-3 arm is not secure PLUM); 80-bit = scheme level or largest-that-completes; Griffin shard-budgeter prices 348 vs real 3819 (how much of the 1.09x inversion is the bug); "compute-not-memory" wall repeated ~10x — say once.
 - Formalization (crypto bar): 🔴 Def 4.1 advantage by-reference, not a boxed experiment (055:46-52); 🔴 five leaf errors unquantified (055:220-247). Same fix as Sako: lift the formal/measured object to the point of claim, push hedging down once (rigor up + length down).
 Verdict: not yet ready, but close; spine sound (single axis declared before results, instrument/contribution separated, negatives honest, metric-drift discloses n/mode/λ). Fix the 2 blocking at point of claim; rest is polish.
+
+## 2026-07-07 — §6 substrate comparison (ssec:aurora-ref), mid-RISC0-removal draft
+Scope: the Loquat/Aurora/zkVM substrate-comparison claims (user asked "is this true?"). Formative mode.
+- 🔴 F1 [06-eval:316,322 vs 332-333] "clean single-axis / only substrate differs / same security setting" CONTRADICTS admitted |U|=4096-vs-256 rate mismatch + reduced L,B; 13.8x conflates substrate cost with 16x instance size. NEW.
+- 🟡 F2 [06-eval:324-332] precise "13.8x at the means" presented as calibrated while l.332 disavows calibration ("direction not factor"). NEW.
+- 🟡 F3 [06-eval:288,333] headline substrate numbers at 107.5 bits (target 128), L/B reduced; security caveat not at point of claim (Gate 5). NEW.
+- 🟢 praise [06-eval:353-369] "does and does not license" paragraph handles the SCHEME confound correctly; prescription: apply the same discipline to the RATE confound.
+- Verdict: NOT ready on the substrate comparison. Reconcile the single-axis claim with the rate mismatch (matched-|U| re-run OR consistent downgrade to direction-only). Rest of the section sound.
+
+## 2026-07-07 (b) — reframed thesis after ZK-wrap-completes + RISC0 + fix pass. Formative.
+- 🔴 F1 [main.tex abstract, 055-security:300 (+06/08)] "out of memory at ~1m45s" is STALE: tuned emulated arm is a watchdog TIMEOUT (RSS ~13.6GB, time not memory); OOM/1m45s = superseded May default-config datum. Overclaims failure mode. Fix -> "does not complete within the practical time budget." Pervasive.
+- 🟡 F2 [06 substrate comparison] rate confound |U|=4096 vs 256 still framed "clean single-axis" (carried from audit-a). Downgrade OR matched-|U| re-run.
+- 🟡 F3 [01-intro(8), 02-related(4)] still name RISC Zero: SP1-retarget incomplete in framing chapters while abstract now SP1-only. Apply staged proposals.
+- 🟢 praise: ZK-wrap reframe (completes; obstruction is PQ not hardware) flows across §6->security->conclusion; property-survival matrix legible; converts the outsider critique's scariest question into a characterized result. BDEC motivation (external-need-first) + Griffin provenance land the communication fixes. "confirmed"->"remains to be confirmed" now honest.
+- Verdict: big improvement, deployability story flows. Before her: sweep stale OOM->time-bound; finish SP1-retarget (intro/related); resolve substrate confound. Passes the model on ZK-wrap/motivation/asm:air; the OOM claim is the one she'd stop on.
+
+## Audit 14 — 2026-07-07, THESIS MANUSCRIPT (abstract main.tex:148 + 01-intro.tex) @ post criterion-spine-flip + RISC0-strip + wrap-completion reframe
+Mode: formative (submission 7/20). First manuscript audit since Audit 5 (2026-06-12); title/spine flipped "deployability wall" -> "When Does a Precompile Pay? A Cost Criterion...". Build: platex clean, 121pp, 0 undefined refs/cites.
+FIVE GATES on abstract+intro: ALL PASS (vs Audit-1/5 gate-1 failures).
+  G1 goal/means: single axis NAMED before results (§1.3:22 "cost is the single comparison axis; security settled separately, not as a second axis"); C/D equivalence not assumed but MEASURED (the inversion). PASS.
+  G2 ontology: precompile explicitly "the instrument, not the contribution" (§1.3:16) -> pre-empts her instrument-as-contribution stop. PASS.
+  G3 motivation-outside: eIDAS 2.0 + forged-letter deportations (cited) + concrete decision-maker "university consortium choosing a substrate for digital diplomas" (§1.3:22, resolves Audit-1 #7). Non-circular. PASS.
+  G4 three-sentence: goal/approach/deliverable survive retell. PASS-with-note (cost+security duality — is it one story?).
+  G5 settings-honesty: 14.24 vs 13.24 min, n=5, lambda=80, and the confound ("differs in hash family AND field, matched on lambda not field/primitive") disclosed AT point of claim. PASS — strongest part; resolves Audit-5 #3.
+FINDINGS:
+1. 🔴 RECURRING/known (Griffin-variant, memory 20260705) — abstract+Contrib-1 present the chip as "Griffin-Fp192 [cite cryptoeprint:2022/403]"; implemented chip is an unanalyzed NON-MDS/non-quadratic-lane-3 variant of published Griffin. Headline 14.24-min is "conditional on constraint-level soundness of the chip" but the variant-vs-published gap is deeper than constraint soundness. Citation-integrity + claims-vs-evidence dimension. Operator's pending Path-A (fix+re-measure) vs Path-B (disclose-variant) decision. Dominates thesis defensibility; NOT an intro-prose defect. Lives in §6/security.
+2. 🟡 NEW 01-intro:22 — one-object-one-name: "the wall of Section~\ref{sec:security}" is the sole surviving "wall"; concept is "dual obstruction" everywhere else (abstract, Contrib-2, fig:dual-obstruction). Sweep to "obstruction".
+3. 🟡 NEW main.tex:148 — abstract is one ~450-word block with triple-nested parentheticals (e.g. "the low-constraint PQ signatures (whose verification encodes... (which lowers... that one holds...)) of the ... family (Loquat, and its successor PLUM) verify over..."). Pacing/ついていけなさ. Split the worst 1-2 sentences.
+4. 🟡 NEW abstract+intro — "non-statement-bound cost workload" load-bearing (scopes the anonymity claims) but unglossed at first use. Definition-demand: what is it, why does it matter to a reader in the abstract.
+5. 🟡 NEW Contrib-1 — model called "predictive"; keystone "matched-field forecast" + power-residue "open positive case w/ specified deciding experiment" = the forecast is UNRUN. Honest as written; ensure §6 doesn't read it as confirmed.
+6. 🟢 NEW Contrib-2 — "the ZK wrap now runs to completion" — "now" is a lab-notebook temporal; drop for paper register.
+VERDICT: framing PASSES the model on all five gates — bringable to her on the narrative/framing axis (large improvement from Audit 5). NOT yet on finding #1 (the Griffin-variant citation/soundness disclosure), which is the Operator's Path-A-vs-B decision and dominates defensibility. Items 2-4 are the cross-checks she lands in the first ten minutes; all local edits.
+
+## Audit 15 — 2026-07-08, THESIS MANUSCRIPT (abstract main.tex:148 condensed to 224 words + intro) @ post framing-propagation + coherence loop
+Mode: formative (submission 7/20). After: goal=criterion propagated, finding-name="deployability wall"/shape="dual obstruction", reusable result="trace-area cost model", abstract condensed 500->224 words (Operator asked 180-230; kept G5 confound, dropped update-churn clause). Build platex clean 121pp/0 undef.
+FIVE GATES: ALL PASS (G1 goal-blocker CLEARED — was the standing fail).
+  G1 ✓ goal=cost criterion consistently (08:3 rewritten); single trace-area axis; C/D measured not assumed.
+  G2 ✓ "precompile is the instrument, not the contribution" now in the abstract.
+  G3 ✓ eIDAS 2.0 + university-consortium decision-maker, non-circular.
+  G4 ✓ three-sentence retells; RQ still two-part ("when pays, and which properties survive") but §1.3 frames as one deployment question.
+  G5 ✓ condensed abstract KEPT confound (n=5; matched on lambda, not hash family or field).
+FINDINGS:
+1. 🔴 (non-framing, standing) — asm:air Griffin-AIR soundness is the load-bearing conditional under the 14.24-min headline; implemented chip is the non-MDS Griffin VARIANT. Honestly disclosed as open; Operator's Path A (fix+re-measure) vs Path B (disclose) decision. This, not framing, gates "defensible".
+2. 🟡 title "A Cost Criterion" vs body "trace-area cost model" + §6:733 "postdictive until keystone runs". Operator chose KEEP title (defensible: title=question answered, body=model, postdictive disclosed). Her first meeting-question.
+3. 🟡 three-chip: intro:52 "FP192_MUL does not pay (host-served)" has no §6 datum (criterion PREDICTION in §5/§2, not measured). Consider one-line §6 home.
+VERDICT: framing PASSES all five gates — bringable on the narrative axis (milestone; Gate-1 was failing 3 days ago). Remaining work is NOT framing: (a) Griffin-variant soundness decision, (b) the unrun/single-run measurements — the prove-mode keystone, the ShowCre wrap, BDEC end-to-end — that turn bringable into defensible. Coherence+framing phase COMPLETE.
+
+## Audit 16 — 2026-07-08, 055-security.tex (working tree @ 18:24, post assumption-attack fix pass) — scoped to the assumption-attack apparatus
+Mode: formative. Re-review after Operator applied the two structural fixes from the same-day security-analysis pass. Build NOT re-run this audit (prose-only edits inside existing environments).
+- ✅ FIXED — ε_lookup home (was: 2^-90 derived but absent from eq:adv-unf and tab:leaf-errors): 055:238 now states the lookup argument is a sub-protocol of SP1's STARK and ε_lookup is a contributor inside ε_KS, not a sixth leaf. Correct resolution (subsumption, not promotion).
+- ✅ FIXED — wrapped path's classical trust chain: 055:357 now carries the gnark-PLONK stage's own knowledge-soundness + locally-generated universal SRS (no ceremony), framed as "benchmark-level properties, not established guarantees of a deployment," mirroring the JBind honesty register.
+- ✅ FIXED — ZK-confirmation wording: 055:357 now "zero-knowledge by gnark's analysis of that configuration; a staged run confirms the configuration is active" — randomization check no longer presented as confirming ZK itself.
+- 🟡 NEW — ε_KS status stated three ways: tab:leaf-errors row (055:176-179, "no formula reproduced", ethSTARK lineage) vs regime-named paragraph (055:244, Basefold conjectured list-decoding, ~2^-100, lineage corrected AWAY from ethSTARK) vs "What remains open" (055:295, "proximity regime is unnamed; closing it means evaluating the ethSTARK bound"). (2) contradicts (3) outright; (1) lags the lineage correction. Her form: "named on p.X, unnamed on p.Y — which is it?" Predates today's edit (missed in the earlier same-day pass).
+- 🟢 RECURRING — assumption box + paragraph near-verbatim duplication: asm:q1 (055:113-115 vs 117-118), asm:lookup (222-224 vs 226-227), asm:bbt (257-259 vs 261-262). Repetition-as-author's-failure dimension; flagged in the same-day security pass, not yet addressed.
+- 🟢 NEW — 055:295 "carries no concrete ε_lookup" reads as contradicting the reported 2^-90 unless the reader supplies "as-instantiated"; tighten to "no as-instantiated ε_lookup".
+Verdict: YES, better — both structural holes closed at the point of claim, correct register. Remaining before her: reconcile the three-way ε_KS status (one 🟡, three local edits: table row source→Basefold+Gruen–Diamond w/ 2^-100 target read from code; :295 sentence→"read from the code's 100-bit target, not re-derived; closing it means the Basefold bound, not ethSTARK"); dedupe the box/paragraph pairs. Assumption-attack apparatus itself passes the model.
+
+---
+
+## Audit 19 — 2026-07-11 — Full 15-agent Sako-lens workflow (whole thesis, post-session-edits, 121pp)
+Trigger: Operator request — full /kazuesako-paper-review across every section, weighted for "each point carried over carefully" after this week's edits (asm:keypriv, four-expression property-map, ShowCre statement-binding flip, e2e recording).
+Method: 10 per-section auditors + five-gates + narrative + citation + carry-over(thesis-consistency-auditor), synthesized w/ Over-Time classification.
+
+FIRST QUESTION: "Every summary says THREE open assumptions; §6 now stands issuance-anonymity on a FOURTH (asm:keypriv). How many is it — show me the sum, not the prose."
+
+🔴 BLOCKING:
+ 1. [ESCALATED 3rd-appearance / non-engagement] 055:118-123,226-230,261-265 — assumption box + following ¶ near-verbatim duplication (asm:q1/lookup/bbt). RECURRING.
+ 2. main.tex:135 title vs :152 + 01-intro:14 — goal not singular (cost criterion vs precompile suite as "the contribution"). REGRESSED since 07-08.
+ 3. asm:keypriv omitted where load-bearing (count still "three"; cor:unconditional; prelim:128 "Plain EUF-CMA suffices"; 08:11/07:12 flat CreGen-anonymity). 10/14 auditors. NEW.
+ 4. 055:216 — ε_keypriv term missing from issuance bound 2ε_sZK+ε_ZK; not in the five-leaf-errors count. NEW.
+ 5. 06-eval:250 (Table footnote "blinding measured") vs :220/055:360/08:7 ("remains to be confirmed") — ZK-blinding measured or staged? NEW.
+ 6. 055:31 vs 055:85/140/305 — JBind contradiction ("shipped prototype removes JBind" vs "both relations now commit"). NEW.
+ 7. 04-theoretical:107 vs 05:115/06:280,302,308 — §4 contradicts §5/§6 on power-residue pay/no-pay + matched-field ℓ=1 open-vs-deductive. NEW.
+
+🟡 SHOULD FIX (16): #8 Griffin-F_p^192 vs 199-bit naming ~20 sites (RECURRING); #9 dual-obstruction two-horns-vs-single-Horn-2 (RECURRING A14); #10 contribution ranking §7 vs §8 opposite (RECURRING); #11 λ=80 sub-standard undisclosed at 14.24min headline (RECURRING A18); #12 intro anonymity-list predates four-expression; #13 appendix property-map still "Theorems 1-3"; #14 411× field-mismatch-tax mixes scopes (matched ~64×); #15 "both relations wrap completes" overclaim (k=2 projected); #16 statement-binding numbers only in Threats + bound-faster-than-unbound sign; #17 ten-family census 7+3+1=11; #18 §2 re-defines zkVM (object of study in related work); #19 sk_U vs pk_U hidden witness; #20 n=1 proves quoted to 0.01min; #21 706-min wrap row bundles one-time cost; #22 citation gaps (fips204/205, eprint2026/1281 no bib, SP1 3:1); #23 22-min zk Aurora figure in Preliminaries.
+🟢 POLISH (9): #24-32 — lineage/naming/repetition/notation sweeps.
+
+MODE: Formative-with-deadline (submission 2026-07-20, 9d out).
+VERDICT: NOT YET. Two gates — (1) sweep asm:keypriv coherently (count 3→4, ε-term, appendix corollary, every "classical anonymity" prose claim); (2) resolve flat self-contradictions (#2 goal, #5 blinding, #6 JBind:31, #7 §4-vs-§6 criterion). Clear #1 (3rd-appearance). Rest is one-object-one-name cross-check; narrative survives the three-sentence retelling once count + 4 contradictions reconciled.
+NOTE: #3/#4/#6/#12/#13/#15/#16 are carry-over holes opened by THIS session's edits — assistant's to close.
+
+### Audit 19 — RESOLUTION (2026-07-11, same session) — all 7 🔴 blockers CLOSED, build-clean 119pp
+- #1 box/paragraph duplication (ESCALATED): asm:q1/asm:lookup/asm:bbt boxes deduped, following paragraphs cut to value-add only (motivation / LogUp mechanism / freshness-step), no load-bearing content lost.
+- #2 goal-singularity (REGRESSED): Operator's call = cost criterion IS the contribution; suite demoted to "instrument" at main.tex:152 + 01-intro:14.
+- #3 open-assumption count 3→4 (air/szk/qrom/keypriv): swept main.tex:152, 01-intro:57, 08-conclusion:3/19, 055:127/303, prelim:128; prime kept as separate instantiation premise. First pass missed 055:127/303/167/241 + 08:11 — adversarial verify caught all.
+- #4 ε_keypriv: defined at asm:keypriv (055:96, distinguishing advantage), added to issuance bound 2ε_sZK+ε_ZK+ε_keypriv (055:148 + 216), leaf-error accounting = five main + sixth issuance-only. Rigor-verified: coefficient 1 correct (two-key symmetric assumption + terminal-equalisation reduction).
+- #5 ZK-blinding: settled CONFIRMED (wrap_zk_check RESULT = ZK, two proofs differ); flipped 06-eval:220 "remains to be confirmed"→confirmed, "staged"→"dedicated" at 055:360/08:7.
+- #6 JBind:31: "shipped prototype removes it"→"both relations now implement it; earlier boolean-only variant removes it".
+- #7 §4-vs-§6 criterion verdicts (Operator go): ℓ=1 no-pay = deductive (not held-out test); power-residue = open positive case; aligned 04-theoretical:103/107 to 06-eval:280/302/308 + 05:115 word-for-word; 06:279 title "held-out"→"deductive"; 164× necessity preserved. Sako-lens agent verdict: CLEARED.
+- Also fixed carry-over should-fixes #12 (intro property-list), #13 (appendix property-map 35/160), #15 (wrap-completes overclaim 06:215), #16 partial.
+REMAINING (non-blocking, mechanical): #8 Griffin-F_p^192-vs-199bit naming (~20 sites), #11 λ=80 disclosure, #14 411×-vs-64× scope, #17 ten-family census, #18 §2 zkVM redefine, #19 sk_U/pk_U, #20 n=1 precision, #21 706-min wrap, #22 citations, #23 Aurora-in-prelim; polish #24-32.
+VERDICT after resolution: both gates cleared; the two-gate "Not yet" no longer holds. Should-fix layer remains.
+
+### Audit 19 — should-fix follow-up (2026-07-11) — #14 + #8
+- #14 (411x scope-mix): FIXED at 06-eval:271. Was credential-relation Griffin (6603 perms, 4.56e10) / standalone SHA-3 (1052 perms, 1.11e8) = 411x. Now matched standalone scope: software-Griffin Cell-1 7.08e9 / SHA-3 1.11e8 = ~64x; 4.56e10 explicitly labelled larger-scope. Verified: ~6.8e6 cyc/perm consistent across both scopes.
+- #8 (F_p^{192} vs 199-bit + superscript collision): label already disclosed 3x (05:21 [deliberate PLUM-parity retention], 03:48, rem:prime-substitution). Collision with lane-count superscript F_p^4/F_p^2 (05:64-90, appendices:169-196) is REAL. Resolved MINIMALLY: added clause at 05:21 marking the 192 superscript as a bit-width label distinct from the state's lane-count superscript. Did NOT blanket-rename (would override 05:21's stated choice). OPEN (Operator's call): full rename F_p^{192}->F_p, or consolidate the 3 disclosure notes to 1.
+
+### Audit 20 — 2026-07-11 — §7 Discussion (post-overhaul Sako pass) — Not-yet → RESOLVED
+Trigger: Operator asked for final Sako check on the overhauled Discussion. Mode: deadline. First audit of §7 (all findings NEW).
+🔴 1 (blocking): "$k=2$ anonymous showing" (07:5) — overclaim vs §6 non-ZK core STARK. FIXED → "$k=2$ showing".
+🟡 2: "security--deployability" vs "anonymity--deployability" one-object-two-names; "security" over-claims (only anonymity in tension, unforgeability+KS transfer). RESOLVED (Operator chose anonymity): swept §5+§7 (4 sites) + retitled §7.1 subsection; §6 already anonymity. §8 uses cost-vs-security axis label, not the tension name (fine).
+🟡 3: 11.76h "measured" no run count (07:19). FIXED → "measured (single run)".
+🟡 4: §7.2 crossover paragraph ~6 ideas. RESOLVED (Operator: split): 1 mega-para → 4 (rule / preprocessing-exception / partitioned-zero-regen / cost-model-licenses).
+🟡 5: Fractal magnitudes (0.86-18.5s, OOM) restated from §6. FIXED: cut to Table~ref, kept interpretation.
+🟢 6: §7.1 "First" pole slightly overloaded (combined-proof) — NOT applied (cosmetic, Operator's call).
+🟢 7: R_static≈0.3s no run count. FIXED → "single timed runs".
+🟢 8: em-dashes reintroduced by the §7.1 rewrite (5 in §7). FIXED: swept to colons/commas (de-AI style). NB doc-wide de-em-dash still incomplete (§6 carries 6).
+VERDICT after resolution: §7 passes the model (both change-firsts + all should-fixes done); one cosmetic 🟢 (#6) left, Operator's call. n-at-point-of-claim now holds for all 6 §7 numbers. Build clean 119pp.
+
+### Audit 21 — 2026-07-12 — 概要書 (abst_Takumi2025, 2-page gaiyousho) — FIRST gaiyousho audit
+Trigger: Operator asked for Sako pass; suspects missing information. Mode: deadline (submission 2026-07-20, ~8d). Artifact: main.tex + sections/01-07, 2pp, 9 refs, build-clean. All findings NEW for this artifact unless tagged RECURRING vs honbun log.
+FIRST Q (Gate 3, her domain): "誰が必要?" — §1 gives no external party needing a PQ anon-credential on a personal PC.
+🔴 BLOCKING (3, gate failures):
+ 1. §1 Gate-3 motivation-from-outside FAILS: motivates by technology, no eIDAS/harvest-now/concrete instance (§1 still the scaffold's un-voiced draft). NEW.
+ 2. §1 Gate-1 goal-not-in-one-sentence: closing sentence bundles criterion+reduce-cost+locate-obstruction; A->B never crisp. NEW.
+ 3. Gaiyousho rule-1 「説明していない言葉をいれない」: undefined precompile/AIR/R1CS/STARK/SNARK/cross-table-lookup/matched-field-keystone(ℓ=1 vs ℓ=7). NEW.
+🟡 SHOULD FIX (4):
+ 4. §5 λ=80 undisclosed as sub-standard (128 is deployment level; 80 = budget compromise). RECURRING (honbun #11/A18).
+ 5. §1 Gate-1 "practically acceptable" bar undefined (Wu AQ7). NEW.
+ 6. No figure/table anywhere; four cells + headline numbers beg one table (lab norm: one figure per big idea). NEW.
+ 7. §6 anonymity-of-what: BDEC construction + workload never named; anonymity claims float. NEW.
+🟢 POLISH (2): #8 §4 "System Design" reads suite-as-contribution (framing = instrument); #9 §7 four-verb run-on vs three-sentence test.
+VERDICT: NOT YET. Two gates block, both §1 (motivation-from-outside + goal-in-one-sentence) + undefined-terms sweep (rule 1). Content current+correct; missing piece = framing front-matter (who needs it / goal / term defs / λ=80 / one table / BDEC name). §1 is Operator's lane (voice); terms/table/λ=80/BDEC are assistant-applicable.
+
+### Audit 21 — RESOLUTION (2026-07-12, same session) — 4 mechanical fixes applied, gaiyousho 2pp build-clean
+- #3 (undefined terms): defined `precompile` + `AIR` at §4 first use; ℓ spelled out at §5 (ℓ=1 field-aligned vs ℓ=7 emulated 199-bit operand). STARK/SNARK still ride on context (2pp budget) — noted, not blocking.
+- #4 (λ=80 disclosure): §5 now "λ=80, below the 128-bit deployment level, the largest that fits the 24GB budget". Closes RECURRING #11/A18 for the gaiyousho.
+- #6 (no figure): added Table~1 (four cells; PLUM λ=80/24GB/n=5; Cell~1 DNF; Cell~4 = Loquat/Fp127 cross-scheme reference — apples-to-apples caveat baked into caption so the table can't be misread).
+- #7 (anonymity-of-what): §6 names BDEC (cite 978-981-96-0957-4_3) as the anon-credential construction PLUM instantiates; showings now have a referent.
+Build: 2pp, 0 undefined, 10 refs. 1 overfull = pre-existing title block (unchanged).
+REMAINING (Operator's lane, NOT applied): #1 §1 motivation-from-outside + #2 goal-in-one-sentence — §1 is still the scaffold's un-voiced draft. Polish #8/#9 not applied.
