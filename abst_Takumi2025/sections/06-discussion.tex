@@ -1,17 +1,2 @@
 \section{Discussion}
-Feasibility is not deployability. A succinct proof on this substrate is not
-zero-knowledge: SP1's default STARK proof is succinct but not ZK, and ZK is
-obtained only by wrapping it in a Groth16/PLONK SNARK over a pairing-friendly
-curve, which is \emph{not} post-quantum, so a future quantum adversary
-retroactively de-anonymizes every stored transcript. The post-quantum ZK
-route (a masked zk-STARK~\cite{cryptoeprint:2024/1037,cryptoeprint:2026/683}) yields only \emph{computational} post-quantum
-anonymity in the (Q)ROM, not everlasting (information-theoretic) anonymity,
-because the witness trace is committed under a computationally-hiding hash.
-No available zkVM path delivers post-quantum soundness and zero-knowledge
-jointly. This deployability wall is the thesis's secondary finding: alongside
-the cost criterion, it marks where a personal-device, post-quantum anonymous
-credential is not yet reachable, independently of the prover's speed. The
-positive results are themselves conditional: the unforgeability the precompile
-preserves rests on the constraint-level soundness of the Griffin AIR, the
-anonymity on a PLUM signature-transcript simulator, and both on modelling Griffin
-as a (quantum) random oracle, each an open assumption.
+Feasibility is not deployability, and the gap is a \emph{dual obstruction}. The feasible, post-quantum-sound proof, the bare STARK receipt, is not zero-knowledge (Horn~1); and the zero-knowledge wrap the toolchain ships, though it now fits the $24\,\mathrm{GB}$ budget, is a Groth16/PLONK SNARK over a pairing-friendly curve and hence not post-quantum (Horn~2), retroactively de-anonymizing every stored transcript to a future quantum adversary. No proof the stack produces is at once zero-knowledge and post-quantum-sound: the obstruction is a primitive limit, not feasibility. For the anonymous-credential construction BDEC~\cite{10.1007/978-981-96-0957-4_3} that PLUM instantiates, we further prove that \emph{everlasting} anonymity cannot be established in the standard model for its hash-committed showings~\cite{cgh2004rom}, escapable only by a post-quantum statistically-hiding commitment to the witness. The positive results are conditional, resting on five named open assumptions (Griffin-AIR soundness, transcript simulatability, the quantum-random-oracle lift, lookup binding, and signature key-privacy).

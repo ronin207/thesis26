@@ -1,26 +1,17 @@
 \section{Evaluation}
-We measure four cells on the target hardware: PLUM verification in a zkVM
-(1)~without and (2)~with the Griffin precompile; (3)~the same verification
-using software SHA-3 as a control; and (4)~Loquat verification in an
-application-specific circuit (Aurora~\cite{cryptoeprint:2018/828}) as an in-SNARK reference (the
-measured static baseline; PLUM over its $199$-bit field has no Aurora
-harness).
+We measure four cells at $\lambda=80$ (below the $128$-bit deployment level, the largest that fits the $24\,\mathrm{GB}$ budget; Table~1). Cells~1--3 share one scheme, so with/without/control is a matched comparison; Cell~4 (Aurora~\cite{cryptoeprint:2018/828}) is a different scheme over a different field, an indicative cross-scheme reference whose crossover is bounded in form, not located in wall-clock.
 
-Without the precompile, verification does not terminate within a
-$24\,\mathrm{GB}/3\,\mathrm{h}$ bound ($\approx 7.08$ billion cycles at
-$\lambda=80$, projecting to tens of hours). With the precompile it completes
-in $14.25$~min (mean of three fixed-config runs, $14.05$--$14.61$) on the
-$24\,\mathrm{GB}$ machine at a peak ${\approx}14.2\,\mathrm{GB}$ resident, the first
-configuration in the study to fit the budget.
-% RESOLVED 2026-06-30: Tier-2 n=3 fixed-config replication gives Cell 2 mean
-% 14.25 min (range 14.05-14.61), Cell 3 mean 13.05 min; the earlier 32.5 min single
-% run was machine-state contamination, retired. Source: docs/measurements/tier2_replication_20260629.
+{\par\medskip\centering\footnotesize
+\textbf{Table 1.}~Four cells (PLUM, $\lambda{=}80$, $24$\,GB, $n{=}5$ for cells~2--3).\\[3pt]
+\begin{tabular}{cll}
+\hline
+Cell & Setting & Prove \\
+\hline
+1 & no precompile      & $>5$\,h \\
+2 & Griffin precompile & $14.24$\,min \\
+3 & SHA-3 control      & $13.24$\,min \\
+4 & Aurora (Loquat)    & ${\approx}22$\,min \\
+\hline
+\end{tabular}\par\medskip}
 
-The control is the sharpest result. Even with the precompile, PLUM
-verification executes $1.13\times$ more cycles ($125.5$\,M vs $110.8$\,M) and
-proves about $1.09\times$ slower in wall-clock ($14.25$ vs $13.05$~min, mean of
-three): a standardized hash, unaccelerated, still beats our accelerated
-algebraic hash. The trace-area criterion postdicts the sign of this inversion
-from the chips' committed dimensions, and a held-out matched-field measurement
-(a $164\times$ tax at $\ell=1$ versus $\ell=7$) confirms its necessity
-direction, so the inversion is evidence for the criterion rather than a paradox.
+With the precompile, verification fits the $24\,\mathrm{GB}$ budget for the first time in the study (peak ${\approx}14\,\mathrm{GB}$; Cell~1 does not terminate). The control is the sharpest result: even accelerated, PLUM verification proves $1.08\times$ slower and runs $1.13\times$ more cycles than the software SHA-3 (Table~1), so a standardized hash, unaccelerated, still beats our algebraic hash. The trace-area criterion postdicts the sign of this inversion, and a matched-field keystone ($164\times$ at $\ell=1$ versus $\ell=7$ limbs, a field-aligned operand versus the emulated $199$-bit one) fixes its necessity direction, so the inversion is evidence for the criterion, not a paradox.
