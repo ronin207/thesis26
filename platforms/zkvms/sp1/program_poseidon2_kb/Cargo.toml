@@ -1,0 +1,25 @@
+[package]
+name = "poseidon2_kb_program"
+version = "0.1.0"
+edition = "2021"
+
+# Poseidon2-over-KoalaBear matched-field control guest (ℓ=1 point for the
+# cost criterion, prop:field-match, §4). Two modes selected by stdin:
+#   mode 0 = PRECOMPILE arm: SP1's shipped Poseidon2-KoalaBear permutation
+#            via the POSEIDON2 syscall (Poseidon2State::permute).
+#   mode 1 = SOFTWARE arm:   a reference-scheduled Poseidon2-KoalaBear
+#            permutation in rv32im (width 16, S-box x^3, R_F=8, R_P=20 —
+#            the exact round schedule of slop-koala-bear's KoalaPerm).
+# The host runs each mode at N_LO and N_HI permutations and takes the
+# slope (cyc(N_HI)-cyc(N_LO))/(N_HI-N_LO) as the per-permutation cost,
+# cancelling fixed loop/IO overhead — the same method as fmt_keystone.
+#
+# No dependency on vc-pqc: the whole point is a NATIVE-field (ℓ=1) hash,
+# so the guest surface stays minimal (sp1-zkvm only).
+
+[[bin]]
+name = "poseidon2_kb"
+path = "src/main.rs"
+
+[dependencies]
+sp1-zkvm = "6.0.1"

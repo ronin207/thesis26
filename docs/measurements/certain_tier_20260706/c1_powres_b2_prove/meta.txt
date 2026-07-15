@@ -1,0 +1,10 @@
+=== c1_powres_b2_prove (B2-only (1 FP192_POW_RES/symbol)) ===
+start:        2026-07-07T01:18:29+09:00
+config:       PLUM-80 lambda=80 | M5 Pro 24GB | SP1_PROVER=cpu | standard-Griffin
+workload:     N_SYMBOLS=28, fixed canonical operand a0<p; 28 FP192_POW_RES syscalls, 0 FP192_MUL
+cap:          wall=10800s (3h) + RSS 24GB watchdog
+fork HEAD:    5c82940bda6c0045fa7e3a9f04f3bb62febf2958 branch=prf-precompiles (dirty = powres guests + settle tests, uncommitted)
+RUST_LOG:     warn,sp1_hypercube::prover=debug   SP1_PROVER=cpu RAYON_NUM_THREADS=8
+test:         cargo test --release -p sp1-core-machine test_fp192_powres_b2_only_prove -- --nocapture
+end:      2026-07-07T01:19:03+09:00 wall_s=34 rc=0
+passed=true peak_gb=2.79 total_cells=1_937_552 verdict=OK

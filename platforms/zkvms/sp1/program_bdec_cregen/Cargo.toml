@@ -21,3 +21,7 @@ default = []
 # holding UINT256_MUL on in both arms. Isolates the Griffin precompile's
 # contribution at the 2-verification CreGen level.
 griffin-emulated = ["vc-pqc/sp1-no-griffin-syscall"]
+# JBind (statement binding): additionally commit the public statement
+# x_cre = (c_{U,TA}, h_{U,TA}, ppk_{U,TA}) to the journal so the receipt is
+# statement-bound (ProSec 2024 §3). Baseline (default) commits only both_ok.
+jbind = []

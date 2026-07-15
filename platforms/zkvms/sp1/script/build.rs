@@ -94,6 +94,23 @@ fn main() {
         canonical(smoke_dir, "griffin_smoke").display(),
     );
 
+    // ─── Poseidon2-KoalaBear matched-field control guest (ℓ=1 point) ─
+    // Native-field algebraic-hash cost probe; NO features (the syscall arm
+    // uses SP1's shipped POSEIDON2 precompile, the software arm is rv32im).
+    let poseidon2_kb_dir = "../program_poseidon2_kb/elf-out";
+    build_program_with_args(
+        "../program_poseidon2_kb",
+        BuildArgs {
+            elf_name: Some("poseidon2_kb".into()),
+            output_directory: Some(poseidon2_kb_dir.into()),
+            ..Default::default()
+        },
+    );
+    println!(
+        "cargo:rustc-env=POSEIDON2_KB_ELF_PATH={}",
+        canonical(poseidon2_kb_dir, "poseidon2_kb").display(),
+    );
+
     // ─── Keystone matched-field control guest (FMT execute measure) ─
     let fmt_keystone_dir = "../program_fmt_keystone/elf-out";
     build_program_with_args(
@@ -210,6 +227,49 @@ fn main() {
         println!(
             "cargo:rustc-env={upper}_EMULATED_ELF_PATH={}",
             canonical(&emulated_dir, bin).display(),
+        );
+    }
+
+    // ─── BDEC CreGen JBind variant (statement-bound: commits x_cre) ──
+    // Default Griffin-syscall arm plus the `jbind` feature, which additionally
+    // commits x_cre = (c, h, ppk) to the journal (ProSec 2024 §3). Distinct
+    // output dir so it does not collide with the bool-only syscall ELF.
+    {
+        let jbind_dir = "../program_bdec_cregen/elf-jbind";
+        build_program_with_args(
+            "../program_bdec_cregen",
+            BuildArgs {
+                features: vec!["jbind".into()],
+                elf_name: Some("bdec_cregen".into()),
+                output_directory: Some(jbind_dir.into()),
+                ..Default::default()
+            },
+        );
+        println!(
+            "cargo:rustc-env=BDEC_CREGEN_JBIND_ELF_PATH={}",
+            canonical(jbind_dir, "bdec_cregen").display(),
+        );
+    }
+
+    // ─── BDEC ShowCre JBind variant (statement-bound: commits x_show) ──
+    // Default Griffin-syscall arm plus the `jbind` feature, which additionally
+    // commits x_show = ((ppk_TA)_j, ppk_UV, h_UV, c_UV) to the journal
+    // (ProSec 2024 p.12). Distinct output dir so it does not collide with the
+    // bool-only syscall ELF.
+    {
+        let jbind_dir = "../program_bdec_showcre/elf-jbind";
+        build_program_with_args(
+            "../program_bdec_showcre",
+            BuildArgs {
+                features: vec!["jbind".into()],
+                elf_name: Some("bdec_showcre".into()),
+                output_directory: Some(jbind_dir.into()),
+                ..Default::default()
+            },
+        );
+        println!(
+            "cargo:rustc-env=BDEC_SHOWCRE_JBIND_ELF_PATH={}",
+            canonical(jbind_dir, "bdec_showcre").display(),
         );
     }
 }

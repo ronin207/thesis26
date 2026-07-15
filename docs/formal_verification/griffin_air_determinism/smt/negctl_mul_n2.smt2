@@ -1,0 +1,33 @@
+; FieldOpCols oracle query  backend=bv  op=mul  n=2  mod_bytes=2
+; q=2130706433 (KoalaBear)  offset=16384  wbits=40
+; modulus M=65521 prime=True bytes_le=[241, 255]
+; result_canonical=False operand_canonical=False diff=res,car,wit
+(set-logic QF_BV)
+(declare-fun a0 () (_ BitVec 8))
+(declare-fun a1 () (_ BitVec 8))
+(declare-fun b0 () (_ BitVec 8))
+(declare-fun b1 () (_ BitVec 8))
+(declare-fun c1_res0 () (_ BitVec 8))
+(declare-fun c1_res1 () (_ BitVec 8))
+(declare-fun c1_car0 () (_ BitVec 8))
+(declare-fun c1_car1 () (_ BitVec 8))
+(declare-fun c1_wit0 () (_ BitVec 16))
+(declare-fun c1_wit1 () (_ BitVec 16))
+(declare-fun c1_wit2 () (_ BitVec 16))
+(assert (= (bvadd (bvmul ((_ zero_extend 32) a0) ((_ zero_extend 32) b0)) (bvmul (_ bv256 40) ((_ zero_extend 24) c1_wit0))) (bvadd ((_ zero_extend 32) c1_res0) (bvmul (_ bv241 40) ((_ zero_extend 32) c1_car0)) (_ bv4194304 40))))
+(assert (= (bvadd (bvmul ((_ zero_extend 32) a0) ((_ zero_extend 32) b1)) (bvmul ((_ zero_extend 32) a1) ((_ zero_extend 32) b0)) (_ bv16384 40) (bvmul (_ bv256 40) ((_ zero_extend 24) c1_wit1))) (bvadd ((_ zero_extend 32) c1_res1) (bvmul (_ bv255 40) ((_ zero_extend 32) c1_car0)) (bvmul (_ bv241 40) ((_ zero_extend 32) c1_car1)) ((_ zero_extend 24) c1_wit0) (_ bv4194304 40))))
+(assert (= (bvadd (bvmul ((_ zero_extend 32) a1) ((_ zero_extend 32) b1)) (_ bv16384 40) (bvmul (_ bv256 40) ((_ zero_extend 24) c1_wit2))) (bvadd (bvmul (_ bv255 40) ((_ zero_extend 32) c1_car1)) ((_ zero_extend 24) c1_wit1) (_ bv4194304 40))))
+(assert (= (_ bv16384 40) ((_ zero_extend 24) c1_wit2)))
+(assert (= a0 (_ bv57 8)))
+(assert (= a1 (_ bv48 8)))
+(assert (= b0 (_ bv160 8)))
+(assert (= b1 (_ bv91 8)))
+(assert (= c1_res0 (_ bv142 8)))
+(assert (= c1_res1 (_ bv105 8)))
+(assert (= c1_car0 (_ bv67 8)))
+(assert (= c1_car1 (_ bv17 8)))
+(assert (= c1_wit0 (_ bv16412 16)))
+(assert (= c1_wit1 (_ bv16417 16)))
+(assert (= c1_wit2 (_ bv16384 16)))
+; VARS=11 ASSERTS=15
+(check-sat)

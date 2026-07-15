@@ -1,0 +1,3 @@
+id	label	wall_s	peak_gb	total_trace_cells	passed	verdict
+c1_powres_b2_prove	B2-only (1 FP192_POW_RES/symbol)	34	2.79	1_937_552	true	OK
+c2_powres_sm_prove	S&M-only (261 FP192_MUL/symbol)	40	2.91	30_256_496	true	OK

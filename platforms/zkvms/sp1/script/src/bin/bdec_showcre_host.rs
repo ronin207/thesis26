@@ -27,6 +27,11 @@ use vc_pqc::signatures::plum::sign::{PlumSignature, plum_sign};
 
 const SYSCALL_ELF: &[u8] = include_bytes!(env!("BDEC_SHOWCRE_SYSCALL_ELF_PATH"));
 const EMULATED_ELF: &[u8] = include_bytes!(env!("BDEC_SHOWCRE_EMULATED_ELF_PATH"));
+// Statement-bound (JBind) arm: same Griffin syscall; the guest additionally
+// commits x_show = ((ppk_TA)_j, ppk_UV, h_UV). Built by the build.rs `jbind`
+// block. c_UV (show_sig) stays in the witness (private), matching the thesis
+// relation and its anonymity proof.
+const JBIND_ELF: &[u8] = include_bytes!(env!("BDEC_SHOWCRE_JBIND_ELF_PATH"));
 
 #[derive(Serialize, Deserialize)]
 struct GuestInput {
@@ -117,6 +122,58 @@ fn run_prove(client: &impl Prover, security: usize, k: usize, bytes: &[u8]) {
     assert!(accepted, "guest rejected an honest ShowCre witness (PROVE mode)");
 }
 
+/// Statement-bound (JBind) prove: proves the jbind ELF, recovers the committed
+/// public statement x_show = ((ppk_{U,TA})_j, ppk_{U,V}, h_{U,V}) from the receipt
+/// journal, and asserts it matches the input — i.e. the receipt is BOUND to this
+/// presentation statement (the disclosed-attribute hash h_{U,V} fixes WHICH
+/// attributes were shown), closing the "functional benchmark, not statement-
+/// bound" caveat for ShowCre. The private witness (pk_U, psk_{U,TA}, psk_{U,V},
+/// and the shown credential c_{U,V}) must NOT appear in the journal.
+fn run_prove_jbind(
+    client: &impl Prover,
+    security: usize,
+    k: usize,
+    input: &GuestInput,
+    bytes: &[u8],
+) {
+    println!(
+        "=== BDEC ShowCre k={k} \u{3bb}={security} JBIND PROVE (statement-bound: commits x_show) ==="
+    );
+    let mut stdin = SP1Stdin::new();
+    stdin.write_vec(bytes.to_vec());
+
+    let pk_proof = client.setup(Elf::Static(JBIND_ELF)).expect("setup failed");
+    let t = Instant::now();
+    let proof = client.prove(&pk_proof, stdin).run().expect("prove failed");
+    let prove_ms = t.elapsed().as_millis();
+    client
+        .verify(&proof, pk_proof.verifying_key(), None)
+        .expect("verify failed");
+    let proof_bytes = bincode::serialize(&proof).expect("serialize proof").len();
+
+    // Recover x_show from the journal and bind-check against the input statement.
+    // The guest commits ((nym_msgs, nym_uv_msg, show_msg), all_ok); the shown
+    // credential c_{U,V} (show_sig) stays a private witness, never committed.
+    let ((nym_msgs, nym_uv_msg, show_msg), accepted): (
+        (Vec<Vec<u8>>, Vec<u8>, Vec<u8>),
+        bool,
+    ) = bincode::deserialize(proof.public_values.as_slice()).expect("decode journal");
+    let bound = nym_msgs == input.nym_msgs
+        && nym_uv_msg == input.nym_uv_msg
+        && show_msg == input.show_msg;
+
+    println!("--- JBIND result (statement-bound ShowCre receipt) ---");
+    println!(
+        "accepted={accepted} statement_bound={bound} k={k} prove_ms={prove_ms} (= {:.2} min) proof_bytes={proof_bytes}",
+        prove_ms as f64 / 60_000.0
+    );
+    assert!(accepted, "jbind guest rejected an honest ShowCre witness");
+    assert!(
+        bound,
+        "committed x_show does not match input statement (JBind failed)"
+    );
+}
+
 fn main() {
     sp1_sdk::utils::setup_logger();
 
@@ -171,6 +228,10 @@ fn main() {
     let mode = std::env::var("BDEC_HOST_MODE").unwrap_or_else(|_| "compare".into());
     if mode == "prove" {
         run_prove(&client, security, k, &bytes);
+        return;
+    }
+    if mode == "prove-jbind" {
+        run_prove_jbind(&client, security, k, &input, &bytes);
         return;
     }
 

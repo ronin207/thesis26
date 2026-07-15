@@ -37,6 +37,9 @@ use vc_pqc::signatures::plum::sign::{PlumSignature, plum_sign};
 // target/elf-compilation — cf. build.rs doc-comment).
 const SYSCALL_ELF: &[u8] = include_bytes!(env!("BDEC_CREGEN_SYSCALL_ELF_PATH"));
 const EMULATED_ELF: &[u8] = include_bytes!(env!("BDEC_CREGEN_EMULATED_ELF_PATH"));
+// Statement-bound (JBind) arm: same Griffin syscall; the guest additionally
+// commits x_cre = (c, h, ppk) to the journal. Built by the build.rs `jbind` block.
+const JBIND_ELF: &[u8] = include_bytes!(env!("BDEC_CREGEN_JBIND_ELF_PATH"));
 
 #[derive(Serialize, Deserialize)]
 struct GuestInput {
@@ -120,6 +123,44 @@ fn run_prove(client: &impl Prover, security: usize, bytes: &[u8]) {
     assert!(accepted, "guest rejected an honest CreGen witness (PROVE mode)");
 }
 
+/// Statement-bound (JBind) prove: proves the jbind ELF, recovers the committed
+/// public statement x_cre = (c, h, ppk) from the receipt journal, and asserts it
+/// matches the input — i.e. the receipt is BOUND to this statement, closing the
+/// "functional benchmark, not statement-bound" caveat. The private witness
+/// (pk_U, psk_{U,TA}) must NOT appear in the journal.
+fn run_prove_jbind(client: &impl Prover, security: usize, input: &GuestInput, bytes: &[u8]) {
+    println!(
+        "=== BDEC CreGen \u{3bb}={security} JBIND PROVE (statement-bound: commits x_cre) ==="
+    );
+    let mut stdin = SP1Stdin::new();
+    stdin.write_vec(bytes.to_vec());
+
+    let pk_proof = client.setup(Elf::Static(JBIND_ELF)).expect("setup failed");
+    let t = Instant::now();
+    let proof = client.prove(&pk_proof, stdin).run().expect("prove failed");
+    let prove_ms = t.elapsed().as_millis();
+    client
+        .verify(&proof, pk_proof.verifying_key(), None)
+        .expect("verify failed");
+    let proof_bytes = bincode::serialize(&proof).expect("serialize proof").len();
+
+    // Recover x_cre from the journal (JBind: x_cre recoverable from `out`) and
+    // bind-check it against the input statement. Single deserialize, matching the
+    // baseline decode above; the guest commits ((c,h,ppk), both_ok) as one value.
+    let ((c, h, ppk), accepted): ((PlumSignature, Vec<u8>, Vec<u8>), bool) =
+        bincode::deserialize(proof.public_values.as_slice()).expect("decode journal");
+    let c_ok = bincode::serialize(&c).unwrap() == bincode::serialize(&input.c_u_ta).unwrap();
+    let bound = c_ok && h == input.h_u_ta && ppk == input.ppk_u_ta;
+
+    println!("--- JBIND result (statement-bound receipt) ---");
+    println!(
+        "accepted={accepted} statement_bound={bound} prove_ms={prove_ms} (= {:.2} min) proof_bytes={proof_bytes}",
+        prove_ms as f64 / 60_000.0
+    );
+    assert!(accepted, "jbind guest rejected an honest CreGen witness");
+    assert!(bound, "committed x_cre does not match input statement (JBind failed)");
+}
+
 fn main() {
     sp1_sdk::utils::setup_logger();
 
@@ -156,6 +197,10 @@ fn main() {
     let mode = std::env::var("BDEC_HOST_MODE").unwrap_or_else(|_| "compare".into());
     if mode == "prove" {
         run_prove(&client, security, &bytes);
+        return;
+    }
+    if mode == "prove-jbind" {
+        run_prove_jbind(&client, security, &input, &bytes);
         return;
     }
 

@@ -13,8 +13,12 @@
 //!
 //! SP1 reports cycles and syscall counts host-side from the `ExecutionReport`
 //! (see `script/src/bin/bdec_cregen_host.rs`), so this guest stays minimal:
-//! it commits ONLY the aggregate `both_ok` bool. `pk_U` and both signatures
-//! are private witnesses read off the input stream and are NEVER committed.
+//! by default it commits ONLY the aggregate `both_ok` bool. `pk_U` and both
+//! signatures are private witnesses read off the input stream and are NEVER
+//! committed. Under `--features jbind` it additionally commits the public
+//! statement `x_cre = (c_{U,TA}, h_{U,TA}, ppk_{U,TA})` (ProSec 2024 §3;
+//! `03-preliminaries` x_cre) to the journal so the receipt is statement-bound;
+//! `pk_U` and `psk_{U,TA}` (the private witness `w_cre`) still stay uncommitted.
 //!
 //! ## Hash arm (build-time)
 //!
@@ -74,8 +78,19 @@ pub fn main() {
     );
     let nym_ok = matches!(nym.outcome, VerificationOutcome::Accept);
 
-    // Only the aggregate boolean is public; pk_U and the signatures stay
-    // private (never committed).
     let both_ok = sig_ok && nym_ok;
+
+    // JBind (statement binding): commit the public statement
+    // x_cre = (c_{U,TA}, h_{U,TA}, ppk_{U,TA}) together with the outcome as one
+    // journal value, so the receipt binds to it (x_cre recoverable from `out`;
+    // ProSec 2024 §3, x_cre of the preliminaries). pk_U and psk_{U,TA} are the
+    // private witness w_cre and stay uncommitted, which keeps w_cre hidden.
+    // Gated so the bool-only baseline measurement is unchanged.
+    #[cfg(feature = "jbind")]
+    sp1_zkvm::io::commit(&(
+        (&input.c_u_ta, &input.h_u_ta, &input.ppk_u_ta),
+        both_ok,
+    ));
+    #[cfg(not(feature = "jbind"))]
     sp1_zkvm::io::commit(&both_ok);
 }

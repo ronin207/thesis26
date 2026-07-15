@@ -8,6 +8,10 @@ name = "plum_host"
 path = "src/bin/plum_host.rs"
 
 [[bin]]
+name = "plum_witness_dump"
+path = "src/bin/plum_witness_dump.rs"
+
+[[bin]]
 name = "plum_leakage_host"
 path = "src/bin/plum_leakage_host.rs"
 
@@ -32,8 +36,28 @@ name = "bdec_cregen_host"
 path = "src/bin/bdec_cregen_host.rs"
 
 [[bin]]
+name = "cregen_witness_dump"
+path = "src/bin/cregen_witness_dump.rs"
+
+[[bin]]
 name = "bdec_showcre_host"
 path = "src/bin/bdec_showcre_host.rs"
+
+[[bin]]
+name = "showcre_witness_dump"
+path = "src/bin/showcre_witness_dump.rs"
+
+[[bin]]
+name = "poseidon2_kb_host"
+path = "src/bin/poseidon2_kb_host.rs"
+
+[[bin]]
+name = "bdec_execute_report"
+path = "src/bin/bdec_execute_report.rs"
+
+[[bin]]
+name = "bdec_e2e_host"
+path = "src/bin/bdec_e2e_host.rs"
 
 [dependencies]
 sp1-sdk = { version = "6.0.1", default-features = false, features = ["blocking", "native-gnark"] }

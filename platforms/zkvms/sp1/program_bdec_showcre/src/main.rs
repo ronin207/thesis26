@@ -20,9 +20,15 @@
 //!
 //! ## Measurement model / privacy
 //!
-//! SP1 reports cycles and syscall counts host-side (`ExecutionReport`); this
-//! guest commits ONLY the aggregate `all_ok` bool. `pk_U` and all signatures
-//! are private witnesses, NEVER committed.
+//! SP1 reports cycles and syscall counts host-side (`ExecutionReport`). The
+//! default build commits ONLY the aggregate `all_ok` bool. Under the `jbind`
+//! feature the guest additionally commits the public statement
+//! `x_show = ((ppk_{U,TA}^{(j)})_j, ppk_{U,V}, h_{U,V})` (the thesis relation,
+//! Section 3), binding the receipt to the disclosed-attribute hash `h_{U,V}`
+//! (which fixes WHICH attributes were shown). The shown credential `c_{U,V}`
+//! stays in the WITNESS (`w_show`), as do `pk_U` and every secret signature
+//! (`psk_{U,TA}`, `psk_{U,V}`) — NEVER committed, which is what the anonymity
+//! proof requires.
 //!
 //! `plum_verify_phased` clears the per-call phase buffer, so the `k+2`
 //! sequential verifies in one invocation are independent (cf. the RISC0 guest
@@ -94,5 +100,18 @@ pub fn main() {
     );
     all_ok &= matches!(show.outcome, VerificationOutcome::Accept);
 
+    // Default: commit only the aggregate outcome (bool-only functional
+    // benchmark). Under `jbind`: additionally bind the public statement
+    // x_show — the k teaching-authority pseudonym keys (`nym_msgs`), the
+    // verifier pseudonym key (`nym_uv_msg`), and the disclosed-attribute
+    // hash h_{U,V} (`show_msg`). The shown credential c_{U,V} (`show_sig`),
+    // pk_U, and the psk signatures stay private witnesses, never committed —
+    // c_{U,V} in the witness is what the anonymity proof (Section 5) requires.
+    #[cfg(feature = "jbind")]
+    sp1_zkvm::io::commit(&(
+        (&input.nym_msgs, &input.nym_uv_msg, &input.show_msg),
+        all_ok,
+    ));
+    #[cfg(not(feature = "jbind"))]
     sp1_zkvm::io::commit(&all_ok);
 }

@@ -1,0 +1,3 @@
+[2m2026-07-06T16:19:30.763205Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Total number of cells: 30_256_496, number of variables: 25
+[2m2026-07-06T16:19:36.776403Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Total number of cells: 34_860_256, number of variables: 26
+[2m2026-07-06T16:19:41.043655Z[0m [34mDEBUG[0m [1mprove shard with data[0m: Total number of cells: 4_713_632, number of variables: 23

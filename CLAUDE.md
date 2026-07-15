@@ -23,13 +23,13 @@ single 192-bit prime `p = 2⁶⁴ · p₀ + 1` that simultaneously satisfies
 Power-Residue-PRF and STIR requirements.
 
 *(B) Substrate-level, PLUM → zkVM (this thesis's target).*
-General-purpose zkVMs use small-characteristic prime fields — BabyBear
-(`p = 2³¹ − 2²⁷ + 1`) in RISC Zero and SP1 (whose prover is built on
-Plonky3, which also supports Mersenne-31, KoalaBear, and Goldilocks as
-alternatives). When the PLUM signature-verification predicate
+General-purpose zkVMs use small-characteristic 31-bit prime fields — BabyBear
+(`p = 2³¹ − 2²⁷ + 1`) in RISC Zero, and KoalaBear (`p = 2³¹ − 2²⁴ + 1`) in the
+SP1 fork this thesis measures (whose prover is SP1's slop multilinear stack,
+Basefold/jagged, not Plonky3). When the PLUM signature-verification predicate
 `Verify(pk, M, σ) → {0,1}` executes inside a zkVM guest, every 192-bit
-field operation is emulated by multi-limb arithmetic over BabyBear
-(~7 BabyBear limbs per 192-bit operand), and algebraic-hash primitives
+field operation is emulated by multi-limb arithmetic over the prover's
+31-bit native field (~7 limbs per 192-bit operand), and algebraic-hash primitives
 like Griffin amplify the cost because each permutation invokes many such
 operations.
 
@@ -82,9 +82,12 @@ Three precompile AIR modules, in expected cycle-share order:
 3. **t-th Power Residue PRF symbol check** (`t = 256` fixed): a constant-
    exponent bigint program implementing `a^((p-1)/t) mod p`.
 
-Construction vehicle: RISC Zero v1.2 application-defined precompiles via
-the Zirgen bigint MLIR dialect, OR SP1's custom-precompile framework. Both
-are verified as feasible paths for a 192-bit-field Griffin AIR.
+Construction vehicle: RISC Zero 3.0.3 application-defined precompiles via
+the Zirgen bigint MLIR dialect, OR SP1's in-tree custom-chip framework. The
+SP1 path is demonstrated (the shipped Griffin AIR); the RISC Zero Zirgen path
+is plausible but not yet demonstrated for a 192-bit-field Griffin AIR
+(a full 14-round Griffin over a 199-bit prime as one Zirgen accelerator is
+inferred from the EC/bigint precedent, not shown).
 
 Each precompile ships with a written soundness argument tying the AIR
 constraints to the reference specification, so that the precompile layer

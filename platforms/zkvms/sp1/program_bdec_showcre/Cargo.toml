@@ -21,3 +21,8 @@ default = []
 # holding UINT256_MUL on in both arms. Isolates the Griffin precompile's
 # contribution at the (k+2)-verification ShowCre level.
 griffin-emulated = ["vc-pqc/sp1-no-griffin-syscall"]
+# Statement-bound (JBind) variant: additionally commits the public statement
+# x_show = ((ppk_TA)_j, ppk_UV, h_UV, c_UV) to the journal, turning the
+# bool-only functional benchmark into a statement-bound presentation verifier
+# (ProSec 2024 p.12). Mirrors program_bdec_cregen's `jbind`.
+jbind = []

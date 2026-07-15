@@ -1,10 +1,10 @@
-\contentsline {table}{\numberline {1}{\ignorespaces Griffin round margin versus broken CICO instances.}}{66}{}%
-\contentsline {table}{\numberline {2}{\ignorespaces Property-survival matrix across proof configurations.}}{68}{}%
-\contentsline {table}{\numberline {3}{\ignorespaces Evaluation platform and measurement setup.}}{77}{}%
-\contentsline {table}{\numberline {4}{\ignorespaces PLUM verification, prove mode ($\lambda =80$; the Griffin instance runs at $14$ rounds, one below the security-conservative $15$ of Table~\ref {tab:round-margin}). $^\dag $Mean of five runs.}}{78}{}%
-\contentsline {table}{\numberline {5}{\ignorespaces Aurora reference: one Loquat verification, three runs.}}{81}{}%
-\contentsline {table}{\numberline {6}{\ignorespaces Cycle-level cost attribution of the field-arithmetic optimizations.}}{82}{}%
-\contentsline {table}{\numberline {7}{\ignorespaces Credential relations: execute and prove-mode cost ($\lambda =80$).}}{83}{}%
-\contentsline {table}{\numberline {8}{\ignorespaces Proof-mode feasibility: produced, zero-knowledge, post-quantum. Wrap end-to-end times include a one-time core-shape pass ($\approx 2$--$3$~h) amortised across proofs, so the recurring per-proof cost is lower (\S \ref {ssec:resource-frontier}). \textsuperscript {$\dagger $}zk-enabled Aurora measured. \textsuperscript {$\ddagger $}wrap completion and zero-knowledge blinding measured.}}{85}{}%
-\contentsline {table}{\numberline {9}{\ignorespaces Regeneration footprint per localised relation change (Def.~\ref {def:update-churn}). \textsuperscript {$\ast $}Loquat$\to $PLUM regenerates the field-specific Griffin AIR.}}{90}{}%
-\contentsline {table}{\numberline {10}{\ignorespaces Per-change recompile cost: Aurora versus Fractal.}}{91}{}%
+\contentsline {table}{\numberline {1}{\ignorespaces Griffin round margin versus broken CICO instances. CICO cost is the tightest published algebraic-CICO attack cost ($\log _2\mathbb {F}_q$-multiplications, Improved Resultant~\cite {resultant2025}, Table~1): $2^{55}$ at the broken $t{=}12$ instances (their full $10$ rounds), realised in practice to $7/10$ (FreeLunch) and $8/10$ (Resultant) rounds; $2^{82}$ for this work at $r{=}14$ (its $r{=}15$ design point costs $2^{87}$), with no practical attack realised at $t{=}4$. All instances share the $\alpha =3$ S-box; field size affects the algebraic-CICO cost only polylogarithmically.}}{65}{}%
+\contentsline {table}{\numberline {2}{\ignorespaces Property-survival matrix across proof configurations.}}{67}{}%
+\contentsline {table}{\numberline {3}{\ignorespaces Evaluation platform and measurement setup.}}{76}{}%
+\contentsline {table}{\numberline {4}{\ignorespaces PLUM verification, prove mode ($\lambda =80$; the Griffin instance runs at $14$ rounds, one below the security-conservative $15$ of Table~\ref {tab:round-margin}). $^\dag $Mean of five runs.}}{77}{}%
+\contentsline {table}{\numberline {5}{\ignorespaces Aurora reference: one Loquat verification, three runs.}}{80}{}%
+\contentsline {table}{\numberline {6}{\ignorespaces Cycle-level cost attribution of the field-arithmetic optimizations.}}{81}{}%
+\contentsline {table}{\numberline {7}{\ignorespaces Credential relations: execute and prove-mode cost ($\lambda =80$).}}{82}{}%
+\contentsline {table}{\numberline {8}{\ignorespaces Proof-mode feasibility: produced, zero-knowledge, post-quantum.}}{84}{}%
+\contentsline {table}{\numberline {9}{\ignorespaces Regeneration footprint per localised relation change (Def.~\ref {def:update-churn}). \textsuperscript {$\ast $}Loquat$\to $PLUM regenerates the field-specific Griffin AIR.}}{89}{}%
+\contentsline {table}{\numberline {10}{\ignorespaces Per-change recompile cost: Aurora versus Fractal.}}{90}{}%

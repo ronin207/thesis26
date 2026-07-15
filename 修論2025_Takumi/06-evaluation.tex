@@ -227,6 +227,29 @@ What the wrap does \emph{not} provide is post-quantum anonymity. The wrap rests 
 
 A second and separate cost governs the wrap's \emph{wall-clock}, and it grows with the credential. The compress stage dominates the wrap tail and scales with the core proof's shard count. PLUM verification's $104$ shards compress in ${\approx}19$~min, whereas CreGen must be proved at \texttt{HEIGHT\_THRESHOLD}$=2^{16}$ to avoid a core-prove overflow, which splits it into $1{,}018$ shards and stretches the compress tail to ${\approx}166$~min (${\approx}0.16$~min per shard, near-linear). Peak memory stays bounded at ${\approx}15$~GiB throughout, so this is a time cost, not a memory cost. The BDEC wraps fit the $24$~GB envelope, but their wall grows about linearly with credential size, projecting past any practical bound for large disclosure sets (\S\ref{ssec:costmodel}). Memory is not the constraint here; the compress-tail cost is.
 
+% \begin{figure}[H]
+% \centering
+% \begin{tikzpicture}
+% \begin{axis}[
+%   width=0.72\textwidth, height=6.2cm,
+%   xlabel={Core-proof shard count}, ylabel={Compress-tail (min)},
+%   xmin=0, xmax=1150, ymin=0, ymax=190,
+%   xtick={0,104,1018}, xticklabels={$0$,$104$,$1{,}018$},
+%   ytick={0,19,166},
+%   tick label style={font=\footnotesize}, label style={font=\footnotesize},
+%   clip=false,
+% ]
+% \addplot[dashed, gray, domain=0:1018, samples=2] {0.163*x};
+% \addplot[only marks, mark=*, mark size=2.3pt, black] coordinates {(104,19) (1018,166)};
+% \node[font=\footnotesize, anchor=north west] at (axis cs:135,24) {PLUM verify};
+% \node[font=\footnotesize, anchor=south east] at (axis cs:1005,160) {CreGen};
+% \node[gray, font=\footnotesize, anchor=south] at (axis cs:560,72) {${\approx}0.16$--$0.18$~min/shard};
+% \end{axis}
+% \end{tikzpicture}
+% \caption{Compress-tail wall-clock against core-proof shard count.}
+% \label{fig:compress-tail}
+% \end{figure}
+
 \paragraph{The precompile enlarges the recursion shape the wrap must verify.}
 The default-path overflow, and the enlarged recursion shape the reduced verifying-key table must cover, attribute entirely to the Griffin-$\mathbb{F}_p^{192}$ precompile. Removing only the Griffin chip, with every other fork edit intact, reproduces the pre-Griffin compose shape byte-for-byte ($795{,}264$ provisioned ExtAlu events, md5 \texttt{f97a8b2f}). With the chip the shape is $1{,}072{,}032$, a marginal $+276{,}768$ ExtAlu ($+34.8\%$) and $+38{,}816$ PrefixSumChecks, while the fork's non-Griffin recursion edits move the shape by exactly zero. That enlargement ($1{,}064{,}022$ required height against the default $795{,}264$ budget) is what overflows the arity-$4$ compose shape on the default path, which is why the wrap is reached instead through a reduced table matched to the guest's own shard shapes. The precompile that lowers the core-layer cost is therefore the same chip that enlarges the recursion shape the wrap must verify, and hence the compress tail it must pay.
 
@@ -251,7 +274,7 @@ Aurora & Loquat verify & no\textsuperscript{$\dagger$} & yes & $3.76$~min & --- 
  & Loquat verify, ZK & yes & yes & ${\approx}22$~min ($n{=}3$) & --- \\
 \bottomrule
 \end{tabular}
-\caption{Proof-mode feasibility: produced, zero-knowledge, post-quantum. Wrap end-to-end times include a one-time core-shape pass ($\approx2$--$3$~h) amortised across proofs, so the recurring per-proof cost is lower (\S\ref{ssec:resource-frontier}). \textsuperscript{$\dagger$}zk-enabled Aurora measured. \textsuperscript{$\ddagger$}wrap completion and zero-knowledge blinding measured.}
+\caption{Proof-mode feasibility: produced, zero-knowledge, post-quantum.}
 \label{tab:proof-mode}
 \end{table}
 

@@ -1,0 +1,207 @@
+% ============================================================================
+% DRAFT ONLY -- NOT APPLIED TO THE MANUSCRIPT, NOT COMMITTED.
+% App-B integration of the Griffin-AIR limb-gadget determinism machine-check.
+% Source of facts: docs/formal_verification/griffin_air_determinism/RESULT.md
+%                  docs/formal_verification/griffin_air_determinism/sweep_results.log
+% Target file when spliced: 修論2025_Takumi/appendices.tex, inside app:proofs.
+% Suggested insertion point: as a new subsection immediately before
+%   \subsection{The open step}\label{app:status}
+% (it feeds directly into that section's honest-scope accounting), OR
+%   as an added paragraph anchored to the remark after lem:limb-gadget's proof.
+% Register: thesis compact style, no em-dashes, existing labels reused.
+% ============================================================================
+
+
+% ---------------------------------------------------------------------------
+% PART 1 + PART 2 : the subsection for App-B (compact; honest-scope built in)
+% ---------------------------------------------------------------------------
+
+\subsection{Machine-checked evidence for the limb gadget}\label{app:machine-check}
+
+The per-row layer rests on the limb-gadget congruence
+(Lemma~\ref{lem:limb-gadget}) and, for determinism of the output lanes, on the
+canonicality step that the byte-wise less-than cells (\texttt{FieldLtCols})
+discharge in Lemma~\ref{lem:round-fn} and Lemma~\ref{lem:compose}. We report a
+machine-checked corroboration of exactly that seam. Using native
+finite-field and bit-vector reasoning (cvc5 1.3.4 and z3 4.15.4), we encoded a
+single \texttt{FieldOpCols} cell over the deployed base field $q$ (KoalaBear,
+$q=2^{31}-2^{24}+1$) as its coefficient-wise vanishing identity and asked
+whether the identity determines the result cell. The encoding is validated two
+ways before any determinism query is read: an oracle query confirms the honest
+witness produced by the reference generator
+(\texttt{FieldOpCols::populate\_carry\_and\_witness}) satisfies the constraints
+(satisfiable), and a negative control that perturbs one result byte is rejected
+by both solvers (unsatisfiable). The constraints therefore admit the intended
+witness and reject a wrong one, so the check has teeth.
+
+Under that validated encoding the bare cell is \emph{under-constrained}: the
+determinism query is satisfiable, with an explicit pair of distinct witnesses on
+the same operands. At a small two-limb instance ($n=2$, with a representative
+modulus $M$ standing in for $p$) the solver returns operands $a=63{,}751$,
+$b=21{,}137$ and two results, the honest $c=1$ and the alternate $c'=c+M$ (with
+carries $h$ and $h-1$), both satisfying the vanishing identity coefficient-wise.
+This is the same phenomenon Lemma~\ref{lem:limb-gadget} already flags in its own
+terms, and it is structural rather than an artifact of the small instance: the
+gadget pins the result only within its residue class modulo the operative
+modulus, not as a canonical integer. Adding the result-canonicality constraint $c<p$, the check
+the chip realises through its \texttt{FieldLtCols} cells
+(\texttt{rc\_add\_range\_check}, ``B-8''; \texttt{sbox1\_cube\_range\_check} and
+\texttt{quad\_mul\_2/3\_range\_check}, ``F1''), makes the determinism query
+unsatisfiable on both solvers. The harness thus independently rediscovered, from
+the constraint set alone, that output determinism requires the canonicality
+check that Lemma~\ref{lem:round-fn} and Lemma~\ref{lem:compose} name, and
+exhibited the concrete failure without it. This strengthens the evidence for the
+per-row layer's range-and-canonicality side-conditions; it does not close
+Assumption~\ref{asm:air}.
+
+\paragraph{Scope of the check.} The result is confined to the base-case
+arithmetic gadget, the \texttt{FieldOpCols} cell that the seven per-row
+constraint families are built from, checked at small operand width ($n=2$ base-$256$
+limbs) over the deployed base field $q$. It does not machine-check the full
+$3{,}819$-column row, the $26$ field-operation cells composed within it, or the
+ten families as one query: a monolithic bit-blasted encoding does not reach that
+size, with the determinism (unsatisfiable) direction tractable only to
+$n\approx2$--$3$ and the detection (satisfiable) direction to $n\approx8$, against
+a full-row width of $n=32$. Closing the full row by machine is future work and
+follows a decomposition, not brute force: per-gadget-type determinism at small
+representative width with the canonicality side-conditions (this check), an
+algebraic $n$-uniformity argument that the constraint shape and the
+canonical-residue and monic-division uniqueness are independent of the limb
+count, and a cell-composition induction that a row of deterministic cells with
+canonicalised outputs is deterministic. The three lookup-borne families (round
+count, memory binding, row scheduling) lie outside this arithmetic check and
+remain carried by Assumption~\ref{asm:lookup}, as does the code-to-constraint
+transcription fidelity of Section~\ref{app:status}. Assumption~\ref{asm:air} is
+therefore \emph{strengthened at the base-case per-row layer, not closed}: the
+check clears the prerequisite that a faithful, validated encoding of the
+gadget's constraints answers the determinism question and confirms the
+canonicality dependency the thesis already routes through
+Lemma~\ref{lem:round-fn} and Lemma~\ref{lem:compose}, while the full-row,
+seven-family, and lookup-borne obligations stand as before.
+
+
+% ---------------------------------------------------------------------------
+% ALTERNATIVE (option b in the notes): a one-clause pointer that could be
+% appended to the REMARK after lem:limb-gadget's proof (appendices.tex ~l.686-690),
+% instead of / in addition to the subsection above. Reproduced here so the
+% operator can compare placements. NOT a change to the lemma STATEMENT.
+% ---------------------------------------------------------------------------
+
+% The lemma concludes a congruence, not canonicality: [...existing text...].
+% Canonicality is restored where output canonicality and the hardening checks on
+% the nonlinear-output cells impose it, which the next lemma makes explicit.
+% >>> APPEND:
+% This congruence-versus-canonicality boundary is corroborated by a machine
+% check of the limb gadget (Appendix~\ref{app:machine-check}): a finite-field and
+% bit-vector solver confirms the bare cell admits distinct results in one residue
+% class and that the \texttt{FieldLtCols} canonicality constraint $c<p$ removes
+% the ambiguity.
+
+
+% ===========================================================================
+% NOTES FOR THE OPERATOR -- NOT THESIS PROSE. Do not splice this block.
+% ===========================================================================
+%
+% --- (3) THE FRAMING DECISION: does lem:limb-gadget need sharpening? ---
+%
+% CURRENT lem:limb-gadget STATEMENT (appendices.tex l.642-666), quoted:
+%   "Consider one field-operation cell for o in {+,x} with operand limb vectors
+%    a,b, result limbs c, carry limbs h, and witness limbs w stored with offset
+%    2^14, ALL SATISFYING THE RANGE PREDICATE. If the cell's vanishing identity
+%    [ p_op(x) - p_c(x) - p_h(x) p_pbar(x) = (p_w(x) - 2^14 1(x))(x - 2^8) ]
+%    holds coefficient-wise over F_q [...], then
+%       int(a) o int(b) = int(c) + int(h)*p  over Z,
+%       HENCE int(c) = int(a) o int(b) (mod p)."
+%   ("range predicate" = operand/result/carry limbs in [0,2^8), witness in [0,2^16).)
+%
+% And the REMARK immediately after its proof (appendices.tex l.686-690), quoted:
+%   "The lemma concludes a CONGRUENCE, NOT CANONICALITY: int(c) is bounded by
+%    2^256 through its byte limbs but not by p, and the chip indeed admits
+%    non-canonical representatives in intermediate cells. Canonicality is
+%    restored where output canonicality and the hardening checks on the
+%    nonlinear-output cells impose it, which the next lemma makes explicit."
+%
+% VERDICT: (a) PURE ADDED EVIDENCE. No sharpening of the lemma STATEMENT is
+% needed, and none is warranted. Reasoning, precisely:
+%
+%   1. The predicate the machine-check RELIES ON for a faithful encoding is the
+%      RANGE predicate (byte-range, no wraparound: the same limb-magnitude
+%      side-condition the lemma's own proof uses, |Sigma| < q). lem:limb-gadget
+%      ALREADY conditions on exactly this. So on the range predicate the check is
+%      corroboration of a condition that is already present, not a new condition.
+%
+%   2. The property the machine-check FINDS MISSING is CANONICALITY (result < p),
+%      i.e. uniqueness of int(c). lem:limb-gadget DELIBERATELY does not claim
+%      this: it concludes a congruence and the post-proof remark says so in as
+%      many words ("concludes a congruence, not canonicality"). Determinism is
+%      routed DOWNSTREAM, into lem:round-fn ("Canonicality": the byte-wise
+%      less-than cells enforce int(s'_l) < p) and lem:compose ("Output
+%      canonicality ... FieldLtCols"). The machine-check's "under-constrained
+%      without <p, deterministic with <p" therefore maps onto the EXISTING
+%      two-layer split, not onto a defect in the lemma.
+%
+%   So the finding is NOT a contradiction of lem:limb-gadget; it is confirmation
+%   that the thesis put the congruence and the canonicality obligation in the
+%   right two places. The machine-check is added evidence for the PAIR
+%   (lem:limb-gadget congruence + the FieldLtCols canonicality clause), and its
+%   single most precise anchor is the SEAM between them: the remark after
+%   lem:limb-gadget's proof.
+%
+%   CAUTION on the task's own wording. The task brief says "STRENGTHENING
+%   lem:limb-gadget's RANGE-predicate condition". That is slightly off and worth
+%   the operator's eye: the check strengthens confidence in the range predicate
+%   (point 1) AND, separately, corroborates the CANONICITY predicate that is not
+%   in lem:limb-gadget at all but in lem:round-fn / lem:compose (point 2). If the
+%   splice sentence says only "range predicate" it will misname the load-bearing
+%   half of the finding (the < p canonicity check). The draft above says
+%   "range-and-canonicality side-conditions" for this reason.
+%
+% THE ONE CHOICE THAT IS ACTUALLY THE OPERATOR'S (placement, not sharpening):
+%
+%   Option A -- subsection only. Splice \subsection{Machine-checked evidence...}
+%     (Part 1/2 above) into app:proofs, just before app:status, and cite it once
+%     from Assumption~\ref{asm:air}'s "not machine-checked" clause and/or from
+%     app:status. Cleanest; keeps the lemma and its remark untouched.
+%
+%   Option B -- subsection + a one-clause pointer appended to the post-lemma
+%     remark (the commented ">>> APPEND" line above). Slightly more informative
+%     and more precisely placed (it lands the finding exactly on the
+%     congruence-vs-canonicality boundary the remark already describes), at the
+%     cost of one extra cross-reference. Still NOT a change to the lemma
+%     statement.
+%
+%   Both are honest. Neither sharpens the lemma. Recommendation is withheld:
+%   placement is a framing call. If forced to note a lean, B lands the evidence
+%   where it is most precise, A keeps the surface minimal.
+%
+% --- Other things the operator should decide / know ---
+%
+%   * asm:air wording (055-security.tex l.87) currently ends
+%     "... and is NOT MACHINE-CHECKED." That clause is now literally too strong
+%     for the base-case gadget. If Option A/B is spliced, that phrase should be
+%     softened to something like "not machine-checked at the full-row / lookup-
+%     borne level" so the assumption text and App-B do not contradict. This is a
+%     ONE-LINE consistency edit in 055-security.tex, flagged, not applied.
+%
+%   * SMT-solver citations. ref.bib has NO entry for cvc5 or z3 (checked). The
+%     draft names them inline with versions (cvc5 1.3.4, z3 4.15.4), matching how
+%     the thesis names debug_constraints / SHAKE256 inline. If the operator wants
+%     \cite keys, add bib entries (Barrett et al. cvc5 TACAS 2022; de Moura &
+%     Bjorner Z3 TACAS 2008) and swap the inline names for \cite. Optional.
+%
+%   * Number hygiene. Every figure in the draft is copied verbatim from
+%     RESULT.md: q=2^31-2^24+1; witness a=63751, b=21137, honest c=1, alternate
+%     c'=1+M; n=2 base-256; UNSAT on both solvers with <p; tractability walls
+%     n~2-3 (UNSAT) / n~8 (SAT) / n=32 (full row); 3819 columns; 26 FieldOpCols;
+%     10 families = 7 per-row + 3 lookup-borne. The solver TIMES (z3 4.1s /
+%     cvc5 3.1s loose; cvc5 94.21s tight; detection 1.38s) are omitted from the
+%     draft as non-load-bearing for a security appendix; add them back only if a
+%     reproducibility table is wanted.
+%
+%   * What the draft does NOT claim, on purpose: it does not call the check a
+%     "proof", does not say asm:air is closed or weakened, does not touch the
+%     lookup-borne families, and does not assert full-row determinism. It claims
+%     exactly: base-case gadget, faithfully encoded, validated, confirms the
+%     canonicality dependency and exhibits the failure without it.
+% ===========================================================================
+

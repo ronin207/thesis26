@@ -30,6 +30,11 @@
 \newtheorem{example}[theorem]{Example}
 \newtheorem{construction}{Construction}
 \newtheorem{assumption}{Assumption}[section]
+% [SUB-ITEM-REF helper] makes \ref to a bundled sub-assumption render "6.5(i)" etc.
+% Freezes \theassumption(<roman>) into the label at definition time. Revert = delete these 3 lines + revert the \asmsublabel uses in 055-security.tex.
+\makeatletter
+\newcommand{\asmsublabel}[2]{\protected@edef\@currentlabel{\theassumption(#1)}\label{#2}}
+\makeatother
 
 % Remark environments (upright text, smaller spacing)
 \theoremstyle{remark}
