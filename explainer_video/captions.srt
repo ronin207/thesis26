@@ -1,0 +1,383 @@
+1
+00:00:00,850 --> 00:00:03,821
+Our prover works in a field of 31 bits.
+
+2
+00:00:03,871 --> 00:00:10,378
+The signature we want to verify, PLUM, computes in a prime field of 199 bits.
+
+3
+00:00:11,278 --> 00:00:14,154
+Take one multiplication in that big field.
+
+4
+00:00:14,204 --> 00:00:17,512
+A prover built on the big field would do it in one step.
+
+5
+00:00:17,562 --> 00:00:19,827
+That is the cost we would like to pay.
+
+6
+00:00:20,727 --> 00:00:24,874
+Our prover must split each number into 7 limbs of 30 bits.
+
+7
+00:00:24,924 --> 00:00:31,076
+Schoolbook multiplication then forms 7 times 7, or 49, limb products.
+
+8
+00:00:32,276 --> 00:00:38,341
+One PLUM verification at the 80-bit level calls the Griffin hash 1052 times.
+
+9
+00:00:38,391 --> 00:00:42,323
+Griffin is built from exactly these big-field multiplications.
+
+10
+00:00:43,223 --> 00:00:49,074
+Run as plain software, the verification takes 7.08 billion guest cycles.
+
+11
+00:00:49,124 --> 00:00:55,760
+On a 24 gigabyte laptop, the prover runs out of memory after about 1 minute 45 seconds.
+
+12
+00:00:56,660 --> 00:00:58,994
+The standard fix is a precompile.
+
+13
+00:00:59,044 --> 00:01:04,585
+It is a dedicated circuit for one operation, called from the program like a system call.
+
+14
+00:01:04,635 --> 00:01:07,184
+We built one for the Griffin permutation.
+
+15
+00:01:08,084 --> 00:01:13,308
+With it, the proof finishes in 14.25 minutes, the mean of 3 runs.
+
+16
+00:01:13,358 --> 00:01:15,274
+So far the story is simple.
+
+17
+00:01:15,324 --> 00:01:17,469
+The precompile makes it faster.
+
+18
+00:01:18,369 --> 00:01:20,233
+Now swap the hash instead.
+
+19
+00:01:20,283 --> 00:01:26,572
+A control arm uses SHA-3, computed in ordinary software, with no hash precompile at all.
+
+20
+00:01:27,472 --> 00:01:30,996
+The control finishes in 13.05 minutes.
+
+21
+00:01:31,046 --> 00:01:34,689
+The arm with the precompile is slower, in every run we took.
+
+22
+00:01:35,589 --> 00:01:38,579
+A precompile removes cycles from the program.
+
+23
+00:01:38,629 --> 00:01:43,873
+But its own circuit still has to be proved, and its rows are not counted as cycles.
+
+24
+00:01:45,073 --> 00:01:49,923
+The prover commits a table of cells, and its work grows with the number of cells.
+
+25
+00:01:49,973 --> 00:01:52,187
+We call that number the trace area.
+
+26
+00:01:53,087 --> 00:01:55,455
+A precompile changes two terms.
+
+27
+00:01:55,505 --> 00:01:59,650
+It removes core area, the cells the removed cycles would have used.
+
+28
+00:01:59,700 --> 00:02:02,920
+It adds chip area, the cells of its own circuit.
+
+29
+00:02:03,820 --> 00:02:10,427
+It pays exactly when the core area removed exceeds the chip area added, each weighted by its cost per cell.
+
+30
+00:02:11,327 --> 00:02:13,473
+Check it against plain software.
+
+31
+00:02:13,523 --> 00:02:17,579
+Each Griffin call removes about 6.6 million cycles.
+
+32
+00:02:17,629 --> 00:02:23,835
+It adds 14 rows of 3819 columns, about 53 thousand cells.
+
+33
+00:02:23,885 --> 00:02:26,378
+The precompile pays by a wide margin.
+
+34
+00:02:27,278 --> 00:02:29,255
+Now check it against SHA-3.
+
+35
+00:02:29,305 --> 00:02:32,474
+The Griffin arm runs 13 percent more cycles.
+
+36
+00:02:32,524 --> 00:02:37,355
+It also commits 56 million chip cells that the control never pays.
+
+37
+00:02:38,255 --> 00:02:42,787
+Both terms are larger, so the Griffin arm loses for any cost per cell.
+
+38
+00:02:42,837 --> 00:02:45,279
+One inequality gives both outcomes.
+
+39
+00:02:46,479 --> 00:02:48,945
+Could we simply count cycles instead?
+
+40
+00:02:48,995 --> 00:02:51,739
+A second primitive in PLUM shows why not.
+
+41
+00:02:51,789 --> 00:02:53,645
+It is the power-residue symbol.
+
+42
+00:02:54,545 --> 00:02:58,811
+A dedicated chip for it runs in 365 cycles.
+
+43
+00:02:58,861 --> 00:03:03,028
+The software loop takes 6549.
+
+44
+00:03:03,078 --> 00:03:07,190
+By cycles, the chip looks 17.9 times cheaper.
+
+45
+00:03:08,090 --> 00:03:13,686
+By trace area, the chip commits 382 multiplication columns per symbol.
+
+46
+00:03:13,736 --> 00:03:16,422
+The loop commits 261.
+
+47
+00:03:16,472 --> 00:03:19,122
+The chip adds area instead of removing it.
+
+48
+00:03:20,022 --> 00:03:22,772
+The two measures point in opposite directions.
+
+49
+00:03:22,822 --> 00:03:26,631
+So the rule must be stated in trace area, not in cycles.
+
+50
+00:03:27,831 --> 00:03:30,209
+Where can removed core area come from?
+
+51
+00:03:30,259 --> 00:03:34,493
+It comes from emulation, from splitting big numbers into limbs.
+
+52
+00:03:35,393 --> 00:03:41,540
+With ℓ limbs, one multiplication costs between ℓ and ℓ² native multiplications.
+
+53
+00:03:41,590 --> 00:03:44,363
+When ℓ is 1, there is nothing to remove.
+
+54
+00:03:45,263 --> 00:03:48,011
+So the rule predicts something we can test.
+
+55
+00:03:48,061 --> 00:03:52,943
+A precompile can only pay for a primitive whose field does not match the prover's.
+
+56
+00:03:52,993 --> 00:03:55,912
+A mismatch is necessary, but not sufficient.
+
+57
+00:03:57,112 --> 00:04:00,917
+We test the necessary direction first, in execute mode.
+
+58
+00:04:00,967 --> 00:04:06,217
+The cost per multiplication should be small at 1 limb and grow with the number of limbs.
+
+59
+00:04:07,117 --> 00:04:11,241
+At 1 limb, a multiplication costs 19 guest cycles.
+
+60
+00:04:11,291 --> 00:04:15,793
+At 7 limbs, it costs 3121.
+
+61
+00:04:15,843 --> 00:04:18,673
+That is a factor of 164.
+
+62
+00:04:19,573 --> 00:04:27,293
+Across 4 widths, 2, 4, 7, and 8 limbs, the cost grows as ℓ to the power 1.30.
+
+63
+00:04:27,343 --> 00:04:29,174
+That lies inside the band.
+
+64
+00:04:30,074 --> 00:04:33,230
+Next, three precompiles over the same field.
+
+65
+00:04:33,280 --> 00:04:36,826
+The Griffin chip is mismatched, and nothing else serves it.
+
+66
+00:04:36,876 --> 00:04:41,917
+It pays, with 56.4 times fewer cycles in execute mode.
+
+67
+00:04:42,817 --> 00:04:45,855
+The field-multiplication chip is mismatched too.
+
+68
+00:04:45,905 --> 00:04:52,578
+But the host already ships a 256-bit multiplication precompile, so it does not pay.
+
+69
+00:04:53,478 --> 00:04:55,899
+The power-residue chip is the open case.
+
+70
+00:04:55,949 --> 00:05:02,055
+A fused chip would pay its control overhead once, instead of 261 times.
+
+71
+00:05:02,105 --> 00:05:06,229
+Whether that wins is an experiment we specify, not one we ran.
+
+72
+00:05:07,129 --> 00:05:09,101
+One more test is still open.
+
+73
+00:05:09,151 --> 00:05:13,824
+The rule forecasts that a matched-field precompile will not pay in a full proof.
+
+74
+00:05:13,874 --> 00:05:16,268
+We state that forecast before the run.
+
+75
+00:05:17,468 --> 00:05:22,110
+So the precompile makes PLUM verification finite to prove on a laptop.
+
+76
+00:05:22,160 --> 00:05:24,532
+Is that enough for an anonymous credential?
+
+77
+00:05:24,582 --> 00:05:25,447
+Not yet.
+
+78
+00:05:26,347 --> 00:05:30,468
+The proof we can afford is a STARK proof, and it is not zero-knowledge.
+
+79
+00:05:30,518 --> 00:05:34,280
+The wraps that add zero-knowledge are Groth16 and PLONK.
+
+80
+00:05:34,330 --> 00:05:37,845
+Both rely on pairings, so neither is post-quantum.
+
+81
+00:05:38,745 --> 00:05:41,573
+The wrap also fails at recursive compression.
+
+82
+00:05:41,623 --> 00:05:45,674
+Our Griffin chip overflows the toolchain's fixed recursion shapes.
+
+83
+00:05:45,724 --> 00:05:49,274
+Regenerating them is a one-time job, not a memory limit.
+
+84
+00:05:50,174 --> 00:05:54,037
+The zkVM's flexibility does not show up in time either.
+
+85
+00:05:54,087 --> 00:05:58,453
+Recompiling the static circuit takes about 0.3 seconds.
+
+86
+00:05:58,503 --> 00:06:02,061
+What differs is how much must be re-audited after a change.
+
+87
+00:06:03,261 --> 00:06:07,857
+All proving times are at the 80-bit level, which is not a deployment level.
+
+88
+00:06:07,907 --> 00:06:11,938
+Each is the mean of 3 runs on one 24 gigabyte laptop.
+
+89
+00:06:12,838 --> 00:06:17,126
+The positive results assume the Griffin circuit's constraints are sound.
+
+90
+00:06:17,176 --> 00:06:18,815
+That assumption is open.
+
+91
+00:06:18,865 --> 00:06:21,460
+The negative results do not depend on it.
+
+92
+00:06:22,360 --> 00:06:24,206
+The practical rule is short.
+
+93
+00:06:24,256 --> 00:06:29,583
+Before building a precompile, compare the core area it removes with the chip area it adds.
+
+94
+00:06:30,483 --> 00:06:32,358
+Three questions remain open.
+
+95
+00:06:32,408 --> 00:06:38,558
+They are the matched-field proof, the fused power-residue chip, and a post-quantum zero-knowledge wrap.
+
+96
+00:06:38,608 --> 00:06:41,903
+The thesis is called, When does a precompile pay?

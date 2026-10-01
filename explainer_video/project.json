@@ -1,0 +1,3 @@
+{"title": "When Does a Precompile Pay?", "voice": "af_heart", "speed": 1.05, "scenefile": "scenes.py", "out": "precompile-pays.mp4",
+ "scenes": [["Case", "a1", "a3"], ["Obvious", "b1", "b7"], ["Rule", "c1", "c6"], ["Cycles", "d1", "d4"],
+            ["Prediction", "e1", "e3"], ["Tests", "f1", "f7"], ["Consequence", "g1", "g4"], ["Scope", "h1", "h4"]]}

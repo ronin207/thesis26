@@ -1,0 +1,172 @@
+[
+ {
+  "id": "a1",
+  "text": "Our prover works in a field of 31 bits. The signature we want to verify, Plum, computes in a prime field of 199 bits.",
+  "cap": "Our prover works in a field of 31 bits. The signature we want to verify, PLUM, computes in a prime field of 199 bits."
+ },
+ {
+  "id": "a2",
+  "text": "Take one multiplication in that big field. A prover built on the big field would do it in one step. That is the cost we would like to pay."
+ },
+ {
+  "id": "a3",
+  "text": "Our prover must split each number into 7 limbs of 30 bits. Schoolbook multiplication then forms 7 times 7, or 49, limb products.",
+  "pad": 0.8
+ },
+ {
+  "id": "b1",
+  "text": "One Plum verification at the 80-bit level calls the Griffin hash 1052 times. Griffin is built from exactly these big-field multiplications.",
+  "cap": "One PLUM verification at the 80-bit level calls the Griffin hash 1052 times. Griffin is built from exactly these big-field multiplications."
+ },
+ {
+  "id": "b2",
+  "text": "Run as plain software, the verification takes 7.08 billion guest cycles. On a 24 gigabyte laptop, the prover runs out of memory after about 1 minute 45 seconds."
+ },
+ {
+  "id": "b3",
+  "text": "The standard fix is a precompile. It is a dedicated circuit for one operation, called from the program like a system call. We built one for the Griffin permutation."
+ },
+ {
+  "id": "b4",
+  "text": "With it, the proof finishes in 14.25 minutes, the mean of 3 runs. So far the story is simple. The precompile makes it faster."
+ },
+ {
+  "id": "b5",
+  "text": "Now swap the hash instead. A control arm uses shah three, computed in ordinary software, with no hash precompile at all.",
+  "cap": "Now swap the hash instead. A control arm uses SHA-3, computed in ordinary software, with no hash precompile at all."
+ },
+ {
+  "id": "b6",
+  "text": "The control finishes in 13.05 minutes. The arm with the precompile is slower, in every run we took."
+ },
+ {
+  "id": "b7",
+  "text": "A precompile removes cycles from the program. But its own circuit still has to be proved, and its rows are not counted as cycles.",
+  "pad": 0.8
+ },
+ {
+  "id": "c1",
+  "text": "The prover commits a table of cells, and its work grows with the number of cells. We call that number the trace area."
+ },
+ {
+  "id": "c2",
+  "text": "A precompile changes two terms. It removes core area, the cells the removed cycles would have used. It adds chip area, the cells of its own circuit."
+ },
+ {
+  "id": "c3",
+  "text": "It pays exactly when the core area removed exceeds the chip area added, each weighted by its cost per cell."
+ },
+ {
+  "id": "c4",
+  "text": "Check it against plain software. Each Griffin call removes about 6.6 million cycles. It adds 14 rows of 3819 columns, about 53 thousand cells. The precompile pays by a wide margin."
+ },
+ {
+  "id": "c5",
+  "text": "Now check it against shah three. The Griffin arm runs 13 percent more cycles. It also commits 56 million chip cells that the control never pays.",
+  "cap": "Now check it against SHA-3. The Griffin arm runs 13 percent more cycles. It also commits 56 million chip cells that the control never pays."
+ },
+ {
+  "id": "c6",
+  "text": "Both terms are larger, so the Griffin arm loses for any cost per cell. One inequality gives both outcomes.",
+  "pad": 0.8
+ },
+ {
+  "id": "d1",
+  "text": "Could we simply count cycles instead? A second primitive in Plum shows why not. It is the power-residue symbol.",
+  "cap": "Could we simply count cycles instead? A second primitive in PLUM shows why not. It is the power-residue symbol."
+ },
+ {
+  "id": "d2",
+  "text": "A dedicated chip for it runs in 365 cycles. The software loop takes 6549. By cycles, the chip looks 17.9 times cheaper."
+ },
+ {
+  "id": "d3",
+  "text": "By trace area, the chip commits 382 multiplication columns per symbol. The loop commits 261. The chip adds area instead of removing it."
+ },
+ {
+  "id": "d4",
+  "text": "The two measures point in opposite directions. So the rule must be stated in trace area, not in cycles.",
+  "pad": 0.8
+ },
+ {
+  "id": "e1",
+  "text": "Where can removed core area come from? It comes from emulation, from splitting big numbers into limbs."
+ },
+ {
+  "id": "e2",
+  "text": "With ell limbs, one multiplication costs between ell and ell squared native multiplications. When ell is 1, there is nothing to remove.",
+  "cap": "With ℓ limbs, one multiplication costs between ℓ and ℓ² native multiplications. When ℓ is 1, there is nothing to remove."
+ },
+ {
+  "id": "e3",
+  "text": "So the rule predicts something we can test. A precompile can only pay for a primitive whose field does not match the prover's. A mismatch is necessary, but not sufficient.",
+  "pad": 0.8
+ },
+ {
+  "id": "f1",
+  "text": "We test the necessary direction first, in execute mode. The cost per multiplication should be small at 1 limb and grow with the number of limbs."
+ },
+ {
+  "id": "f2",
+  "text": "At 1 limb, a multiplication costs 19 guest cycles. At 7 limbs, it costs 3121. That is a factor of 164."
+ },
+ {
+  "id": "f3",
+  "text": "Across 4 widths, 2, 4, 7, and 8 limbs, the cost grows as ell to the power 1.30. That lies inside the band.",
+  "cap": "Across 4 widths, 2, 4, 7, and 8 limbs, the cost grows as ℓ to the power 1.30. That lies inside the band."
+ },
+ {
+  "id": "f4",
+  "text": "Next, three precompiles over the same field. The Griffin chip is mismatched, and nothing else serves it. It pays, with 56.4 times fewer cycles in execute mode."
+ },
+ {
+  "id": "f5",
+  "text": "The field-multiplication chip is mismatched too. But the host already ships a 256-bit multiplication precompile, so it does not pay."
+ },
+ {
+  "id": "f6",
+  "text": "The power-residue chip is the open case. A fused chip would pay its control overhead once, instead of 261 times. Whether that wins is an experiment we specify, not one we ran."
+ },
+ {
+  "id": "f7",
+  "text": "One more test is still open. The rule forecasts that a matched-field precompile will not pay in a full proof. We state that forecast before the run.",
+  "pad": 0.8
+ },
+ {
+  "id": "g1",
+  "text": "So the precompile makes Plum verification finite to prove on a laptop. Is that enough for an anonymous credential? Not yet.",
+  "cap": "So the precompile makes PLUM verification finite to prove on a laptop. Is that enough for an anonymous credential? Not yet."
+ },
+ {
+  "id": "g2",
+  "text": "The proof we can afford is a stark proof, and it is not zero-knowledge. The wraps that add zero-knowledge are Groth 16 and Plonk. Both rely on pairings, so neither is post-quantum.",
+  "cap": "The proof we can afford is a STARK proof, and it is not zero-knowledge. The wraps that add zero-knowledge are Groth16 and PLONK. Both rely on pairings, so neither is post-quantum."
+ },
+ {
+  "id": "g3",
+  "text": "The wrap also fails at recursive compression. Our Griffin chip overflows the toolchain's fixed recursion shapes. Regenerating them is a one-time job, not a memory limit."
+ },
+ {
+  "id": "g4",
+  "text": "The zee kay vee em's flexibility does not show up in time either. Recompiling the static circuit takes about 0.3 seconds. What differs is how much must be re-audited after a change.",
+  "pad": 0.8,
+  "cap": "The zkVM's flexibility does not show up in time either. Recompiling the static circuit takes about 0.3 seconds. What differs is how much must be re-audited after a change."
+ },
+ {
+  "id": "h1",
+  "text": "All proving times are at the 80-bit level, which is not a deployment level. Each is the mean of 3 runs on one 24 gigabyte laptop."
+ },
+ {
+  "id": "h2",
+  "text": "The positive results assume the Griffin circuit's constraints are sound. That assumption is open. The negative results do not depend on it."
+ },
+ {
+  "id": "h3",
+  "text": "The practical rule is short. Before building a precompile, compare the core area it removes with the chip area it adds."
+ },
+ {
+  "id": "h4",
+  "text": "Three questions remain open. They are the matched-field proof, the fused power-residue chip, and a post-quantum zero-knowledge wrap. The thesis is called, When does a precompile pay?",
+  "pad": 2.0
+ }
+]

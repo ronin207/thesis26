@@ -1,0 +1,4591 @@
+{
+"a1": {
+"s": 0.5,
+"d": 10.428,
+"audio": 0.85,
+"dur": 9.578,
+"sent": [
+0.85,
+3.871
+],
+"text": [
+"Our prover works in a field of 31 bits.",
+"The signature we want to verify, Plum, computes in a prime field of 199 bits."
+],
+"cap": [
+"Our prover works in a field of 31 bits.",
+"The signature we want to verify, PLUM, computes in a prime field of 199 bits."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_a1_ddab99dc3e.wav",
+"words": [
+{
+"w": "Our",
+"t": 0.85
+},
+{
+"w": "prover",
+"t": 1.191
+},
+{
+"w": "works",
+"t": 1.549
+},
+{
+"w": "in",
+"t": 1.95
+},
+{
+"w": "a",
+"t": 2.166
+},
+{
+"w": "field",
+"t": 2.303
+},
+{
+"w": "of",
+"t": 2.482
+},
+{
+"w": "31",
+"t": 2.6
+},
+{
+"w": "bits.",
+"t": 3.257
+},
+{
+"w": "The",
+"t": 3.871
+},
+{
+"w": "signature",
+"t": 4.17
+},
+{
+"w": "we",
+"t": 4.658
+},
+{
+"w": "want",
+"t": 4.803
+},
+{
+"w": "to",
+"t": 5.19
+},
+{
+"w": "verify,",
+"t": 5.387
+},
+{
+"w": "Plum,",
+"t": 5.849
+},
+{
+"w": "computes",
+"t": 6.511
+},
+{
+"w": "in",
+"t": 7.373
+},
+{
+"w": "a",
+"t": 7.602
+},
+{
+"w": "prime",
+"t": 7.74
+},
+{
+"w": "field",
+"t": 7.946
+},
+{
+"w": "of",
+"t": 8.304
+},
+{
+"w": "199",
+"t": 8.422
+},
+{
+"w": "bits.",
+"t": 9.825
+}
+]
+},
+"a2": {
+"s": 10.928,
+"d": 9.449,
+"audio": 11.278,
+"dur": 8.599,
+"sent": [
+11.278,
+14.204,
+17.562
+],
+"text": [
+"Take one multiplication in that big field.",
+"A prover built on the big field would do it in one step.",
+"That is the cost we would like to pay."
+],
+"cap": [
+"Take one multiplication in that big field.",
+"A prover built on the big field would do it in one step.",
+"That is the cost we would like to pay."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_a2_7a670fb972.wav",
+"words": [
+{
+"w": "Take",
+"t": 11.278
+},
+{
+"w": "one",
+"t": 11.69
+},
+{
+"w": "multiplication",
+"t": 11.922
+},
+{
+"w": "in",
+"t": 12.875
+},
+{
+"w": "that",
+"t": 13.135
+},
+{
+"w": "big",
+"t": 13.313
+},
+{
+"w": "field.",
+"t": 13.529
+},
+{
+"w": "A",
+"t": 14.204
+},
+{
+"w": "prover",
+"t": 14.507
+},
+{
+"w": "built",
+"t": 14.769
+},
+{
+"w": "on",
+"t": 15.157
+},
+{
+"w": "the",
+"t": 15.388
+},
+{
+"w": "big",
+"t": 15.376
+},
+{
+"w": "field",
+"t": 15.683
+},
+{
+"w": "would",
+"t": 16.057
+},
+{
+"w": "do",
+"t": 16.304
+},
+{
+"w": "it",
+"t": 16.474
+},
+{
+"w": "in",
+"t": 16.557
+},
+{
+"w": "one",
+"t": 16.798
+},
+{
+"w": "step.",
+"t": 16.851
+},
+{
+"w": "That",
+"t": 17.562
+},
+{
+"w": "is",
+"t": 17.974
+},
+{
+"w": "the",
+"t": 18.145
+},
+{
+"w": "cost",
+"t": 18.231
+},
+{
+"w": "we",
+"t": 18.505
+},
+{
+"w": "would",
+"t": 18.672
+},
+{
+"w": "like",
+"t": 18.953
+},
+{
+"w": "to",
+"t": 19.139
+},
+{
+"w": "pay.",
+"t": 19.338
+}
+]
+},
+"a3": {
+"s": 20.377,
+"d": 11.549,
+"audio": 20.727,
+"dur": 10.399,
+"sent": [
+20.727,
+24.924
+],
+"text": [
+"Our prover must split each number into 7 limbs of 30 bits.",
+"Schoolbook multiplication then forms 7 times 7, or 49, limb products."
+],
+"cap": [
+"Our prover must split each number into 7 limbs of 30 bits.",
+"Schoolbook multiplication then forms 7 times 7, or 49, limb products."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_a3_74dd0b369e.wav",
+"words": [
+{
+"w": "Our",
+"t": 20.727
+},
+{
+"w": "prover",
+"t": 21.068
+},
+{
+"w": "must",
+"t": 21.426
+},
+{
+"w": "split",
+"t": 21.724
+},
+{
+"w": "each",
+"t": 22.096
+},
+{
+"w": "number",
+"t": 22.324
+},
+{
+"w": "into",
+"t": 22.779
+},
+{
+"w": "7",
+"t": 23.048
+},
+{
+"w": "limbs",
+"t": 23.424
+},
+{
+"w": "of",
+"t": 23.859
+},
+{
+"w": "30",
+"t": 23.918
+},
+{
+"w": "bits.",
+"t": 24.25
+},
+{
+"w": "Schoolbook",
+"t": 24.924
+},
+{
+"w": "multiplication",
+"t": 25.536
+},
+{
+"w": "then",
+"t": 26.446
+},
+{
+"w": "forms",
+"t": 26.824
+},
+{
+"w": "7",
+"t": 27.3
+},
+{
+"w": "times",
+"t": 27.663
+},
+{
+"w": "7,",
+"t": 28.184
+},
+{
+"w": "or",
+"t": 28.535
+},
+{
+"w": "49,",
+"t": 29.03
+},
+{
+"w": "limb",
+"t": 29.655
+},
+{
+"w": "products.",
+"t": 30.25
+}
+]
+},
+"b1": {
+"s": 31.926,
+"d": 10.947,
+"audio": 32.276,
+"dur": 10.097,
+"sent": [
+32.276,
+38.391
+],
+"text": [
+"One Plum verification at the 80-bit level calls the Griffin hash 1052 times.",
+"Griffin is built from exactly these big-field multiplications."
+],
+"cap": [
+"One PLUM verification at the 80-bit level calls the Griffin hash 1052 times.",
+"Griffin is built from exactly these big-field multiplications."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_b1_3a9b6d30a1.wav",
+"words": [
+{
+"w": "One",
+"t": 32.276
+},
+{
+"w": "Plum",
+"t": 32.689
+},
+{
+"w": "verification",
+"t": 33.031
+},
+{
+"w": "at",
+"t": 33.837
+},
+{
+"w": "the",
+"t": 33.966
+},
+{
+"w": "80-bit",
+"t": 34.09
+},
+{
+"w": "level",
+"t": 34.623
+},
+{
+"w": "calls",
+"t": 34.962
+},
+{
+"w": "the",
+"t": 35.351
+},
+{
+"w": "Griffin",
+"t": 35.494
+},
+{
+"w": "hash",
+"t": 35.86
+},
+{
+"w": "1052",
+"t": 36.221
+},
+{
+"w": "times.",
+"t": 37.643
+},
+{
+"w": "Griffin",
+"t": 38.391
+},
+{
+"w": "is",
+"t": 38.845
+},
+{
+"w": "built",
+"t": 38.972
+},
+{
+"w": "from",
+"t": 39.348
+},
+{
+"w": "exactly",
+"t": 39.592
+},
+{
+"w": "these",
+"t": 40.173
+},
+{
+"w": "big-field",
+"t": 40.573
+},
+{
+"w": "multiplications.",
+"t": 41.069
+}
+]
+},
+"b2": {
+"s": 42.873,
+"d": 13.437,
+"audio": 43.223,
+"dur": 12.587,
+"sent": [
+43.223,
+49.124
+],
+"text": [
+"Run as plain software, the verification takes 7.08 billion guest cycles.",
+"On a 24 gigabyte laptop, the prover runs out of memory after about 1 minute 45 seconds."
+],
+"cap": [
+"Run as plain software, the verification takes 7.08 billion guest cycles.",
+"On a 24 gigabyte laptop, the prover runs out of memory after about 1 minute 45 seconds."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_b2_fd1610d444.wav",
+"words": [
+{
+"w": "Run",
+"t": 43.223
+},
+{
+"w": "as",
+"t": 43.635
+},
+{
+"w": "plain",
+"t": 43.71
+},
+{
+"w": "software,",
+"t": 44.118
+},
+{
+"w": "the",
+"t": 44.639
+},
+{
+"w": "verification",
+"t": 45.114
+},
+{
+"w": "takes",
+"t": 45.866
+},
+{
+"w": "7.08",
+"t": 46.301
+},
+{
+"w": "billion",
+"t": 47.602
+},
+{
+"w": "guest",
+"t": 47.974
+},
+{
+"w": "cycles.",
+"t": 48.327
+},
+{
+"w": "On",
+"t": 49.124
+},
+{
+"w": "a",
+"t": 49.495
+},
+{
+"w": "24",
+"t": 49.634
+},
+{
+"w": "gigabyte",
+"t": 50.214
+},
+{
+"w": "laptop,",
+"t": 50.677
+},
+{
+"w": "the",
+"t": 51.236
+},
+{
+"w": "prover",
+"t": 51.71
+},
+{
+"w": "runs",
+"t": 52.032
+},
+{
+"w": "out",
+"t": 52.405
+},
+{
+"w": "of",
+"t": 52.596
+},
+{
+"w": "memory",
+"t": 52.627
+},
+{
+"w": "after",
+"t": 52.978
+},
+{
+"w": "about",
+"t": 53.344
+},
+{
+"w": "1",
+"t": 53.747
+},
+{
+"w": "minute",
+"t": 54.002
+},
+{
+"w": "45",
+"t": 54.247
+},
+{
+"w": "seconds.",
+"t": 55.055
+}
+]
+},
+"b3": {
+"s": 56.31,
+"d": 11.424,
+"audio": 56.66,
+"dur": 10.574,
+"sent": [
+56.66,
+59.044,
+64.635
+],
+"text": [
+"The standard fix is a precompile.",
+"It is a dedicated circuit for one operation, called from the program like a system call.",
+"We built one for the Griffin permutation."
+],
+"cap": [
+"The standard fix is a precompile.",
+"It is a dedicated circuit for one operation, called from the program like a system call.",
+"We built one for the Griffin permutation."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_b3_d39299398c.wav",
+"words": [
+{
+"w": "The",
+"t": 56.66
+},
+{
+"w": "standard",
+"t": 56.958
+},
+{
+"w": "fix",
+"t": 57.446
+},
+{
+"w": "is",
+"t": 57.825
+},
+{
+"w": "a",
+"t": 57.95
+},
+{
+"w": "precompile.",
+"t": 58.212
+},
+{
+"w": "It",
+"t": 59.044
+},
+{
+"w": "is",
+"t": 59.31
+},
+{
+"w": "a",
+"t": 59.54
+},
+{
+"w": "dedicated",
+"t": 59.622
+},
+{
+"w": "circuit",
+"t": 60.085
+},
+{
+"w": "for",
+"t": 60.555
+},
+{
+"w": "one",
+"t": 60.799
+},
+{
+"w": "operation,",
+"t": 61.125
+},
+{
+"w": "called",
+"t": 61.654
+},
+{
+"w": "from",
+"t": 62.333
+},
+{
+"w": "the",
+"t": 62.607
+},
+{
+"w": "program",
+"t": 62.696
+},
+{
+"w": "like",
+"t": 63.204
+},
+{
+"w": "a",
+"t": 63.493
+},
+{
+"w": "system",
+"t": 63.697
+},
+{
+"w": "call.",
+"t": 64.006
+},
+{
+"w": "We",
+"t": 64.635
+},
+{
+"w": "built",
+"t": 64.986
+},
+{
+"w": "one",
+"t": 65.258
+},
+{
+"w": "for",
+"t": 65.463
+},
+{
+"w": "the",
+"t": 65.738
+},
+{
+"w": "Griffin",
+"t": 65.787
+},
+{
+"w": "permutation.",
+"t": 66.162
+}
+]
+},
+"b4": {
+"s": 67.734,
+"d": 10.285,
+"audio": 68.084,
+"dur": 9.435,
+"sent": [
+68.084,
+73.358,
+75.324
+],
+"text": [
+"With it, the proof finishes in 14.25 minutes, the mean of 3 runs.",
+"So far the story is simple.",
+"The precompile makes it faster."
+],
+"cap": [
+"With it, the proof finishes in 14.25 minutes, the mean of 3 runs.",
+"So far the story is simple.",
+"The precompile makes it faster."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_b4_311264a264.wav",
+"words": [
+{
+"w": "With",
+"t": 68.084
+},
+{
+"w": "it,",
+"t": 68.508
+},
+{
+"w": "the",
+"t": 68.562
+},
+{
+"w": "proof",
+"t": 69.035
+},
+{
+"w": "finishes",
+"t": 69.316
+},
+{
+"w": "in",
+"t": 69.805
+},
+{
+"w": "14.25",
+"t": 70.072
+},
+{
+"w": "minutes,",
+"t": 71.351
+},
+{
+"w": "the",
+"t": 71.689
+},
+{
+"w": "mean",
+"t": 72.163
+},
+{
+"w": "of",
+"t": 72.404
+},
+{
+"w": "3",
+"t": 72.453
+},
+{
+"w": "runs.",
+"t": 72.718
+},
+{
+"w": "So",
+"t": 73.358
+},
+{
+"w": "far",
+"t": 73.765
+},
+{
+"w": "the",
+"t": 73.994
+},
+{
+"w": "story",
+"t": 74.103
+},
+{
+"w": "is",
+"t": 74.482
+},
+{
+"w": "simple.",
+"t": 74.624
+},
+{
+"w": "The",
+"t": 75.324
+},
+{
+"w": "precompile",
+"t": 75.622
+},
+{
+"w": "makes",
+"t": 76.298
+},
+{
+"w": "it",
+"t": 76.686
+},
+{
+"w": "faster.",
+"t": 76.814
+}
+]
+},
+"b5": {
+"s": 78.019,
+"d": 9.103,
+"audio": 78.369,
+"dur": 8.253,
+"sent": [
+78.369,
+80.283
+],
+"text": [
+"Now swap the hash instead.",
+"A control arm uses shah three, computed in ordinary software, with no hash precompile at all."
+],
+"cap": [
+"Now swap the hash instead.",
+"A control arm uses SHA-3, computed in ordinary software, with no hash precompile at all."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_b5_8e9d29bd09.wav",
+"words": [
+{
+"w": "Now",
+"t": 78.369
+},
+{
+"w": "swap",
+"t": 78.791
+},
+{
+"w": "the",
+"t": 79.104
+},
+{
+"w": "hash",
+"t": 79.249
+},
+{
+"w": "instead.",
+"t": 79.552
+},
+{
+"w": "A",
+"t": 80.283
+},
+{
+"w": "control",
+"t": 80.586
+},
+{
+"w": "arm",
+"t": 81.041
+},
+{
+"w": "uses",
+"t": 81.355
+},
+{
+"w": "shah",
+"t": 81.659
+},
+{
+"w": "three,",
+"t": 81.997
+},
+{
+"w": "computed",
+"t": 82.226
+},
+{
+"w": "in",
+"t": 83.09
+},
+{
+"w": "ordinary",
+"t": 83.344
+},
+{
+"w": "software,",
+"t": 83.709
+},
+{
+"w": "with",
+"t": 84.27
+},
+{
+"w": "no",
+"t": 84.87
+},
+{
+"w": "hash",
+"t": 85.005
+},
+{
+"w": "precompile",
+"t": 85.245
+},
+{
+"w": "at",
+"t": 85.982
+},
+{
+"w": "all.",
+"t": 86.134
+}
+]
+},
+"b6": {
+"s": 87.122,
+"d": 8.117,
+"audio": 87.472,
+"dur": 7.267,
+"sent": [
+87.472,
+91.046
+],
+"text": [
+"The control finishes in 13.05 minutes.",
+"The arm with the precompile is slower, in every run we took."
+],
+"cap": [
+"The control finishes in 13.05 minutes.",
+"The arm with the precompile is slower, in every run we took."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_b6_218aaae301.wav",
+"words": [
+{
+"w": "The",
+"t": 87.472
+},
+{
+"w": "control",
+"t": 87.77
+},
+{
+"w": "finishes",
+"t": 88.278
+},
+{
+"w": "in",
+"t": 88.786
+},
+{
+"w": "13.05",
+"t": 89.053
+},
+{
+"w": "minutes.",
+"t": 90.432
+},
+{
+"w": "The",
+"t": 91.046
+},
+{
+"w": "arm",
+"t": 91.344
+},
+{
+"w": "with",
+"t": 91.624
+},
+{
+"w": "the",
+"t": 91.782
+},
+{
+"w": "precompile",
+"t": 91.867
+},
+{
+"w": "is",
+"t": 92.61
+},
+{
+"w": "slower,",
+"t": 92.759
+},
+{
+"w": "in",
+"t": 93.103
+},
+{
+"w": "every",
+"t": 93.593
+},
+{
+"w": "run",
+"t": 93.851
+},
+{
+"w": "we",
+"t": 94.097
+},
+{
+"w": "took.",
+"t": 94.215
+}
+]
+},
+"b7": {
+"s": 95.239,
+"d": 9.484,
+"audio": 95.589,
+"dur": 8.334,
+"sent": [
+95.589,
+98.629
+],
+"text": [
+"A precompile removes cycles from the program.",
+"But its own circuit still has to be proved, and its rows are not counted as cycles."
+],
+"cap": [
+"A precompile removes cycles from the program.",
+"But its own circuit still has to be proved, and its rows are not counted as cycles."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_b7_bfc6468fb0.wav",
+"words": [
+{
+"w": "A",
+"t": 95.589
+},
+{
+"w": "precompile",
+"t": 95.892
+},
+{
+"w": "removes",
+"t": 96.506
+},
+{
+"w": "cycles",
+"t": 96.989
+},
+{
+"w": "from",
+"t": 97.474
+},
+{
+"w": "the",
+"t": 97.714
+},
+{
+"w": "program.",
+"t": 97.837
+},
+{
+"w": "But",
+"t": 98.629
+},
+{
+"w": "its",
+"t": 98.963
+},
+{
+"w": "own",
+"t": 99.201
+},
+{
+"w": "circuit",
+"t": 99.48
+},
+{
+"w": "still",
+"t": 99.88
+},
+{
+"w": "has",
+"t": 100.259
+},
+{
+"w": "to",
+"t": 100.646
+},
+{
+"w": "be",
+"t": 100.784
+},
+{
+"w": "proved,",
+"t": 100.915
+},
+{
+"w": "and",
+"t": 101.165
+},
+{
+"w": "its",
+"t": 101.731
+},
+{
+"w": "rows",
+"t": 101.904
+},
+{
+"w": "are",
+"t": 102.202
+},
+{
+"w": "not",
+"t": 102.271
+},
+{
+"w": "counted",
+"t": 102.54
+},
+{
+"w": "as",
+"t": 103.01
+},
+{
+"w": "cycles.",
+"t": 103.154
+}
+]
+},
+"c1": {
+"s": 104.723,
+"d": 8.014,
+"audio": 105.073,
+"dur": 7.164,
+"sent": [
+105.073,
+109.973
+],
+"text": [
+"The prover commits a table of cells, and its work grows with the number of cells.",
+"We call that number the trace area."
+],
+"cap": [
+"The prover commits a table of cells, and its work grows with the number of cells.",
+"We call that number the trace area."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_c1_b0220222ee.wav",
+"words": [
+{
+"w": "The",
+"t": 105.073
+},
+{
+"w": "prover",
+"t": 105.371
+},
+{
+"w": "commits",
+"t": 105.694
+},
+{
+"w": "a",
+"t": 106.159
+},
+{
+"w": "table",
+"t": 106.357
+},
+{
+"w": "of",
+"t": 106.608
+},
+{
+"w": "cells,",
+"t": 106.717
+},
+{
+"w": "and",
+"t": 107.14
+},
+{
+"w": "its",
+"t": 107.705
+},
+{
+"w": "work",
+"t": 107.878
+},
+{
+"w": "grows",
+"t": 108.127
+},
+{
+"w": "with",
+"t": 108.542
+},
+{
+"w": "the",
+"t": 108.685
+},
+{
+"w": "number",
+"t": 108.771
+},
+{
+"w": "of",
+"t": 109.174
+},
+{
+"w": "cells.",
+"t": 109.297
+},
+{
+"w": "We",
+"t": 109.973
+},
+{
+"w": "call",
+"t": 110.324
+},
+{
+"w": "that",
+"t": 110.515
+},
+{
+"w": "number",
+"t": 110.833
+},
+{
+"w": "the",
+"t": 111.188
+},
+{
+"w": "trace",
+"t": 111.301
+},
+{
+"w": "area.",
+"t": 111.677
+}
+]
+},
+"c2": {
+"s": 112.737,
+"d": 10.733,
+"audio": 113.087,
+"dur": 9.883,
+"sent": [
+113.087,
+115.505,
+119.7
+],
+"text": [
+"A precompile changes two terms.",
+"It removes core area, the cells the removed cycles would have used.",
+"It adds chip area, the cells of its own circuit."
+],
+"cap": [
+"A precompile changes two terms.",
+"It removes core area, the cells the removed cycles would have used.",
+"It adds chip area, the cells of its own circuit."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_c2_9de17a49a1.wav",
+"words": [
+{
+"w": "A",
+"t": 113.087
+},
+{
+"w": "precompile",
+"t": 113.39
+},
+{
+"w": "changes",
+"t": 114.004
+},
+{
+"w": "two",
+"t": 114.527
+},
+{
+"w": "terms.",
+"t": 114.765
+},
+{
+"w": "It",
+"t": 115.505
+},
+{
+"w": "removes",
+"t": 115.771
+},
+{
+"w": "core",
+"t": 116.236
+},
+{
+"w": "area,",
+"t": 116.556
+},
+{
+"w": "the",
+"t": 116.826
+},
+{
+"w": "cells",
+"t": 117.302
+},
+{
+"w": "the",
+"t": 117.63
+},
+{
+"w": "removed",
+"t": 117.762
+},
+{
+"w": "cycles",
+"t": 118.201
+},
+{
+"w": "would",
+"t": 118.704
+},
+{
+"w": "have",
+"t": 118.967
+},
+{
+"w": "used.",
+"t": 119.175
+},
+{
+"w": "It",
+"t": 119.7
+},
+{
+"w": "adds",
+"t": 119.966
+},
+{
+"w": "chip",
+"t": 120.27
+},
+{
+"w": "area,",
+"t": 120.575
+},
+{
+"w": "the",
+"t": 120.859
+},
+{
+"w": "cells",
+"t": 121.334
+},
+{
+"w": "of",
+"t": 121.662
+},
+{
+"w": "its",
+"t": 121.778
+},
+{
+"w": "own",
+"t": 121.997
+},
+{
+"w": "circuit.",
+"t": 122.283
+}
+]
+},
+"c3": {
+"s": 123.47,
+"d": 7.507,
+"audio": 123.82,
+"dur": 6.657,
+"sent": [
+123.82
+],
+"text": [
+"It pays exactly when the core area removed exceeds the chip area added, each weighted by its cost per cell."
+],
+"cap": [
+"It pays exactly when the core area removed exceeds the chip area added, each weighted by its cost per cell."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_c3_129021024f.wav",
+"words": [
+{
+"w": "It",
+"t": 123.82
+},
+{
+"w": "pays",
+"t": 124.086
+},
+{
+"w": "exactly",
+"t": 124.475
+},
+{
+"w": "when",
+"t": 125.03
+},
+{
+"w": "the",
+"t": 125.377
+},
+{
+"w": "core",
+"t": 125.491
+},
+{
+"w": "area",
+"t": 125.68
+},
+{
+"w": "removed",
+"t": 125.959
+},
+{
+"w": "exceeds",
+"t": 126.409
+},
+{
+"w": "the",
+"t": 126.916
+},
+{
+"w": "chip",
+"t": 127.048
+},
+{
+"w": "area",
+"t": 127.372
+},
+{
+"w": "added,",
+"t": 127.669
+},
+{
+"w": "each",
+"t": 127.993
+},
+{
+"w": "weighted",
+"t": 128.512
+},
+{
+"w": "by",
+"t": 128.93
+},
+{
+"w": "its",
+"t": 129.243
+},
+{
+"w": "cost",
+"t": 129.327
+},
+{
+"w": "per",
+"t": 129.662
+},
+{
+"w": "cell.",
+"t": 129.864
+}
+]
+},
+"c4": {
+"s": 130.977,
+"d": 15.951,
+"audio": 131.327,
+"dur": 15.101,
+"sent": [
+131.327,
+133.523,
+137.629,
+143.885
+],
+"text": [
+"Check it against plain software.",
+"Each Griffin call removes about 6.6 million cycles.",
+"It adds 14 rows of 3819 columns, about 53 thousand cells.",
+"The precompile pays by a wide margin."
+],
+"cap": [
+"Check it against plain software.",
+"Each Griffin call removes about 6.6 million cycles.",
+"It adds 14 rows of 3819 columns, about 53 thousand cells.",
+"The precompile pays by a wide margin."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_c4_3bfb3906ed.wav",
+"words": [
+{
+"w": "Check",
+"t": 131.327
+},
+{
+"w": "it",
+"t": 131.738
+},
+{
+"w": "against",
+"t": 131.883
+},
+{
+"w": "plain",
+"t": 132.331
+},
+{
+"w": "software.",
+"t": 132.741
+},
+{
+"w": "Each",
+"t": 133.523
+},
+{
+"w": "Griffin",
+"t": 133.863
+},
+{
+"w": "call",
+"t": 134.268
+},
+{
+"w": "removes",
+"t": 134.61
+},
+{
+"w": "about",
+"t": 135.129
+},
+{
+"w": "6.6",
+"t": 135.477
+},
+{
+"w": "million",
+"t": 136.49
+},
+{
+"w": "cycles.",
+"t": 136.817
+},
+{
+"w": "It",
+"t": 137.629
+},
+{
+"w": "adds",
+"t": 137.895
+},
+{
+"w": "14",
+"t": 138.199
+},
+{
+"w": "rows",
+"t": 138.675
+},
+{
+"w": "of",
+"t": 139.012
+},
+{
+"w": "3819",
+"t": 139.083
+},
+{
+"w": "columns,",
+"t": 140.924
+},
+{
+"w": "about",
+"t": 141.423
+},
+{
+"w": "53",
+"t": 142.088
+},
+{
+"w": "thousand",
+"t": 142.722
+},
+{
+"w": "cells.",
+"t": 143.18
+},
+{
+"w": "The",
+"t": 143.885
+},
+{
+"w": "precompile",
+"t": 144.184
+},
+{
+"w": "pays",
+"t": 144.86
+},
+{
+"w": "by",
+"t": 145.222
+},
+{
+"w": "a",
+"t": 145.479
+},
+{
+"w": "wide",
+"t": 145.533
+},
+{
+"w": "margin.",
+"t": 145.747
+}
+]
+},
+"c5": {
+"s": 146.928,
+"d": 10.977,
+"audio": 147.278,
+"dur": 10.127,
+"sent": [
+147.278,
+149.305,
+152.524
+],
+"text": [
+"Now check it against shah three.",
+"The Griffin arm runs 13 percent more cycles.",
+"It also commits 56 million chip cells that the control never pays."
+],
+"cap": [
+"Now check it against SHA-3.",
+"The Griffin arm runs 13 percent more cycles.",
+"It also commits 56 million chip cells that the control never pays."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_c5_343373b422.wav",
+"words": [
+{
+"w": "Now",
+"t": 147.278
+},
+{
+"w": "check",
+"t": 147.7
+},
+{
+"w": "it",
+"t": 147.898
+},
+{
+"w": "against",
+"t": 148.044
+},
+{
+"w": "shah",
+"t": 148.491
+},
+{
+"w": "three.",
+"t": 148.8
+},
+{
+"w": "The",
+"t": 149.305
+},
+{
+"w": "Griffin",
+"t": 149.604
+},
+{
+"w": "arm",
+"t": 149.915
+},
+{
+"w": "runs",
+"t": 150.285
+},
+{
+"w": "13",
+"t": 150.565
+},
+{
+"w": "percent",
+"t": 151.0
+},
+{
+"w": "more",
+"t": 151.505
+},
+{
+"w": "cycles.",
+"t": 151.816
+},
+{
+"w": "It",
+"t": 152.524
+},
+{
+"w": "also",
+"t": 152.79
+},
+{
+"w": "commits",
+"t": 153.151
+},
+{
+"w": "56",
+"t": 153.594
+},
+{
+"w": "million",
+"t": 154.379
+},
+{
+"w": "chip",
+"t": 154.705
+},
+{
+"w": "cells",
+"t": 155.047
+},
+{
+"w": "that",
+"t": 155.488
+},
+{
+"w": "the",
+"t": 155.793
+},
+{
+"w": "control",
+"t": 155.814
+},
+{
+"w": "never",
+"t": 156.412
+},
+{
+"w": "pays.",
+"t": 156.763
+}
+]
+},
+"c6": {
+"s": 157.905,
+"d": 8.224,
+"audio": 158.255,
+"dur": 7.074,
+"sent": [
+158.255,
+162.837
+],
+"text": [
+"Both terms are larger, so the Griffin arm loses for any cost per cell.",
+"One inequality gives both outcomes."
+],
+"cap": [
+"Both terms are larger, so the Griffin arm loses for any cost per cell.",
+"One inequality gives both outcomes."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_c6_5394ed20af.wav",
+"words": [
+{
+"w": "Both",
+"t": 158.255
+},
+{
+"w": "terms",
+"t": 158.631
+},
+{
+"w": "are",
+"t": 159.104
+},
+{
+"w": "larger,",
+"t": 159.183
+},
+{
+"w": "so",
+"t": 159.553
+},
+{
+"w": "the",
+"t": 160.135
+},
+{
+"w": "Griffin",
+"t": 160.228
+},
+{
+"w": "arm",
+"t": 160.561
+},
+{
+"w": "loses",
+"t": 160.942
+},
+{
+"w": "for",
+"t": 161.252
+},
+{
+"w": "any",
+"t": 161.469
+},
+{
+"w": "cost",
+"t": 161.686
+},
+{
+"w": "per",
+"t": 162.02
+},
+{
+"w": "cell.",
+"t": 162.222
+},
+{
+"w": "One",
+"t": 162.837
+},
+{
+"w": "inequality",
+"t": 163.25
+},
+{
+"w": "gives",
+"t": 163.808
+},
+{
+"w": "both",
+"t": 164.199
+},
+{
+"w": "outcomes.",
+"t": 164.478
+}
+]
+},
+"d1": {
+"s": 166.129,
+"d": 8.066,
+"audio": 166.479,
+"dur": 7.216,
+"sent": [
+166.479,
+168.995,
+171.789
+],
+"text": [
+"Could we simply count cycles instead?",
+"A second primitive in Plum shows why not.",
+"It is the power-residue symbol."
+],
+"cap": [
+"Could we simply count cycles instead?",
+"A second primitive in PLUM shows why not.",
+"It is the power-residue symbol."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_d1_4488803c81.wav",
+"words": [
+{
+"w": "Could",
+"t": 166.479
+},
+{
+"w": "we",
+"t": 166.847
+},
+{
+"w": "simply",
+"t": 166.967
+},
+{
+"w": "count",
+"t": 167.357
+},
+{
+"w": "cycles",
+"t": 167.76
+},
+{
+"w": "instead?",
+"t": 168.274
+},
+{
+"w": "A",
+"t": 168.995
+},
+{
+"w": "second",
+"t": 169.298
+},
+{
+"w": "primitive",
+"t": 169.606
+},
+{
+"w": "in",
+"t": 170.17
+},
+{
+"w": "Plum",
+"t": 170.45
+},
+{
+"w": "shows",
+"t": 170.699
+},
+{
+"w": "why",
+"t": 171.1
+},
+{
+"w": "not.",
+"t": 171.336
+},
+{
+"w": "It",
+"t": 171.789
+},
+{
+"w": "is",
+"t": 172.056
+},
+{
+"w": "the",
+"t": 172.285
+},
+{
+"w": "power-residue",
+"t": 172.338
+},
+{
+"w": "symbol.",
+"t": 173.001
+}
+]
+},
+"d2": {
+"s": 174.195,
+"d": 13.545,
+"audio": 174.545,
+"dur": 12.695,
+"sent": [
+174.545,
+178.861,
+183.078
+],
+"text": [
+"A dedicated chip for it runs in 365 cycles.",
+"The software loop takes 6549.",
+"By cycles, the chip looks 17.9 times cheaper."
+],
+"cap": [
+"A dedicated chip for it runs in 365 cycles.",
+"The software loop takes 6549.",
+"By cycles, the chip looks 17.9 times cheaper."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_d2_c31fc27c85.wav",
+"words": [
+{
+"w": "A",
+"t": 174.545
+},
+{
+"w": "dedicated",
+"t": 174.848
+},
+{
+"w": "chip",
+"t": 175.367
+},
+{
+"w": "for",
+"t": 175.698
+},
+{
+"w": "it",
+"t": 175.924
+},
+{
+"w": "runs",
+"t": 176.066
+},
+{
+"w": "in",
+"t": 176.495
+},
+{
+"w": "365",
+"t": 176.681
+},
+{
+"w": "cycles.",
+"t": 178.137
+},
+{
+"w": "The",
+"t": 178.861
+},
+{
+"w": "software",
+"t": 179.16
+},
+{
+"w": "loop",
+"t": 179.647
+},
+{
+"w": "takes",
+"t": 179.953
+},
+{
+"w": "6549.",
+"t": 180.375
+},
+{
+"w": "By",
+"t": 183.078
+},
+{
+"w": "cycles,",
+"t": 183.457
+},
+{
+"w": "the",
+"t": 183.817
+},
+{
+"w": "chip",
+"t": 184.291
+},
+{
+"w": "looks",
+"t": 184.523
+},
+{
+"w": "17.9",
+"t": 184.895
+},
+{
+"w": "times",
+"t": 186.201
+},
+{
+"w": "cheaper.",
+"t": 186.633
+}
+]
+},
+"d3": {
+"s": 187.74,
+"d": 11.932,
+"audio": 188.09,
+"dur": 11.082,
+"sent": [
+188.09,
+193.736,
+196.472
+],
+"text": [
+"By trace area, the chip commits 382 multiplication columns per symbol.",
+"The loop commits 261.",
+"The chip adds area instead of removing it."
+],
+"cap": [
+"By trace area, the chip commits 382 multiplication columns per symbol.",
+"The loop commits 261.",
+"The chip adds area instead of removing it."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_d3_dca75e2bb5.wav",
+"words": [
+{
+"w": "By",
+"t": 188.09
+},
+{
+"w": "trace",
+"t": 188.469
+},
+{
+"w": "area,",
+"t": 188.729
+},
+{
+"w": "the",
+"t": 189.009
+},
+{
+"w": "chip",
+"t": 189.484
+},
+{
+"w": "commits",
+"t": 189.716
+},
+{
+"w": "382",
+"t": 190.24
+},
+{
+"w": "multiplication",
+"t": 191.429
+},
+{
+"w": "columns",
+"t": 192.314
+},
+{
+"w": "per",
+"t": 192.865
+},
+{
+"w": "symbol.",
+"t": 193.011
+},
+{
+"w": "The",
+"t": 193.736
+},
+{
+"w": "loop",
+"t": 194.035
+},
+{
+"w": "commits",
+"t": 194.258
+},
+{
+"w": "261.",
+"t": 194.755
+},
+{
+"w": "The",
+"t": 196.472
+},
+{
+"w": "chip",
+"t": 196.77
+},
+{
+"w": "adds",
+"t": 197.001
+},
+{
+"w": "area",
+"t": 197.318
+},
+{
+"w": "instead",
+"t": 197.607
+},
+{
+"w": "of",
+"t": 198.052
+},
+{
+"w": "removing",
+"t": 198.327
+},
+{
+"w": "it.",
+"t": 198.787
+}
+]
+},
+"d4": {
+"s": 199.672,
+"d": 7.809,
+"audio": 200.022,
+"dur": 6.659,
+"sent": [
+200.022,
+202.822
+],
+"text": [
+"The two measures point in opposite directions.",
+"So the rule must be stated in trace area, not in cycles."
+],
+"cap": [
+"The two measures point in opposite directions.",
+"So the rule must be stated in trace area, not in cycles."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_d4_548f867000.wav",
+"words": [
+{
+"w": "The",
+"t": 200.022
+},
+{
+"w": "two",
+"t": 200.32
+},
+{
+"w": "measures",
+"t": 200.494
+},
+{
+"w": "point",
+"t": 200.892
+},
+{
+"w": "in",
+"t": 201.3
+},
+{
+"w": "opposite",
+"t": 201.514
+},
+{
+"w": "directions.",
+"t": 201.893
+},
+{
+"w": "So",
+"t": 202.822
+},
+{
+"w": "the",
+"t": 203.229
+},
+{
+"w": "rule",
+"t": 203.321
+},
+{
+"w": "must",
+"t": 203.535
+},
+{
+"w": "be",
+"t": 203.83
+},
+{
+"w": "stated",
+"t": 204.101
+},
+{
+"w": "in",
+"t": 204.45
+},
+{
+"w": "trace",
+"t": 204.693
+},
+{
+"w": "area,",
+"t": 204.964
+},
+{
+"w": "not",
+"t": 205.245
+},
+{
+"w": "in",
+"t": 205.825
+},
+{
+"w": "cycles.",
+"t": 205.981
+}
+]
+},
+"e1": {
+"s": 207.481,
+"d": 7.562,
+"audio": 207.831,
+"dur": 6.712,
+"sent": [
+207.831,
+210.259
+],
+"text": [
+"Where can removed core area come from?",
+"It comes from emulation, from splitting big numbers into limbs."
+],
+"cap": [
+"Where can removed core area come from?",
+"It comes from emulation, from splitting big numbers into limbs."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_e1_a1bd56307c.wav",
+"words": [
+{
+"w": "Where",
+"t": 207.831
+},
+{
+"w": "can",
+"t": 208.241
+},
+{
+"w": "removed",
+"t": 208.497
+},
+{
+"w": "core",
+"t": 208.807
+},
+{
+"w": "area",
+"t": 209.132
+},
+{
+"w": "come",
+"t": 209.401
+},
+{
+"w": "from?",
+"t": 209.744
+},
+{
+"w": "It",
+"t": 210.259
+},
+{
+"w": "comes",
+"t": 210.526
+},
+{
+"w": "from",
+"t": 210.992
+},
+{
+"w": "emulation,",
+"t": 211.213
+},
+{
+"w": "from",
+"t": 211.834
+},
+{
+"w": "splitting",
+"t": 212.471
+},
+{
+"w": "big",
+"t": 212.83
+},
+{
+"w": "numbers",
+"t": 213.135
+},
+{
+"w": "into",
+"t": 213.608
+},
+{
+"w": "limbs.",
+"t": 213.862
+}
+]
+},
+"e2": {
+"s": 215.043,
+"d": 9.87,
+"audio": 215.393,
+"dur": 9.02,
+"sent": [
+215.393,
+221.59
+],
+"text": [
+"With ell limbs, one multiplication costs between ell and ell squared native multiplications.",
+"When ell is 1, there is nothing to remove."
+],
+"cap": [
+"With \u2113 limbs, one multiplication costs between \u2113 and \u2113\u00b2 native multiplications.",
+"When \u2113 is 1, there is nothing to remove."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_e2_d8c259b9d9.wav",
+"words": [
+{
+"w": "With",
+"t": 215.393
+},
+{
+"w": "ell",
+"t": 215.817
+},
+{
+"w": "limbs,",
+"t": 215.928
+},
+{
+"w": "one",
+"t": 216.341
+},
+{
+"w": "multiplication",
+"t": 216.928
+},
+{
+"w": "costs",
+"t": 217.782
+},
+{
+"w": "between",
+"t": 218.283
+},
+{
+"w": "ell",
+"t": 218.805
+},
+{
+"w": "and",
+"t": 218.927
+},
+{
+"w": "ell",
+"t": 219.078
+},
+{
+"w": "squared",
+"t": 219.463
+},
+{
+"w": "native",
+"t": 219.936
+},
+{
+"w": "multiplications.",
+"t": 220.297
+},
+{
+"w": "When",
+"t": 221.59
+},
+{
+"w": "ell",
+"t": 222.013
+},
+{
+"w": "is",
+"t": 222.14
+},
+{
+"w": "1,",
+"t": 222.282
+},
+{
+"w": "there",
+"t": 222.566
+},
+{
+"w": "is",
+"t": 223.17
+},
+{
+"w": "nothing",
+"t": 223.291
+},
+{
+"w": "to",
+"t": 223.579
+},
+{
+"w": "remove.",
+"t": 223.74
+}
+]
+},
+"e3": {
+"s": 224.913,
+"d": 11.849,
+"audio": 225.263,
+"dur": 10.699,
+"sent": [
+225.263,
+228.061,
+232.993
+],
+"text": [
+"So the rule predicts something we can test.",
+"A precompile can only pay for a primitive whose field does not match the prover's.",
+"A mismatch is necessary, but not sufficient."
+],
+"cap": [
+"So the rule predicts something we can test.",
+"A precompile can only pay for a primitive whose field does not match the prover's.",
+"A mismatch is necessary, but not sufficient."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_e3_57c4544b88.wav",
+"words": [
+{
+"w": "So",
+"t": 225.263
+},
+{
+"w": "the",
+"t": 225.67
+},
+{
+"w": "rule",
+"t": 225.762
+},
+{
+"w": "predicts",
+"t": 225.976
+},
+{
+"w": "something",
+"t": 226.576
+},
+{
+"w": "we",
+"t": 227.088
+},
+{
+"w": "can",
+"t": 227.214
+},
+{
+"w": "test.",
+"t": 227.574
+},
+{
+"w": "A",
+"t": 228.061
+},
+{
+"w": "precompile",
+"t": 228.364
+},
+{
+"w": "can",
+"t": 228.978
+},
+{
+"w": "only",
+"t": 229.311
+},
+{
+"w": "pay",
+"t": 229.511
+},
+{
+"w": "for",
+"t": 229.754
+},
+{
+"w": "a",
+"t": 229.922
+},
+{
+"w": "primitive",
+"t": 229.921
+},
+{
+"w": "whose",
+"t": 230.485
+},
+{
+"w": "field",
+"t": 230.782
+},
+{
+"w": "does",
+"t": 231.325
+},
+{
+"w": "not",
+"t": 231.645
+},
+{
+"w": "match",
+"t": 231.819
+},
+{
+"w": "the",
+"t": 232.098
+},
+{
+"w": "prover's.",
+"t": 232.241
+},
+{
+"w": "A",
+"t": 232.993
+},
+{
+"w": "mismatch",
+"t": 233.296
+},
+{
+"w": "is",
+"t": 233.663
+},
+{
+"w": "necessary,",
+"t": 233.803
+},
+{
+"w": "but",
+"t": 234.346
+},
+{
+"w": "not",
+"t": 234.857
+},
+{
+"w": "sufficient.",
+"t": 235.136
+}
+]
+},
+"f1": {
+"s": 236.762,
+"d": 10.005,
+"audio": 237.112,
+"dur": 9.155,
+"sent": [
+237.112,
+240.967
+],
+"text": [
+"We test the necessary direction first, in execute mode.",
+"The cost per multiplication should be small at 1 limb and grow with the number of limbs."
+],
+"cap": [
+"We test the necessary direction first, in execute mode.",
+"The cost per multiplication should be small at 1 limb and grow with the number of limbs."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_f1_c991aaee47.wav",
+"words": [
+{
+"w": "We",
+"t": 237.112
+},
+{
+"w": "test",
+"t": 237.463
+},
+{
+"w": "the",
+"t": 237.681
+},
+{
+"w": "necessary",
+"t": 237.824
+},
+{
+"w": "direction",
+"t": 238.417
+},
+{
+"w": "first,",
+"t": 238.929
+},
+{
+"w": "in",
+"t": 239.326
+},
+{
+"w": "execute",
+"t": 239.816
+},
+{
+"w": "mode.",
+"t": 240.319
+},
+{
+"w": "The",
+"t": 240.967
+},
+{
+"w": "cost",
+"t": 241.265
+},
+{
+"w": "per",
+"t": 241.542
+},
+{
+"w": "multiplication",
+"t": 241.745
+},
+{
+"w": "should",
+"t": 242.663
+},
+{
+"w": "be",
+"t": 242.979
+},
+{
+"w": "small",
+"t": 243.223
+},
+{
+"w": "at",
+"t": 243.481
+},
+{
+"w": "1",
+"t": 243.649
+},
+{
+"w": "limb",
+"t": 243.98
+},
+{
+"w": "and",
+"t": 244.214
+},
+{
+"w": "grow",
+"t": 244.268
+},
+{
+"w": "with",
+"t": 244.799
+},
+{
+"w": "the",
+"t": 244.98
+},
+{
+"w": "number",
+"t": 245.053
+},
+{
+"w": "of",
+"t": 245.477
+},
+{
+"w": "limbs.",
+"t": 245.601
+}
+]
+},
+"f2": {
+"s": 246.767,
+"d": 12.456,
+"audio": 247.117,
+"dur": 11.606,
+"sent": [
+247.117,
+251.291,
+255.843
+],
+"text": [
+"At 1 limb, a multiplication costs 19 guest cycles.",
+"At 7 limbs, it costs 3121.",
+"That is a factor of 164."
+],
+"cap": [
+"At 1 limb, a multiplication costs 19 guest cycles.",
+"At 7 limbs, it costs 3121.",
+"That is a factor of 164."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_f2_d075bb6ba4.wav",
+"words": [
+{
+"w": "At",
+"t": 247.117
+},
+{
+"w": "1",
+"t": 247.434
+},
+{
+"w": "limb,",
+"t": 247.725
+},
+{
+"w": "a",
+"t": 247.976
+},
+{
+"w": "multiplication",
+"t": 248.454
+},
+{
+"w": "costs",
+"t": 249.24
+},
+{
+"w": "19",
+"t": 249.729
+},
+{
+"w": "guest",
+"t": 250.2
+},
+{
+"w": "cycles.",
+"t": 250.509
+},
+{
+"w": "At",
+"t": 251.291
+},
+{
+"w": "7",
+"t": 251.608
+},
+{
+"w": "limbs,",
+"t": 251.981
+},
+{
+"w": "it",
+"t": 252.408
+},
+{
+"w": "costs",
+"t": 252.85
+},
+{
+"w": "3121.",
+"t": 253.323
+},
+{
+"w": "That",
+"t": 255.843
+},
+{
+"w": "is",
+"t": 256.255
+},
+{
+"w": "a",
+"t": 256.426
+},
+{
+"w": "factor",
+"t": 256.544
+},
+{
+"w": "of",
+"t": 256.822
+},
+{
+"w": "164.",
+"t": 256.957
+}
+]
+},
+"f3": {
+"s": 259.223,
+"d": 10.501,
+"audio": 259.573,
+"dur": 9.651,
+"sent": [
+259.573,
+267.343
+],
+"text": [
+"Across 4 widths, 2, 4, 7, and 8 limbs, the cost grows as ell to the power 1.30.",
+"That lies inside the band."
+],
+"cap": [
+"Across 4 widths, 2, 4, 7, and 8 limbs, the cost grows as \u2113 to the power 1.30.",
+"That lies inside the band."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_f3_e1e7e6cec1.wav",
+"words": [
+{
+"w": "Across",
+"t": 259.573
+},
+{
+"w": "4",
+"t": 260.112
+},
+{
+"w": "widths,",
+"t": 260.365
+},
+{
+"w": "2,",
+"t": 260.781
+},
+{
+"w": "4,",
+"t": 261.304
+},
+{
+"w": "7,",
+"t": 261.902
+},
+{
+"w": "and",
+"t": 262.578
+},
+{
+"w": "8",
+"t": 263.156
+},
+{
+"w": "limbs,",
+"t": 263.277
+},
+{
+"w": "the",
+"t": 263.714
+},
+{
+"w": "cost",
+"t": 264.23
+},
+{
+"w": "grows",
+"t": 264.507
+},
+{
+"w": "as",
+"t": 264.939
+},
+{
+"w": "ell",
+"t": 265.033
+},
+{
+"w": "to",
+"t": 265.251
+},
+{
+"w": "the",
+"t": 265.423
+},
+{
+"w": "power",
+"t": 265.511
+},
+{
+"w": "1.30.",
+"t": 265.798
+},
+{
+"w": "That",
+"t": 267.343
+},
+{
+"w": "lies",
+"t": 267.755
+},
+{
+"w": "inside",
+"t": 268.058
+},
+{
+"w": "the",
+"t": 268.423
+},
+{
+"w": "band.",
+"t": 268.555
+}
+]
+},
+"f4": {
+"s": 269.724,
+"d": 12.743,
+"audio": 270.074,
+"dur": 11.893,
+"sent": [
+270.074,
+273.28,
+276.876
+],
+"text": [
+"Next, three precompiles over the same field.",
+"The Griffin chip is mismatched, and nothing else serves it.",
+"It pays, with 56.4 times fewer cycles in execute mode."
+],
+"cap": [
+"Next, three precompiles over the same field.",
+"The Griffin chip is mismatched, and nothing else serves it.",
+"It pays, with 56.4 times fewer cycles in execute mode."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_f4_6b77492a11.wav",
+"words": [
+{
+"w": "Next,",
+"t": 270.074
+},
+{
+"w": "three",
+"t": 270.568
+},
+{
+"w": "precompiles",
+"t": 271.113
+},
+{
+"w": "over",
+"t": 271.931
+},
+{
+"w": "the",
+"t": 272.239
+},
+{
+"w": "same",
+"t": 272.352
+},
+{
+"w": "field.",
+"t": 272.623
+},
+{
+"w": "The",
+"t": 273.28
+},
+{
+"w": "Griffin",
+"t": 273.578
+},
+{
+"w": "chip",
+"t": 273.889
+},
+{
+"w": "is",
+"t": 274.221
+},
+{
+"w": "mismatched,",
+"t": 274.331
+},
+{
+"w": "and",
+"t": 274.912
+},
+{
+"w": "nothing",
+"t": 275.477
+},
+{
+"w": "else",
+"t": 275.773
+},
+{
+"w": "serves",
+"t": 276.094
+},
+{
+"w": "it.",
+"t": 276.484
+},
+{
+"w": "It",
+"t": 276.876
+},
+{
+"w": "pays,",
+"t": 277.142
+},
+{
+"w": "with",
+"t": 277.533
+},
+{
+"w": "56.4",
+"t": 278.132
+},
+{
+"w": "times",
+"t": 279.427
+},
+{
+"w": "fewer",
+"t": 279.858
+},
+{
+"w": "cycles",
+"t": 280.117
+},
+{
+"w": "in",
+"t": 280.632
+},
+{
+"w": "execute",
+"t": 280.872
+},
+{
+"w": "mode.",
+"t": 281.318
+}
+]
+},
+"f5": {
+"s": 282.467,
+"d": 10.661,
+"audio": 282.817,
+"dur": 9.811,
+"sent": [
+282.817,
+285.905
+],
+"text": [
+"The field-multiplication chip is mismatched too.",
+"But the host already ships a 256-bit multiplication precompile, so it does not pay."
+],
+"cap": [
+"The field-multiplication chip is mismatched too.",
+"But the host already ships a 256-bit multiplication precompile, so it does not pay."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_f5_59e522d663.wav",
+"words": [
+{
+"w": "The",
+"t": 282.817
+},
+{
+"w": "field-multiplication",
+"t": 283.115
+},
+{
+"w": "chip",
+"t": 284.308
+},
+{
+"w": "is",
+"t": 284.653
+},
+{
+"w": "mismatched",
+"t": 284.764
+},
+{
+"w": "too.",
+"t": 285.347
+},
+{
+"w": "But",
+"t": 285.905
+},
+{
+"w": "the",
+"t": 286.24
+},
+{
+"w": "host",
+"t": 286.37
+},
+{
+"w": "already",
+"t": 286.7
+},
+{
+"w": "ships",
+"t": 287.126
+},
+{
+"w": "a",
+"t": 287.52
+},
+{
+"w": "256-bit",
+"t": 287.73
+},
+{
+"w": "multiplication",
+"t": 289.294
+},
+{
+"w": "precompile,",
+"t": 290.209
+},
+{
+"w": "so",
+"t": 290.998
+},
+{
+"w": "it",
+"t": 291.581
+},
+{
+"w": "does",
+"t": 291.646
+},
+{
+"w": "not",
+"t": 291.966
+},
+{
+"w": "pay.",
+"t": 292.123
+}
+]
+},
+"f6": {
+"s": 293.128,
+"d": 13.651,
+"audio": 293.478,
+"dur": 12.801,
+"sent": [
+293.478,
+295.949,
+302.105
+],
+"text": [
+"The power-residue chip is the open case.",
+"A fused chip would pay its control overhead once, instead of 261 times.",
+"Whether that wins is an experiment we specify, not one we ran."
+],
+"cap": [
+"The power-residue chip is the open case.",
+"A fused chip would pay its control overhead once, instead of 261 times.",
+"Whether that wins is an experiment we specify, not one we ran."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_f6_9517b038b9.wav",
+"words": [
+{
+"w": "The",
+"t": 293.478
+},
+{
+"w": "power-residue",
+"t": 293.776
+},
+{
+"w": "chip",
+"t": 294.443
+},
+{
+"w": "is",
+"t": 294.737
+},
+{
+"w": "the",
+"t": 294.848
+},
+{
+"w": "open",
+"t": 294.958
+},
+{
+"w": "case.",
+"t": 295.323
+},
+{
+"w": "A",
+"t": 295.949
+},
+{
+"w": "fused",
+"t": 296.251
+},
+{
+"w": "chip",
+"t": 296.548
+},
+{
+"w": "would",
+"t": 296.857
+},
+{
+"w": "pay",
+"t": 297.162
+},
+{
+"w": "its",
+"t": 297.371
+},
+{
+"w": "control",
+"t": 297.562
+},
+{
+"w": "overhead",
+"t": 298.14
+},
+{
+"w": "once,",
+"t": 298.681
+},
+{
+"w": "instead",
+"t": 299.057
+},
+{
+"w": "of",
+"t": 299.786
+},
+{
+"w": "261",
+"t": 299.89
+},
+{
+"w": "times.",
+"t": 301.371
+},
+{
+"w": "Whether",
+"t": 302.105
+},
+{
+"w": "that",
+"t": 302.549
+},
+{
+"w": "wins",
+"t": 302.856
+},
+{
+"w": "is",
+"t": 303.213
+},
+{
+"w": "an",
+"t": 303.298
+},
+{
+"w": "experiment",
+"t": 303.387
+},
+{
+"w": "we",
+"t": 303.991
+},
+{
+"w": "specify,",
+"t": 304.154
+},
+{
+"w": "not",
+"t": 304.763
+},
+{
+"w": "one",
+"t": 305.342
+},
+{
+"w": "we",
+"t": 305.615
+},
+{
+"w": "ran.",
+"t": 305.718
+}
+]
+},
+"f7": {
+"s": 306.779,
+"d": 10.339,
+"audio": 307.129,
+"dur": 9.189,
+"sent": [
+307.129,
+309.151,
+313.874
+],
+"text": [
+"One more test is still open.",
+"The rule forecasts that a matched-field precompile will not pay in a full proof.",
+"We state that forecast before the run."
+],
+"cap": [
+"One more test is still open.",
+"The rule forecasts that a matched-field precompile will not pay in a full proof.",
+"We state that forecast before the run."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_f7_4d19161885.wav",
+"words": [
+{
+"w": "One",
+"t": 307.129
+},
+{
+"w": "more",
+"t": 307.542
+},
+{
+"w": "test",
+"t": 307.792
+},
+{
+"w": "is",
+"t": 308.044
+},
+{
+"w": "still",
+"t": 308.206
+},
+{
+"w": "open.",
+"t": 308.543
+},
+{
+"w": "The",
+"t": 309.151
+},
+{
+"w": "rule",
+"t": 309.449
+},
+{
+"w": "forecasts",
+"t": 309.639
+},
+{
+"w": "that",
+"t": 310.285
+},
+{
+"w": "a",
+"t": 310.606
+},
+{
+"w": "matched-field",
+"t": 310.575
+},
+{
+"w": "precompile",
+"t": 311.343
+},
+{
+"w": "will",
+"t": 312.104
+},
+{
+"w": "not",
+"t": 312.405
+},
+{
+"w": "pay",
+"t": 312.61
+},
+{
+"w": "in",
+"t": 312.859
+},
+{
+"w": "a",
+"t": 313.021
+},
+{
+"w": "full",
+"t": 313.166
+},
+{
+"w": "proof.",
+"t": 313.222
+},
+{
+"w": "We",
+"t": 313.874
+},
+{
+"w": "state",
+"t": 314.225
+},
+{
+"w": "that",
+"t": 314.467
+},
+{
+"w": "forecast",
+"t": 314.803
+},
+{
+"w": "before",
+"t": 315.274
+},
+{
+"w": "the",
+"t": 315.752
+},
+{
+"w": "run.",
+"t": 315.856
+}
+]
+},
+"g1": {
+"s": 317.118,
+"d": 8.879,
+"audio": 317.468,
+"dur": 8.029,
+"sent": [
+317.468,
+322.16,
+324.582
+],
+"text": [
+"So the precompile makes Plum verification finite to prove on a laptop.",
+"Is that enough for an anonymous credential?",
+"Not yet."
+],
+"cap": [
+"So the precompile makes PLUM verification finite to prove on a laptop.",
+"Is that enough for an anonymous credential?",
+"Not yet."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_g1_fd15855bf0.wav",
+"words": [
+{
+"w": "So",
+"t": 317.468
+},
+{
+"w": "the",
+"t": 317.875
+},
+{
+"w": "precompile",
+"t": 317.967
+},
+{
+"w": "makes",
+"t": 318.667
+},
+{
+"w": "Plum",
+"t": 319.055
+},
+{
+"w": "verification",
+"t": 319.364
+},
+{
+"w": "finite",
+"t": 320.17
+},
+{
+"w": "to",
+"t": 320.627
+},
+{
+"w": "prove",
+"t": 320.822
+},
+{
+"w": "on",
+"t": 321.181
+},
+{
+"w": "a",
+"t": 321.434
+},
+{
+"w": "laptop.",
+"t": 321.529
+},
+{
+"w": "Is",
+"t": 322.16
+},
+{
+"w": "that",
+"t": 322.5
+},
+{
+"w": "enough",
+"t": 322.724
+},
+{
+"w": "for",
+"t": 322.957
+},
+{
+"w": "an",
+"t": 323.155
+},
+{
+"w": "anonymous",
+"t": 323.221
+},
+{
+"w": "credential?",
+"t": 323.682
+},
+{
+"w": "Not",
+"t": 324.582
+},
+{
+"w": "yet.",
+"t": 324.985
+}
+]
+},
+"g2": {
+"s": 325.997,
+"d": 12.398,
+"audio": 326.347,
+"dur": 11.548,
+"sent": [
+326.347,
+330.518,
+334.33
+],
+"text": [
+"The proof we can afford is a stark proof, and it is not zero-knowledge.",
+"The wraps that add zero-knowledge are Groth 16 and Plonk.",
+"Both rely on pairings, so neither is post-quantum."
+],
+"cap": [
+"The proof we can afford is a STARK proof, and it is not zero-knowledge.",
+"The wraps that add zero-knowledge are Groth16 and PLONK.",
+"Both rely on pairings, so neither is post-quantum."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_g2_c798ac02d6.wav",
+"words": [
+{
+"w": "The",
+"t": 326.347
+},
+{
+"w": "proof",
+"t": 326.645
+},
+{
+"w": "we",
+"t": 326.925
+},
+{
+"w": "can",
+"t": 327.025
+},
+{
+"w": "afford",
+"t": 327.379
+},
+{
+"w": "is",
+"t": 327.627
+},
+{
+"w": "a",
+"t": 327.742
+},
+{
+"w": "stark",
+"t": 327.958
+},
+{
+"w": "proof,",
+"t": 328.167
+},
+{
+"w": "and",
+"t": 328.544
+},
+{
+"w": "it",
+"t": 329.109
+},
+{
+"w": "is",
+"t": 329.172
+},
+{
+"w": "not",
+"t": 329.394
+},
+{
+"w": "zero-knowledge.",
+"t": 329.536
+},
+{
+"w": "The",
+"t": 330.518
+},
+{
+"w": "wraps",
+"t": 330.817
+},
+{
+"w": "that",
+"t": 331.132
+},
+{
+"w": "add",
+"t": 331.45
+},
+{
+"w": "zero-knowledge",
+"t": 331.609
+},
+{
+"w": "are",
+"t": 332.36
+},
+{
+"w": "Groth",
+"t": 332.422
+},
+{
+"w": "16",
+"t": 332.71
+},
+{
+"w": "and",
+"t": 333.235
+},
+{
+"w": "Plonk.",
+"t": 333.357
+},
+{
+"w": "Both",
+"t": 334.33
+},
+{
+"w": "rely",
+"t": 334.706
+},
+{
+"w": "on",
+"t": 335.076
+},
+{
+"w": "pairings,",
+"t": 335.299
+},
+{
+"w": "so",
+"t": 335.732
+},
+{
+"w": "neither",
+"t": 336.314
+},
+{
+"w": "is",
+"t": 336.565
+},
+{
+"w": "post-quantum.",
+"t": 336.706
+}
+]
+},
+"g3": {
+"s": 338.395,
+"d": 11.429,
+"audio": 338.745,
+"dur": 10.579,
+"sent": [
+338.745,
+341.623,
+345.724
+],
+"text": [
+"The wrap also fails at recursive compression.",
+"Our Griffin chip overflows the toolchain's fixed recursion shapes.",
+"Regenerating them is a one-time job, not a memory limit."
+],
+"cap": [
+"The wrap also fails at recursive compression.",
+"Our Griffin chip overflows the toolchain's fixed recursion shapes.",
+"Regenerating them is a one-time job, not a memory limit."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_g3_8413b71695.wav",
+"words": [
+{
+"w": "The",
+"t": 338.745
+},
+{
+"w": "wrap",
+"t": 339.043
+},
+{
+"w": "also",
+"t": 339.26
+},
+{
+"w": "fails",
+"t": 339.624
+},
+{
+"w": "at",
+"t": 340.045
+},
+{
+"w": "recursive",
+"t": 340.193
+},
+{
+"w": "compression.",
+"t": 340.691
+},
+{
+"w": "Our",
+"t": 341.623
+},
+{
+"w": "Griffin",
+"t": 341.964
+},
+{
+"w": "chip",
+"t": 342.298
+},
+{
+"w": "overflows",
+"t": 342.641
+},
+{
+"w": "the",
+"t": 343.335
+},
+{
+"w": "toolchain's",
+"t": 343.403
+},
+{
+"w": "fixed",
+"t": 344.012
+},
+{
+"w": "recursion",
+"t": 344.391
+},
+{
+"w": "shapes.",
+"t": 344.94
+},
+{
+"w": "Regenerating",
+"t": 345.724
+},
+{
+"w": "them",
+"t": 346.515
+},
+{
+"w": "is",
+"t": 346.787
+},
+{
+"w": "a",
+"t": 346.889
+},
+{
+"w": "one-time",
+"t": 347.104
+},
+{
+"w": "job,",
+"t": 347.506
+},
+{
+"w": "not",
+"t": 347.823
+},
+{
+"w": "a",
+"t": 348.402
+},
+{
+"w": "memory",
+"t": 348.432
+},
+{
+"w": "limit.",
+"t": 348.725
+}
+]
+},
+"g4": {
+"s": 349.824,
+"d": 13.087,
+"audio": 350.174,
+"dur": 11.937,
+"sent": [
+350.174,
+354.087,
+358.503
+],
+"text": [
+"The zee kay vee em's flexibility does not show up in time either.",
+"Recompiling the static circuit takes about 0.3 seconds.",
+"What differs is how much must be re-audited after a change."
+],
+"cap": [
+"The zkVM's flexibility does not show up in time either.",
+"Recompiling the static circuit takes about 0.3 seconds.",
+"What differs is how much must be re-audited after a change."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_g4_5161e90109.wav",
+"words": [
+{
+"w": "The",
+"t": 350.174
+},
+{
+"w": "zee",
+"t": 350.472
+},
+{
+"w": "kay",
+"t": 350.683
+},
+{
+"w": "vee",
+"t": 350.903
+},
+{
+"w": "em's",
+"t": 351.161
+},
+{
+"w": "flexibility",
+"t": 351.451
+},
+{
+"w": "does",
+"t": 352.23
+},
+{
+"w": "not",
+"t": 352.581
+},
+{
+"w": "show",
+"t": 352.728
+},
+{
+"w": "up",
+"t": 352.994
+},
+{
+"w": "in",
+"t": 353.142
+},
+{
+"w": "time",
+"t": 353.308
+},
+{
+"w": "either.",
+"t": 353.616
+},
+{
+"w": "Recompiling",
+"t": 354.087
+},
+{
+"w": "the",
+"t": 354.91
+},
+{
+"w": "static",
+"t": 355.036
+},
+{
+"w": "circuit",
+"t": 355.476
+},
+{
+"w": "takes",
+"t": 355.98
+},
+{
+"w": "about",
+"t": 356.437
+},
+{
+"w": "0.3",
+"t": 356.819
+},
+{
+"w": "seconds.",
+"t": 357.705
+},
+{
+"w": "What",
+"t": 358.503
+},
+{
+"w": "differs",
+"t": 358.861
+},
+{
+"w": "is",
+"t": 359.243
+},
+{
+"w": "how",
+"t": 359.37
+},
+{
+"w": "much",
+"t": 359.688
+},
+{
+"w": "must",
+"t": 359.897
+},
+{
+"w": "be",
+"t": 360.202
+},
+{
+"w": "re-audited",
+"t": 360.471
+},
+{
+"w": "after",
+"t": 360.934
+},
+{
+"w": "a",
+"t": 361.3
+},
+{
+"w": "change.",
+"t": 361.516
+}
+]
+},
+"h1": {
+"s": 362.911,
+"d": 9.577,
+"audio": 363.261,
+"dur": 8.727,
+"sent": [
+363.261,
+367.907
+],
+"text": [
+"All proving times are at the 80-bit level, which is not a deployment level.",
+"Each is the mean of 3 runs on one 24 gigabyte laptop."
+],
+"cap": [
+"All proving times are at the 80-bit level, which is not a deployment level.",
+"Each is the mean of 3 runs on one 24 gigabyte laptop."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_h1_74f1e24377.wav",
+"words": [
+{
+"w": "All",
+"t": 363.261
+},
+{
+"w": "proving",
+"t": 363.584
+},
+{
+"w": "times",
+"t": 364.058
+},
+{
+"w": "are",
+"t": 364.55
+},
+{
+"w": "at",
+"t": 364.653
+},
+{
+"w": "the",
+"t": 364.757
+},
+{
+"w": "80-bit",
+"t": 364.893
+},
+{
+"w": "level,",
+"t": 365.403
+},
+{
+"w": "which",
+"t": 365.727
+},
+{
+"w": "is",
+"t": 366.309
+},
+{
+"w": "not",
+"t": 366.435
+},
+{
+"w": "a",
+"t": 366.686
+},
+{
+"w": "deployment",
+"t": 366.69
+},
+{
+"w": "level.",
+"t": 367.275
+},
+{
+"w": "Each",
+"t": 367.907
+},
+{
+"w": "is",
+"t": 368.247
+},
+{
+"w": "the",
+"t": 368.372
+},
+{
+"w": "mean",
+"t": 368.483
+},
+{
+"w": "of",
+"t": 368.809
+},
+{
+"w": "3",
+"t": 368.854
+},
+{
+"w": "runs",
+"t": 369.118
+},
+{
+"w": "on",
+"t": 369.473
+},
+{
+"w": "one",
+"t": 369.735
+},
+{
+"w": "24",
+"t": 369.909
+},
+{
+"w": "gigabyte",
+"t": 370.67
+},
+{
+"w": "laptop.",
+"t": 371.13
+}
+]
+},
+"h2": {
+"s": 372.488,
+"d": 9.522,
+"audio": 372.838,
+"dur": 8.672,
+"sent": [
+372.838,
+377.176,
+378.865
+],
+"text": [
+"The positive results assume the Griffin circuit's constraints are sound.",
+"That assumption is open.",
+"The negative results do not depend on it."
+],
+"cap": [
+"The positive results assume the Griffin circuit's constraints are sound.",
+"That assumption is open.",
+"The negative results do not depend on it."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_h2_867f5dced5.wav",
+"words": [
+{
+"w": "The",
+"t": 372.838
+},
+{
+"w": "positive",
+"t": 373.136
+},
+{
+"w": "results",
+"t": 373.645
+},
+{
+"w": "assume",
+"t": 374.171
+},
+{
+"w": "the",
+"t": 374.55
+},
+{
+"w": "Griffin",
+"t": 374.679
+},
+{
+"w": "circuit's",
+"t": 375.054
+},
+{
+"w": "constraints",
+"t": 375.628
+},
+{
+"w": "are",
+"t": 376.411
+},
+{
+"w": "sound.",
+"t": 376.527
+},
+{
+"w": "That",
+"t": 377.176
+},
+{
+"w": "assumption",
+"t": 377.588
+},
+{
+"w": "is",
+"t": 378.121
+},
+{
+"w": "open.",
+"t": 378.248
+},
+{
+"w": "The",
+"t": 378.865
+},
+{
+"w": "negative",
+"t": 379.164
+},
+{
+"w": "results",
+"t": 379.615
+},
+{
+"w": "do",
+"t": 380.153
+},
+{
+"w": "not",
+"t": 380.355
+},
+{
+"w": "depend",
+"t": 380.525
+},
+{
+"w": "on",
+"t": 380.919
+},
+{
+"w": "it.",
+"t": 381.184
+}
+]
+},
+"h3": {
+"s": 382.01,
+"d": 8.123,
+"audio": 382.36,
+"dur": 7.273,
+"sent": [
+382.36,
+384.256
+],
+"text": [
+"The practical rule is short.",
+"Before building a precompile, compare the core area it removes with the chip area it adds."
+],
+"cap": [
+"The practical rule is short.",
+"Before building a precompile, compare the core area it removes with the chip area it adds."
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_h3_f8287d706e.wav",
+"words": [
+{
+"w": "The",
+"t": 382.36
+},
+{
+"w": "practical",
+"t": 382.658
+},
+{
+"w": "rule",
+"t": 383.22
+},
+{
+"w": "is",
+"t": 383.485
+},
+{
+"w": "short.",
+"t": 383.629
+},
+{
+"w": "Before",
+"t": 384.256
+},
+{
+"w": "building",
+"t": 384.771
+},
+{
+"w": "a",
+"t": 385.139
+},
+{
+"w": "precompile,",
+"t": 385.345
+},
+{
+"w": "compare",
+"t": 385.934
+},
+{
+"w": "the",
+"t": 386.705
+},
+{
+"w": "core",
+"t": 386.822
+},
+{
+"w": "area",
+"t": 387.133
+},
+{
+"w": "it",
+"t": 387.402
+},
+{
+"w": "removes",
+"t": 387.531
+},
+{
+"w": "with",
+"t": 388.045
+},
+{
+"w": "the",
+"t": 388.239
+},
+{
+"w": "chip",
+"t": 388.311
+},
+{
+"w": "area",
+"t": 388.608
+},
+{
+"w": "it",
+"t": 388.901
+},
+{
+"w": "adds.",
+"t": 389.018
+}
+]
+},
+"h4": {
+"s": 390.133,
+"d": 13.82,
+"audio": 390.483,
+"dur": 11.47,
+"sent": [
+390.483,
+392.408,
+398.608
+],
+"text": [
+"Three questions remain open.",
+"They are the matched-field proof, the fused power-residue chip, and a post-quantum zero-knowledge wrap.",
+"The thesis is called, When does a precompile pay?"
+],
+"cap": [
+"Three questions remain open.",
+"They are the matched-field proof, the fused power-residue chip, and a post-quantum zero-knowledge wrap.",
+"The thesis is called, When does a precompile pay?"
+],
+"wav": "/home/user/thesis26/explainer_video/.build/tts_h4_482d600d71.wav",
+"words": [
+{
+"w": "Three",
+"t": 390.483
+},
+{
+"w": "questions",
+"t": 390.853
+},
+{
+"w": "remain",
+"t": 391.483
+},
+{
+"w": "open.",
+"t": 391.906
+},
+{
+"w": "They",
+"t": 392.408
+},
+{
+"w": "are",
+"t": 392.819
+},
+{
+"w": "the",
+"t": 392.906
+},
+{
+"w": "matched-field",
+"t": 392.972
+},
+{
+"w": "proof,",
+"t": 393.659
+},
+{
+"w": "the",
+"t": 394.012
+},
+{
+"w": "fused",
+"t": 394.486
+},
+{
+"w": "power-residue",
+"t": 394.845
+},
+{
+"w": "chip,",
+"t": 395.583
+},
+{
+"w": "and",
+"t": 395.885
+},
+{
+"w": "a",
+"t": 396.45
+},
+{
+"w": "post-quantum",
+"t": 396.558
+},
+{
+"w": "zero-knowledge",
+"t": 397.308
+},
+{
+"w": "wrap.",
+"t": 398.044
+},
+{
+"w": "The",
+"t": 398.608
+},
+{
+"w": "thesis",
+"t": 398.906
+},
+{
+"w": "is",
+"t": 399.287
+},
+{
+"w": "called,",
+"t": 399.42
+},
+{
+"w": "When",
+"t": 399.837
+},
+{
+"w": "does",
+"t": 400.436
+},
+{
+"w": "a",
+"t": 400.68
+},
+{
+"w": "precompile",
+"t": 400.857
+},
+{
+"w": "pay?",
+"t": 401.427
+}
+]
+},
+"_total": 405.453,
+"_scenes": [
+{
+"name": "Case",
+"t0": 0.0,
+"t1": 31.926
+},
+{
+"name": "Obvious",
+"t0": 31.926,
+"t1": 104.723
+},
+{
+"name": "Rule",
+"t0": 104.723,
+"t1": 166.129
+},
+{
+"name": "Cycles",
+"t0": 166.129,
+"t1": 207.481
+},
+{
+"name": "Prediction",
+"t0": 207.481,
+"t1": 236.762
+},
+{
+"name": "Tests",
+"t0": 236.762,
+"t1": 317.118
+},
+{
+"name": "Consequence",
+"t0": 317.118,
+"t1": 362.911
+},
+{
+"name": "Scope",
+"t0": 362.911,
+"t1": 405.453
+}
+]
+}
