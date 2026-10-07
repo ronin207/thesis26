@@ -7,7 +7,7 @@
 
 set -uo pipefail
 
-PROJECT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+PROJECT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 
 if [ "$#" -ge 1 ]; then
   DIR="$1"

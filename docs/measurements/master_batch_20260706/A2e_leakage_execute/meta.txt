@@ -1,6 +1,6 @@
 === A2e (leakage-execute-N20) ===
 start:   2026-07-06T01:31:37+09:00
-bin:     /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_leakage_host  (mtime Jul  6 01:28:43 2026)
+bin:     /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/plum_leakage_host  (mtime Jul  6 01:28:43 2026)
 profile: lambda=80 | 20 witnesses, fixed pk+M, fresh signing randomness, Cell-2 ELF
 leak env: PLUM_LEAK_MODE=execute PLUM_LEAK_N=20 PLUM_SECURITY=80
 config:  SHARD_SIZE=4194304 HEIGHT_THRESHOLD=1048576

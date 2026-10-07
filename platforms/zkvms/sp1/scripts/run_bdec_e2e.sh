@@ -24,7 +24,7 @@ export TRACE_CHUNK_SLOTS=2
 export RAYON_NUM_THREADS=8
 export BDEC_HOST_SECURITY=80
 
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 export CARGO_TARGET_DIR="$REPO/.build-cache.nosync"
 MANIFEST="$REPO/platforms/zkvms/sp1/script/Cargo.toml"
 OUTDIR="$REPO/docs/measurements/bdec_e2e_20260710"

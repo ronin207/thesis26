@@ -75,7 +75,7 @@ prevents idle sleep over a multi-hour run (a sleep gap polluted the prior succin
 `/usr/bin/time -l` captures peak RSS on macOS.
 
 ```
-cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/risc0/host"
+cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/risc0/host"
 
 mkdir -p "../../../../docs/measurements/risc0_cregen_composite_$(date +%Y%m%d_%H%M)"
 
@@ -137,7 +137,7 @@ Live monitor in a second terminal, sampling at 60 s (matches the cadence of the 
 run's watcher trace so the two are comparable):
 
 ```
-RUN_DIR="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/docs/measurements/risc0_cregen_composite_<stamp>"
+RUN_DIR="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/docs/measurements/risc0_cregen_composite_<stamp>"
 PID=$(pgrep -f bdec_credgen_plum_host | head -1)
 while kill -0 "$PID" 2>/dev/null; do
   ts=$(date +%s)

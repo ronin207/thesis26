@@ -13,7 +13,7 @@
 # empirical belt-and-suspenders.
 set -u
 export PATH="$HOME/.cargo/bin:$PATH"
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 SP1="$REPO/submodules/sp1"
 OUTDIR="$REPO/docs/measurements/wrap_zk_check_20260707"
 mkdir -p "$OUTDIR"

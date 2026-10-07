@@ -20,7 +20,7 @@ set -u
 
 export PATH="$HOME/.cargo/bin:$PATH"
 
-REPO_ROOT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO_ROOT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 SP1_DIR="$REPO_ROOT/platforms/zkvms/sp1"
 SP1_SUBMODULE="$REPO_ROOT/submodules/sp1"
 export CARGO_TARGET_DIR="$REPO_ROOT/.build-cache.nosync"

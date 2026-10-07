@@ -25,7 +25,7 @@ export RAYON_NUM_THREADS=8
 export BDEC_HOST_SECURITY=80
 export BDEC_HOST_MODE=prove-jbind
 
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 export CARGO_TARGET_DIR="$REPO/.build-cache.nosync"
 MANIFEST="$REPO/platforms/zkvms/sp1/script/Cargo.toml"
 OUTDIR="$REPO/docs/measurements/bdec_cregen_jbind_20260710"

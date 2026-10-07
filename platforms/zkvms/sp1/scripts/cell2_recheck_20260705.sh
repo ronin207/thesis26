@@ -19,7 +19,7 @@
 set -u
 export PATH="$HOME/.cargo/bin:$PATH"
 
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 export CARGO_TARGET_DIR="$REPO/.build-cache.nosync"
 BIN="$CARGO_TARGET_DIR/release/plum_host"
 OUT="$REPO/docs/measurements/cell2_recheck_20260705"

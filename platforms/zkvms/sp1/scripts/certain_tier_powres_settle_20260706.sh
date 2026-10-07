@@ -30,7 +30,7 @@
 set -u   # NOT -e: one prove failure must never abort the tier.
 
 export PATH="$HOME/.cargo/bin:$PATH"
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 FORK="$REPO/.claude/worktrees/thesis-restructure-criterion/sp1-fork"
 OUT="$REPO/docs/measurements/certain_tier_20260706"
 mkdir -p "$OUT"

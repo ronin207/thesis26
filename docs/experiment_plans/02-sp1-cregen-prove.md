@@ -101,7 +101,7 @@ No `Cargo.toml` change is required — `bdec_cregen_host` is already a declared 
 Run from `platforms/zkvms/sp1/script`. Use the **SP1 Cell-2 known-good anchor** (the config under which the standalone PLUM verify prove completed in 32.53 min). CreGen is ~2x heavier, so the anchor is the *starting* rung, not a guaranteed fit.
 
 ```bash
-cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1/script"
+cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1/script"
 
 # anchor = SP1 Cell-2 known-good
 PLUM_HOST_MODE=prove \

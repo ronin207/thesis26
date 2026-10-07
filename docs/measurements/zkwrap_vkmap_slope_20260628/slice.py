@@ -1,7 +1,7 @@
 import os,sys,subprocess,resource,time
 start,end=sys.argv[1],sys.argv[2]
 chunk=sys.argv[3] if len(sys.argv)>3 else "4"
-SP1="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1"
+SP1="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1"
 BIN=SP1+"/target/release/build_recursion_vks"
 BUILD="/private/tmp/claude-501/vkmap_slope_build"
 os.makedirs(BUILD,exist_ok=True)

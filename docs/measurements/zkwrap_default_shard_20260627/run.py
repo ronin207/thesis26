@@ -2,10 +2,10 @@ import os, sys, subprocess, resource, time, threading
 from datetime import datetime, timezone
 
 tag, rw, cw = sys.argv[1], sys.argv[2], sys.argv[3]
-SP1 = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1"
+SP1 = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1"
 BIN = SP1 + "/target/release/plum_host"
 DYLD = SP1 + "/target/release/build/vc-pqc-c53acd15037f6a7e/out/build/libiop"
-OUT = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/docs/measurements/zkwrap_default_shard_20260627/" + tag
+OUT = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/docs/measurements/zkwrap_default_shard_20260627/" + tag
 
 env = dict(os.environ)
 env["PATH"] = os.path.expanduser("~/.cargo/bin") + ":" + env.get("PATH","")

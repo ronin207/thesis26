@@ -9,12 +9,12 @@ sp1 submodule dirty (the Griffin fix, working-tree):
      M crates/prover/compress_shape.json
      M crates/recursion/gnark-ffi/build.rs
     ?? crates/core/machine/src/syscall/precompiles/griffin_fp192/fault_injection.rs
-binary:            /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_host
+binary:            /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/plum_host
 binary mtime:      Jul  5 03:43:12 2026
 config:            PLUM_HOST_MODE=prove PLUM_PROVE_ARM=syscall PLUM_SECURITY=80 PLUM_ZK_WRAP=core
 tuned config:      SHARD_SIZE=2^22 ELEMENT_THRESHOLD=2^26 HEIGHT_THRESHOLD=2^20 TRACE_CHUNK_SLOTS=2 RAYON_NUM_THREADS=8
 RUST_LOG:          warn,sp1_hypercube::prover=debug
-DYLD_LIBRARY_PATH: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-3e96e65b8132e4df/out/build/libiop:/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-b02e27a5f21351b3/out/build/libiop
+DYLD_LIBRARY_PATH: /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/build/vc-pqc-3e96e65b8132e4df/out/build/libiop:/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/build/vc-pqc-b02e27a5f21351b3/out/build/libiop
 hardware:          M5 Pro, 18 logical cores, 24 GB
 baseline (tier2 n=3 Cell2): prove_ms mean=854990 (14.25 min), range [843267..876591], peak ~14.21 GB
 

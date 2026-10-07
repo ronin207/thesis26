@@ -37,7 +37,7 @@
 set -u   # NOT -e: a single run failure must never exit the batch.
 
 export PATH="$HOME/.cargo/bin:$PATH"
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 export CARGO_TARGET_DIR="$REPO/.build-cache.nosync"
 BINDIR="$CARGO_TARGET_DIR/release"
 PLUM_BIN="$BINDIR/plum_host"

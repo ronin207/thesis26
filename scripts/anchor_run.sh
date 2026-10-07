@@ -11,7 +11,7 @@
 #
 # Launch:
 #   caffeinate -i tmux new -s anchor -d \
-#     'bash "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/scripts/anchor_run.sh"'
+#     'bash "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/scripts/anchor_run.sh"'
 #
 # Watch live:           tmux attach -t anchor
 # Watch log only:       tail -f <RESULTS_DIR>/anchor.log
@@ -21,7 +21,7 @@
 
 set -uo pipefail
 
-PROJECT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+PROJECT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 ZKVM_DIR="$PROJECT/zkvm"
 RUN_ID="anchor_$(date +%Y%m%d_%H%M%S)"
 RESULTS_DIR="$PROJECT/results/$RUN_ID"

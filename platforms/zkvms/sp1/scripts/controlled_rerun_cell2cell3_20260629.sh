@@ -36,7 +36,7 @@ set -u   # undefined-var guard; deliberately NOT -e (run 4 must follow a failed 
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # --- absolute paths (cwd is not assumed)
-REPO_ROOT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO_ROOT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 SP1_DIR="$REPO_ROOT/platforms/zkvms/sp1"
 SP1_SUBMODULE="$REPO_ROOT/submodules/sp1"
 # iCloud-excluded build cache (fixed 2026-06-24); keeps target off iCloud sync.

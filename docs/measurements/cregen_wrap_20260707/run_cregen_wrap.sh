@@ -4,7 +4,7 @@
 # overflow-avoidance) + 5.5h wall cap. Do NOT commit.
 set -u
 export PATH="$HOME/.cargo/bin:$PATH"
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 SP1="$REPO/submodules/sp1"
 OUTDIR="$REPO/docs/measurements/cregen_wrap_20260707"
 

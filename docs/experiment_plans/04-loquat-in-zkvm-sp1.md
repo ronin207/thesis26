@@ -59,7 +59,7 @@ in 32.53 min at this config). Loquat is ~518M cycles (vs Cell 2's
 anchor is the prudent *starting* point, not a guaranteed-fit point.
 
 ```sh
-cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1/script"
+cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1/script"
 
 SCHEME=loquat \
 MODE=prove \

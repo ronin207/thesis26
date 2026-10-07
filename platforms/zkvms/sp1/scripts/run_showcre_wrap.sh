@@ -11,7 +11,7 @@ set -u
 K="${1:?usage: run_showcre_wrap.sh <K>   (1 or 2)}"
 export PATH="$HOME/.cargo/bin:$PATH"
 export VC_PQC_SKIP_LIBIOP=1
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 SP1="$REPO/submodules/sp1"
 OUTDIR="$REPO/docs/measurements/showcre_k${K}_wrap_20260707"
 SCRIPTDIR="$REPO/platforms/zkvms/sp1/script"

@@ -8,7 +8,7 @@
 set -u
 export PATH="$HOME/.cargo/bin:$PATH"
 export VC_PQC_SKIP_LIBIOP=1
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 export CARGO_TARGET_DIR="$REPO/.build-cache.nosync"     # iCloud rlib workaround
 OUTDIR="$REPO/docs/measurements/sp1_bdec_execute_20260707"
 mkdir -p "$OUTDIR"

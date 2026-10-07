@@ -1,6 +1,6 @@
 === M5 (plum-execute-syscall-l80) ===
 start:     2026-07-06T01:31:04+09:00
-bin:       /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_host  (mtime Jul  6 01:28:43 2026)
+bin:       /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/plum_host  (mtime Jul  6 01:28:43 2026)
 profile:   lambda=80 | PLUM_HOST_MODE=execute PLUM_PROVE_ARM=syscall
 host env:
   PLUM_HOST_MODE=execute

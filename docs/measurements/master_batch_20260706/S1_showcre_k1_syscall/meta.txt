@@ -1,6 +1,6 @@
 === S1 (showcre-k1-syscall-prove) ===
 start:        2026-07-06T06:38:05+09:00
-bin:          /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/bdec_showcre_host  (mtime Jul  6 01:28:43 2026)
+bin:          /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/bdec_showcre_host  (mtime Jul  6 01:28:43 2026)
 hostkind:     bdec    expect: COST    cap_s: 9000
 profile:      H16 SHARD=2^20 HEIGHT=2^16 ELEMENT=2^26 | prove syscall k=1 lambda=80
 host env:
@@ -10,7 +10,7 @@ host env:
   BDEC_SHOWCRE_K=1
 config:       SHARD_SIZE=1048576 ELEMENT_THRESHOLD=67108864 HEIGHT_THRESHOLD=65536 TRACE_CHUNK_SLOTS=2 RAYON_NUM_THREADS=8
 RUST_LOG:     warn,sp1_hypercube::prover=debug
-DYLD:         /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-3e96e65b8132e4df/out/build/libiop:/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/build/vc-pqc-b02e27a5f21351b3/out/build/libiop
+DYLD:         /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/build/vc-pqc-3e96e65b8132e4df/out/build/libiop:/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/build/vc-pqc-b02e27a5f21351b3/out/build/libiop
 repo HEAD:    cde7874695e770ef7eef93c4f946d957a0e2b89b
 sp1 sub HEAD: 8bf0248bc5b6b7ba7c820253c3918ea277008641 (working-tree dirty = standard-Griffin chip fix)
 execute_sanity: accepted=true cycles=433087189

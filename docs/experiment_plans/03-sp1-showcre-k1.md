@@ -4,7 +4,7 @@ PROVE-MODE plan. Read this before spending wall-clock. The OOM ladder, watch
 criteria, abort thresholds, and conclusion-impact are decided in advance so an
 OOM at the floor reads as a measured FRONTIER, not a setup shortfall.
 
-- Host: `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1/script/src/bin/bdec_showcre_host.rs`
+- Host: `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1/script/src/bin/bdec_showcre_host.rs`
 - Guest: `program_bdec_showcre` (built two arms by `build.rs:169`; syscall + `griffin-emulated`)
 - Relation: `k` pseudonym-ownership + 1 verifier-facing pseudonym + 1 shown credential = `k+2` PLUM-Griffin verifications under one hidden `sk_U`.
 - At k=1: `k+2 = 3` verifications. This is the SMALLEST presentation and is HEAVIER than CreGen's 2 verifications (Exp 2). Start here; only attempt k=2 (4 verifications) if k=1 completes.
@@ -108,7 +108,7 @@ Groth16-halved 83%, PLONK-quartered 81.7%), and pairing wraps are not PQ anyway.
 Do NOT spend wall on a wrap here.
 
 ```sh
-cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1/script"
+cd "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1/script"
 
 SHARD_SIZE=4194304 \
 ELEMENT_THRESHOLD=67108864 \
@@ -172,7 +172,7 @@ Live memory sampler (run in a second shell alongside the prove run; 24 GB =
 24576 MB, so peak % = peak_rss_mb / 24576 * 100):
 
 ```sh
-OUT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/docs/measurements/sp1-showcre-k1-step0/mem.log"
+OUT="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/docs/measurements/sp1-showcre-k1-step0/mem.log"
 while pgrep -f bdec_showcre_host >/dev/null; do
   rss_kb=$(ps -axo rss,comm | awk '/bdec_showcre_host/ {s+=$1} END {print s}')
   printf '%s  rss_mb=%s  pct=%.1f\n' "$(date +%H:%M:%S)" "$((rss_kb/1024))" \

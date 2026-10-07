@@ -9,7 +9,7 @@
 #     nohup bash run_showcre_jbind_wrap.sh >detached.out 2>&1 & disown
 set -u
 export PATH="$HOME/.cargo/bin:$PATH"
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 SP1="$REPO/submodules/sp1"
 OUTDIR="$REPO/docs/measurements/showcre_k2_jbind_wrap_20260711"
 SRC_WITNESS="$REPO/docs/measurements/showcre_k2_wrap_20260707/showcre_k2_witness.bin"

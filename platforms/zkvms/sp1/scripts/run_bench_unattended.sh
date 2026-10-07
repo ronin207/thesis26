@@ -10,7 +10,7 @@
 # usage: run_bench.sh <name> <ENV=val ...prove env...>
 set -uo pipefail
 export PATH="$HOME/.cargo/bin:$PATH"
-REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis"
+REPO="/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis"
 export CARGO_TARGET_DIR="$REPO/.build-cache.nosync"
 MANIFEST="$REPO/platforms/zkvms/sp1/script/Cargo.toml"
 BIN="$CARGO_TARGET_DIR/release/bdec_cregen_host"

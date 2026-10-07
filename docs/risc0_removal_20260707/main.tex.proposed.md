@@ -1,7 +1,7 @@
 # PROPOSED edits — strip RISC Zero from `修論2025_Takumi/main.tex` (SP1-only retarget)
 
 **Status:** PROPOSAL ONLY. `main.tex` is NOT edited. Operator review required before anything lands.
-**File audited:** `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/修論2025_Takumi/main.tex` (195 lines)
+**File audited:** `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/修論2025_Takumi/main.tex` (195 lines)
 **Date:** 2026-07-07
 
 ## Scan result
@@ -48,7 +48,7 @@ Consequences the operator should weigh before approving:
 
 ## Report summary
 
-- **Scratch file:** `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/docs/risc0_removal_20260707/main.tex.proposed.md`
+- **Scratch file:** `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/docs/risc0_removal_20260707/main.tex.proposed.md`
 - **RISC0 mentions covered:** 1 of 1 (100%).
 - **Contribution-scope change (operator's call):** the abstract's stated evaluation targets narrow from "RISC Zero and SP1" to "SP1 only." No numbers move; the affected numbers were already SP1 measurements.
 - **Orphaned refs/labels:** none.

@@ -53,4 +53,4 @@ vm_stat (first 8 lines):
   Pages purgeable:                                8056.
 ```
 
-Full prove log: `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/docs/measurements/tier2_replication_20260629/cell2_run2/prove.log`
+Full prove log: `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/docs/measurements/tier2_replication_20260629/cell2_run2/prove.log`

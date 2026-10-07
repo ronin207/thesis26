@@ -118,7 +118,7 @@ The surrounding claim ("None of them authors a custom precompile or compares sub
 
 ## Summary for the operator
 
-**Scratch file:** `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/docs/risc0_removal_20260707/02-related.tex.proposed.md`
+**Scratch file:** `/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/docs/risc0_removal_20260707/02-related.tex.proposed.md`
 
 **Mentions covered:** 6 sites (all RISC-Zero-related text in the file).
 - 4 direct RISC0/R0VM/Zirgen content edits: §1 (line 34 bullet), §2 (line 43 R0VM sentence), §3 (line 43 Arguzz bounty clause), §4 (line 45 RISC Zero default-precompile clause).

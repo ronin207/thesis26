@@ -1,6 +1,6 @@
 === A2p (leakage-prove-N3) ===
 start:   2026-07-06T10:53:24+09:00
-bin:     /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/.build-cache.nosync/release/plum_leakage_host  (mtime Jul  6 01:28:43 2026)
+bin:     /Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/.build-cache.nosync/release/plum_leakage_host  (mtime Jul  6 01:28:43 2026)
 profile: TUNED SHARD=2^22 HEIGHT=2^20 | 3 witnesses core-prove; proof-size variance
 leak env: PLUM_LEAK_MODE=prove PLUM_LEAK_N=3 PLUM_SECURITY=80
 config:  SHARD_SIZE=4194304 HEIGHT_THRESHOLD=1048576

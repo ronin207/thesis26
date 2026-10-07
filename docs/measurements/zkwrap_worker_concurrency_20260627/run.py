@@ -1,7 +1,7 @@
 import os, sys, subprocess, resource, time, threading, signal
 
 tag, rw, cw = sys.argv[1], sys.argv[2], sys.argv[3]
-SP1 = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1"
+SP1 = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1"
 BIN = SP1 + "/target/release/plum_host"
 DYLD = SP1 + "/target/release/build/vc-pqc-c53acd15037f6a7e/out/build/libiop"
 OUT = "/private/tmp/claude-501/-Users-takumiotsuka-Library-Mobile-Documents-com-apple-CloudDocs-Desktop-Projects-research-thesis/928eeb87-6943-4173-9956-087ef72c8953/scratchpad/" + tag

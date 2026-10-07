@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 tag = sys.argv[1] if len(sys.argv)>1 else "regen_w2"
 rw  = sys.argv[2] if len(sys.argv)>2 else "2"
 cw  = sys.argv[3] if len(sys.argv)>3 else "2"
-SP1 = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/platforms/zkvms/sp1"
+SP1 = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/platforms/zkvms/sp1"
 BIN = SP1 + "/target/release/plum_host"
 DYLD = SP1 + "/target/release/build/vc-pqc-c53acd15037f6a7e/out/build/libiop"
-OUT = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Desktop/Projects/research/thesis/docs/measurements/zkwrap_regen_shape_20260628/" + tag
+OUT = "/Users/takumiotsuka/Library/Mobile Documents/com~apple~CloudDocs/Archive/Waseda/thesis/docs/measurements/zkwrap_regen_shape_20260628/" + tag
 
 env = dict(os.environ)
 env["PATH"] = os.path.expanduser("~/.cargo/bin") + ":" + env.get("PATH","")
