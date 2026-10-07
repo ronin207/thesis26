@@ -1,0 +1,11 @@
+\contentsline {table}{\numberline {1}{\ignorespaces Prior work mapped against the axes that separate it from this thesis; every row is a post-quantum construction, so that shared baseline is stated here. Symbols: $\bullet $ = provided; $\circ $ = a credential-adjacent object rather than a full anonymous credential; $\oslash $ = not achieved (Section~\ref {sec:security}); --- = not applicable. }}{12}{}%
+\contentsline {table}{\numberline {2}{\ignorespaces Griffin round margin versus broken CICO instances.}}{68}{}%
+\contentsline {table}{\numberline {3}{\ignorespaces Property-survival matrix across proof configurations. The parenthesised entry is expected from the measured PLONK wrap, not itself measured.}}{70}{}%
+\contentsline {table}{\numberline {4}{\ignorespaces Evaluation platform and measurement setup.}}{79}{}%
+\contentsline {table}{\numberline {5}{\ignorespaces PLUM verification, prove mode ($\lambda =80$; the Griffin instance runs at $14$ rounds, one below the security-conservative $15$ of Table~\ref {tab:round-margin}).}}{80}{}%
+\contentsline {table}{\numberline {6}{\ignorespaces Cycle-level cost attribution of the field-arithmetic optimizations.}}{82}{}%
+\contentsline {table}{\numberline {7}{\ignorespaces Credential relations: execute and prove-mode cost ($\lambda =80$).}}{83}{}%
+\contentsline {table}{\numberline {8}{\ignorespaces Proof-mode feasibility: produced, zero-knowledge, post-quantum. \textsuperscript {$\ddagger $}~Zero-knowledge only over a {BN254} pairing (classical, not post-quantum); \textsuperscript {$\S $}~zero-knowledge supported for this circuit but disabled in this run; \textsuperscript {$\P $}~includes a one-time $2.96$~h core-shape pass (decomposition in \S \ref {ssec:costmodel}, where the statement-bound $k{=}2$ wrap, $10.21$~h, is also reported).}}{86}{}%
+\contentsline {table}{\numberline {9}{\ignorespaces Aurora reference: one Loquat verification, three runs.}}{90}{}%
+\contentsline {table}{\numberline {10}{\ignorespaces Regeneration footprint per localised relation change (Def.~\ref {def:update-churn}). \textsuperscript {$\ast $}Loquat$\to $PLUM regenerates the field-specific Griffin AIR.}}{91}{}%
+\contentsline {table}{\numberline {11}{\ignorespaces Per-change recompile cost: Aurora versus Fractal.}}{92}{}%

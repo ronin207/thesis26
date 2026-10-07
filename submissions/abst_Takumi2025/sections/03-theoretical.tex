@@ -1,0 +1,4 @@
+\section{The Field-Mismatch Tax}
+We formalize the \emph{field-mismatch tax}. A zkVM computes natively over small numbers, so each of the far larger numbers used by PLUM~\cite{10.1007/978-981-95-2961-2_6}, the post-quantum signature scheme this thesis uses, is split across many machine words. A single multiplication must then be carried out across those parts, and its cost rises with the square of their number. Because a proof's cost tracks the total work performed, the tax is a growing penalty.
+
+This yields the criterion. Whether a \emph{precompile} is worth building depends on two comparisons. First, compared with the native method (without precompile), it is worth building a precompile when the work it removes exceeds the work its own circuit adds. Second, compared with an already available precompile for the same operation, a new one is worth building only when it adds less work to prove than that one does~(\S3).

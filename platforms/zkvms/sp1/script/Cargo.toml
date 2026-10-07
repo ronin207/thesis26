@@ -59,6 +59,26 @@ path = "src/bin/bdec_execute_report.rs"
 name = "bdec_e2e_host"
 path = "src/bin/bdec_e2e_host.rs"
 
+[[bin]]
+name = "bdec_showcre_kscan"
+path = "src/bin/bdec_showcre_kscan.rs"
+
+[[bin]]
+name = "plum_identity_scan"
+path = "src/bin/plum_identity_scan.rs"
+
+[[bin]]
+name = "plum_linkability_scan"
+path = "src/bin/plum_linkability_scan.rs"
+
+[[bin]]
+name = "bdec_attr_scan"
+path = "src/bin/bdec_attr_scan.rs"
+
+[[bin]]
+name = "plum_message_scan"
+path = "src/bin/plum_message_scan.rs"
+
 [dependencies]
 sp1-sdk = { version = "6.0.1", default-features = false, features = ["blocking", "native-gnark"] }
 sp1-core-executor = "6.0.1"

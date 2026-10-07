@@ -1,0 +1,212 @@
+\documentclass[dvipdfmx, a4j, 12pt]{article}
+\usepackage[dvipdfmx]{color}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage[ipaex]{pxchfon}
+\usepackage[utf8]{inputenc}
+\usepackage{ascmac}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{appendix}
+\usepackage{algorithm}
+\usepackage{tikz}
+\usepackage{algpseudocode}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+
+% Theorem environments (italic text)
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}{Conjecture}
+
+% Definition environments (upright text)
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{construction}{Construction}
+\newtheorem{assumption}{Assumption}[section]
+% [SUB-ITEM-REF helper] makes \ref to a bundled sub-assumption render "6.5(i)" etc.
+% Freezes \theassumption(<roman>) into the label at definition time. Revert = delete these 3 lines + revert the \asmsublabel uses in 055-security.tex.
+\makeatletter
+\newcommand{\asmsublabel}[2]{\protected@edef\@currentlabel{\theassumption(#1)}\label{#2}}
+\makeatother
+
+% Remark environments (upright text, smaller spacing)
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% Self-contained framed game box for security experiments (core LaTeX only).
+\newsavebox{\gameboxcontent}
+\newenvironment{gamebox}[1]{%
+  \par\medskip\noindent
+  \setlength{\fboxsep}{8pt}%
+  \begin{lrbox}{\gameboxcontent}%
+  \begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}%
+  \textbf{#1}\par\smallskip
+}{%
+  \end{minipage}%
+  \end{lrbox}%
+  \noindent\fbox{\usebox{\gameboxcontent}}\par\medskip
+}
+
+% Framed non-establishability theorem, numbered on the shared theorem counter.
+% Added 2026-07 for the headline everlasting-anonymity result
+% (055-security.tex, thm:no-everlasting); shares gamebox's visual style.
+% \refstepcounter{theorem} inside the begin-code fixes \@currentlabel to the
+% theorem number before the body's \label is typeset into the savebox.
+\newenvironment{impossibilitybox}[1]{%
+  \par\medskip\noindent
+  \refstepcounter{theorem}%
+  \setlength{\fboxsep}{8pt}%
+  \begin{lrbox}{\gameboxcontent}%
+  \begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}%
+  \textbf{Theorem~\thetheorem\ (#1).}\par\smallskip
+}{%
+  \end{minipage}%
+  \end{lrbox}%
+  \noindent\fbox{\usebox{\gameboxcontent}}\par\medskip
+}
+
+\usepackage{comment}
+\usepackage{enumerate}
+\usepackage{here}
+\usepackage{latexsym}
+\usepackage{multirow}
+\usepackage{otf}
+\usepackage{subfigure}
+\usepackage{url}
+\usepackage{threeparttable}
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+% \rr{...}: typewriter run-record path, breakable at / _ . - so long measurement paths wrap (uses url, loaded above)
+\DeclareUrlCommand\rr{\urlstyle{tt}\def\UrlBreaks{\do\/\do\_\do\.\do\-}}
+% \usepackage{caption}
+% \captionsetup[table]{justification=centering}
+% \captionsetup[figure]{justification=centering}
+
+\newcommand{\AC}{\mathsf{AC}}
+\newcommand{\Sig}{\mathsf{Sig}}
+\newcommand{\BDEC}{\mathsf{BDEC}}
+\newcommand{\Pred}{\mathsf{Pred}}
+\newcommand{\Setup}{\mathsf{Setup}}
+\newcommand{\KeyGen}{\mathsf{KeyGen}}
+\newcommand{\Sign}{\mathsf{Sign}}
+\newcommand{\Verify}{\mathsf{Verify}}
+\newcommand{\Prove}{\mathsf{Prove}}
+\newcommand{\UserKeyGen}{\mathsf{UserKeyGen}}
+\newcommand{\IssuerKeyGen}{\mathsf{IssuerKeyGen}}
+\newcommand{\Issue}{\mathsf{Issue}}
+\newcommand{\Show}{\mathsf{Show}}
+\newcommand{\pp}{\mathsf{pp}}
+\newcommand{\ppSig}{\pp_{\Sig}}
+\newcommand{\crs}{\mathsf{crs}}
+\newcommand{\parms}{\mathsf{par}}
+\newcommand{\pk}{\mathsf{pk}}
+\newcommand{\sk}{\mathsf{sk}}
+\newcommand{\st}{\mathsf{st}}
+\newcommand{\RL}{\mathsf{LR}}
+\newcommand{\negl}{\mathsf{negl}}
+\newcommand{\Adv}{\mathcal{A}}
+\newcommand{\MSig}{\mathcal{M}_{\ppSig}}
+\newcommand{\PKSig}{\mathcal{PK}_{\ppSig}}
+\newcommand{\SKSig}{\mathcal{SK}_{\ppSig}}
+\newcommand{\SigmaSig}{\Sigma_{\ppSig}}
+\newcommand{\EncodeSig}{\mathsf{Encode}_{\Sig}}
+\newcommand{\MerkleVerify}{\mathsf{MerkleVerify}}
+\newcommand{\NonMemberVerify}{\mathsf{NonMemberVerify}}
+\newcommand{\Loq}{\mathsf{Loquat}}
+\newcommand{\ppLoq}{\mathsf{pp_{Loquat}}}
+\newcommand{\MLoq}{\mathsf{\mathcal{M}_{Loquat}}}
+\newcommand{\SigmaLoq}{\mathsf{\Sigma_{Loquat}}}
+\newcommand{\PKLoq}{\mathsf{\mathcal{PK}_{Loquat}}}
+\newcommand{\Plum}{\mathsf{Plum}}
+\newcommand{\ppPlum}{\mathsf{pp_{Plum}}}
+\newcommand{\MPlum}{\mathsf{\mathcal{M}_{Plum}}}
+\newcommand{\SigmaPlum}{\mathsf{\Sigma_{Plum}}}
+\newcommand{\PKPlum}{\mathsf{\mathcal{PK}_{Plum}}}
+
+\usepackage{sakolab-thesis}
+%
+% 論文の表紙の項目
+%
+%\thesistype{令和6年度 修士論文}
+\date{July 20th, 2026}
+\title{A Cost Criterion for Post-Quantum Signature Verification in a Zero-Knowledge Virtual Machine}
+% todo: 英語版タイトルの変更
+\etitle{A Thesis Submitted to the Department of Computer Science and Communications Engineering, the Graduate School of Fundamental Science and Engineering of Waseda University in Partial Fulfillment of the Requirements for the Degree of
+Master of Engineering}
+\titlesize{24truept}
+\department{\fontsize{17pt}{17pt}\selectfont The Department of Computer Science and Communications Engineering, the}
+\major{\fontsize{17pt}{17pt}\selectfont Graduate School of Fundamental Science and Engineering of Waseda University}
+\guidance{Research on Cryptographic Protocols and Blockchain}
+\supervisor{Prof. Kazue Sako}
+\studentid{5124FG15-6}
+\author{Takumi Otsuka}
+
+\begin{document}
+    %表紙
+    \maketitle
+    
+    %概要
+    \begin{coverabstract}
+      %  Zero-knowledge proofs demonstrate that a computation is correct without revealing its private inputs. There are two types of proof systems. A zkSNARK expresses one fixed computation as algebraic equations, called constraints, and any change to that computation forces the constraints to be rebuilt and re-audited. A zero-knowledge virtual machine (zkVM) instead runs an ordinary program and proves it ran correctly, so changing what you prove is only a program edit, with no rebuilding or re-auditing. This choice between the two matters for anonymous credentials, with which a holder proves a statement about themselves while revealing nothing else. A credential must resist future quantum computers, which could later unmask holders of recorded proofs. The proof is generated on the holder's own device, and what it must prove changes as the verifier's requirements evolve. Showing a credential means proving possession of a valid signature without revealing it. We measure what this costs for PLUM, a signature designed to resist quantum attacks, in the zkVM SP1 on a consumer laptop. PLUM computes on numbers far larger than SP1 handles natively, so every operation is emulated at high cost; one PLUM verification, proved this way, did not finish in five hours. We contribute three precompiles (constraint modules replacing that replaces the many instructions of PLUM operations would otherwise need) and a rule estimating, before building, whether a precompile reduces the proving cost. With a precompile for Griffin, the hash used in the PLUM signature, a proof averaged $14.24$ minutes over five runs, at $80$-bit security because the full $128$-bit level does not complete on the laptop. Replacing Griffin by the standard SHA-3, computed in software without a precompile, a substitution PLUM's security analysis does not cover, averaged $13.24$ minutes, faster than with the precompile; our rule predicts this, since a precompile's own constraints must also be proved. Despite being called a zero-knowledge virtual machine, SP1's default proof resists quantum attacks but provides no zero knowledge. A second proof can add zero knowledge but relies on elliptic-curve cryptography, which quantum computers break. On today's zkVM route, a credential proof therefore resists quantum attacks or hides its holder, not both, a limit of implementations.
+
+      %%% THIRD DRAFT
+       % Remove redundancies: focused on cost-criterion and first measurement of post-quantum anonymous credential inside zkVM as contributions. The others are consequences of the approach that I took
+       % Recommended to start with "There are two proof systems..."
+       % Identified the problem that zkVM face
+       % Provided contributions
+       % Stress test it against anonymous credentials to further show how the zkVMs are crucial for the future of post-quantum anonymous credentials?
+      Zero-knowledge proofs demonstrate that a computation is correct without revealing its private inputs. There are two types of zero-knowledge proof system. In a zkSNARK, what will be proved must be decided before the proof system is built. In contrast, in a zkVM, the computation to prove can be given as an input, so it is flexible. An anonymous credential lets a holder prove a fact about themselves while revealing nothing else. What a holder must prove can differ from one verifier to the next, so a zkVM is the more suitable choice. This flexibility has a cost. Showing a credential requires verifying a signature, and for BDEC, a post-quantum anonymous credential, one such verification did not finish within five hours on a personal laptop. In this thesis, we make a post-quantum anonymous credential run inside a zkVM on personal hardware. We give a cost criterion, proven correct, that decides before building whether a plain zkVM suffices or a custom accelerator, a precompile, is needed to speed up the costly operations of its main primitives. A precompile for the signature's hash brings one verification down to 14.24 minutes on average, at 80-bit security, since the full 128-bit level does not complete on this hardware. To our knowledge, this is the first post-quantum anonymous credential run inside a zkVM. The one limitation is that the zkVM studied in this thesis cannot make a single proof that is both post-quantum and zero-knowledge. Achieving both properties in one proof will remain as future work.
+    \end{coverabstract}
+    \newpage
+    
+    %目次
+    \tableofcontents
+    \newpage
+    
+    %図目次
+    \listoffigures
+    \newpage
+    
+    %表目次
+    \listoftables
+    \newpage
+    
+    % 本文
+    \input{01-intro}
+    \newpage
+    \input{02-related}
+    \newpage
+    \input{03-preliminaries}
+    \newpage
+    \input{04-theoretical}
+    \newpage
+    \input{05-system}
+    \newpage
+    \input{055-security} 
+    \newpage
+    \input{06-evaluation}
+    \newpage
+    \input{07-discussion}
+    \newpage
+    \input{08-conclusion}
+    \newpage
+    \acknowledgement
+    %消す 
+
+    \newpage
+    
+    %  参考文献
+    \bibliographystyle{jieeetran}
+    \bibliography{ref}
+
+    \newpage
+    \input{appendices}
+    
+\end{document}
